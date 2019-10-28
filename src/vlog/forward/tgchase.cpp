@@ -12,7 +12,14 @@ EDBLayer &TGChase::getEDBLayer() {
 }
 
 void TGChase::run() {
-    //TODO
+    initRun();
+    size_t nnodes = 0;
+    do {
+        nnodes = nodes.size();
+        //TODO: Execute the rules
+    } while (nnodes != nodes.size());
+
+    stopRun();
 }
 
 size_t TGChase::getSizeTable(const PredId_t predid) const {
@@ -35,7 +42,6 @@ size_t TGChase::getCurrentIteration() {
 }
 
 #ifdef WEBINTERFACE
-
 std::string TGChase::getCurrentRule() {
     return currentRule;
 }
@@ -43,5 +49,4 @@ std::string TGChase::getCurrentRule() {
 PredId_t TGChase::getCurrentPredicate() {
     return currentPredicate;
 }
-
 #endif

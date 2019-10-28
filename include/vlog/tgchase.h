@@ -5,6 +5,10 @@
 #include <vlog/chase.h>
 #include <vlog/edb.h>
 
+struct TGChase_Node {
+    Rule &rule;
+};
+
 class TGChase : public Chase {
     private:
         Program *program;
@@ -16,6 +20,7 @@ class TGChase : public Chase {
         PredId_t currentPredicate;
         std::string currentRule;
 #endif
+        std::vector<TGChase_Node> nodes;
 
 
     public:
