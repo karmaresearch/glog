@@ -8,6 +8,7 @@
 #include <vlog/ruleexecdetails.h>
 #include <vlog/chasemgmt.h>
 #include <vlog/consts.h>
+#include <vlog/chase.h>
 
 #include <trident/model/table.h>
 
@@ -25,24 +26,9 @@ struct StatIteration {
     }
 };
 
-struct StatsRule {
-    size_t iteration;
-    long derivation;
-    int idRule;
-    long timems;
-    long totaltimems;
-    StatsRule() : idRule(-1) {}
-};
-
-struct StatsSizeIDB {
-    size_t iteration;
-    int idRule;
-    long derivation;
-};
-
 typedef std::unordered_map<std::string, FCTable*> EDBCache;
 class ResultJoinProcessor;
-class SemiNaiver {
+class SemiNaiver: public Chase {
     private:
         std::vector<RuleExecutionDetails> allEDBRules;
         bool opt_intersect;
@@ -183,11 +169,6 @@ class SemiNaiver {
                     ignoreExistentialRules) {
             }
 
-        VLIBEXP void run(unsigned long *timeout = NULL,
-                bool checkCyclicTerms = false) {
-            run(0, 1, timeout, checkCyclicTerms, -1, -1);
-        }
-
         Program *get_RMFC_program() {
             return RMFC_program;
         }
@@ -206,18 +187,23 @@ class SemiNaiver {
 
         virtual FCTable *getTable(const PredId_t pred, const uint8_t card);
 
+        VLIBEXP FCTable *getTable(const PredId_t predid);
+
+        VLIBEXP void run() {
+            run(NULL, false);
+        }
+
+        VLIBEXP void run(unsigned long *timeout,
+                bool checkCyclicTerms) {
+            run(0, 1, timeout, checkCyclicTerms, -1, -1);
+        }
+
         VLIBEXP void run(size_t lastIteration,
                 size_t iteration,
                 unsigned long *timeout = NULL,
                 bool checkCyclicTerms = false,
                 int singleRule = -1,
                 PredId_t predIgnoreBlock = -1);
-
-        VLIBEXP void storeOnFile(std::string path, const PredId_t pred, const bool decompress,
-                const int minLevel, const bool csv);
-
-        VLIBEXP void storeOnFiles(std::string path, const bool decompress,
-                const int minLevel, const bool csv);
 
         std::ostream& dumpTables(std::ostream &os) {
             for (PredId_t i = 0; i < MAX_NPREDS; ++i) {
@@ -254,7 +240,7 @@ class SemiNaiver {
             return getTable(literal, minIteration, maxIteration, NULL);
         }
 
-        VLIBEXP FCIterator getTable(const PredId_t predid);
+        VLIBEXP FCIterator getTableItr(const PredId_t predid);
 
         size_t getSizeTable(const PredId_t predid) const;
 
@@ -298,7 +284,6 @@ class SemiNaiver {
         }
 
         //Statistics methods
-
         VLIBEXP void printCountAllIDBs(std::string prefix);
 
         size_t getCurrentIteration();

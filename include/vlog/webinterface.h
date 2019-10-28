@@ -5,7 +5,7 @@
 
 #ifdef WEBINTERFACE
 
-#include <vlog/seminaiver.h>
+#include <vlog/chase.h>
 #include <vlog/trident/tridenttable.h>
 #include <vlog/reasoner.h>
 #include <layers/TridentLayer.hpp>
@@ -37,7 +37,7 @@ class WebInterface {
         void setupTridentLayer();
 
     private:
-        std::shared_ptr<SemiNaiver> sn;
+        std::shared_ptr<Chase> sn;
         std::thread t;
         std::thread matRunner;
         std::mutex mtxMatRunner;
@@ -61,7 +61,7 @@ class WebInterface {
         void processRequest(std::string req, std::string &resp);
 
     public:
-        WebInterface(ProgramArgs &vm, std::shared_ptr<SemiNaiver> sn, std::string htmlfiles,
+        WebInterface(ProgramArgs &vm, std::shared_ptr<Chase> sn, std::string htmlfiles,
                 std::string cmdArgs, std::string edbfile);
 
         void start(int port);
@@ -88,7 +88,7 @@ class WebInterface {
             t.join();
         }
 
-        std::shared_ptr<SemiNaiver> getSemiNaiver() {
+        std::shared_ptr<Chase> getChase() {
             return sn;
         }
 

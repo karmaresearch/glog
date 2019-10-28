@@ -13,6 +13,7 @@
 #include <vlog/ml/ml.h>
 #include <vlog/trigger/detector.h>
 #include <vlog/trigger/tg.h>
+#include <vlog/tgchase.h>
 
 #include <vlog/cycles/checker.h>
 
@@ -60,6 +61,7 @@ void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "mat\t\t perform a full materialization." << endl;
     cout << "mat_tg\t\t perform a full materialization guided by a trigger graph." << endl;
     cout << "trigger\t\t create a trigger graph from a given program." << endl;
+    cout << "tgchase\t\t launch online trigger-graph-based chase." << endl;
     cout << "query\t\t execute a SPARQL query." << endl;
     cout << "queryLiteral\t\t execute a Literal query." << endl;
     cout << "server\t\t starts in server mode." << endl;
@@ -248,12 +250,10 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
             }
         }
     }
-
     return true;
 }
 
 bool initParams(int argc, const char** argv, ProgramArgs &vm) {
-
     ProgramArgs::GroupArgs& query_options = *vm.newGroup("Options for <query>, <queryLiteral> or <mat> (or <mat_tg>)");
     query_options.add<string>("q", "query", "",
             "The path of the file with a query. It is REQUIRED with <query> or <queryLiteral>", false);
@@ -489,7 +489,7 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
     std::string storemat_format = vm["storemat_format"].as<std::string>();
 
     if (storemat_format == "files" || storemat_format == "csv") {
-        sn->storeOnFiles(path,
+        exp.storeOnFiles(path,
                 vm["decompressmat"].as<bool>(), 0, storemat_format == "csv");
     } else if (storemat_format == "db") {
         //I will store the details on a Trident index
@@ -505,6 +505,104 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
     LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
 }
 
+void launchTGChase(int argc,
+        const char** argv,
+        std::string pathExec,
+        EDBLayer &db,
+        ProgramArgs &vm,
+        std::string pathRules) {
+    //Load a program with all the rules
+    Program p(&db);
+    std::string s = p.readFromFile(pathRules,vm["rewriteMultihead"].as<bool>());
+    if (!s.empty()) {
+        LOG(ERRORL) << s;
+        return;
+    }
+
+    //Prepare the materialization
+    std::shared_ptr<TGChase> sn = Reasoner::getTGChase(db, &p);
+
+#ifdef WEBINTERFACE
+    //Start the web interface if requested
+    std::unique_ptr<WebInterface> webint;
+    std::string fullpath = "";
+    std::string webinterface = vm["webpages"].as<string>();
+    if (Utils::isAbsolutePath(webinterface)) {
+        //Absolute path
+        fullpath = webinterface;
+    } else {
+        //Relative path
+        fullpath = pathExec + "/" + webinterface;
+    }
+    if (vm["webinterface"].as<bool>()) {
+        webint = std::unique_ptr<WebInterface>(
+                new WebInterface(vm, sn, fullpath,
+                    flattenAllArgs(argc, argv),
+                    vm["edb"].as<string>()));
+        int port = vm["port"].as<int>();
+        webint->start(port);
+    }
+#endif
+    //Starting monitoring thread
+#if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+    std::thread monitor;
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool isFinished = false;
+    if (vm["monitorThread"].as<bool>()) {
+        //Activate it only for Linux systems
+        monitor = std::thread(
+                std::bind(TridentUtils::monitorPerformance,
+                    1, &cv, &mtx, &isFinished));
+    }
+#endif
+
+    LOG(INFOL) << "Starting online tg-based chase";
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    sn->run();
+    std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
+    LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
+
+#if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+    if (vm["monitorThread"].as<bool>()) {
+        isFinished = true;
+        LOG(INFOL) << "Waiting until logging thread is finished ...";
+        monitor.join(); //Wait until the monitor thread is finished
+    }
+#endif
+
+    if (!vm["storemat_path"].as<string>().empty()) {
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+        Exporter exp(sn);
+        std::string storemat_format = vm["storemat_format"].as<string>();
+        if (storemat_format == "files" || storemat_format == "csv") {
+            exp.storeOnFiles(vm["storemat_path"].as<string>(),
+                    vm["decompressmat"].as<bool>(), 0, storemat_format == "csv");
+        } else if (storemat_format == "db") {
+            //I will store the details on a Trident index
+            exp.generateTridentDiffIndex(vm["storemat_path"].as<string>());
+        } else if (storemat_format == "nt") {
+            exp.generateNTTriples(vm["storemat_path"].as<string>(),
+                    vm["decompressmat"].as<bool>());
+        } else {
+            LOG(ERRORL) << "Option 'storemat_format' not recognized";
+            throw 10;
+        }
+
+        std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+        LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
+    }
+#ifdef WEBINTERFACE
+    if (webint) {
+        //Sleep for max 1 second, to allow the fetching of the last statistics
+        LOG(INFOL) << "Sleeping for one second to allow the web interface to get the last stats ...";
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        LOG(INFOL) << "Done.";
+        webint->stop();
+    }
+#endif
+}
+
 void launchTriggeredMat(int argc,
         const char** argv,
         std::string pathExec,
@@ -512,6 +610,7 @@ void launchTriggeredMat(int argc,
         ProgramArgs &vm,
         std::string pathRules,
         std::string pathTriggers) {
+
     //Load a program with all the rules
     Program p(&db);
     std::string s = p.readFromFile(pathRules,vm["rewriteMultihead"].as<bool>());
@@ -601,7 +700,7 @@ void launchTriggeredMat(int argc,
         std::string storemat_format = vm["storemat_format"].as<string>();
 
         if (storemat_format == "files" || storemat_format == "csv") {
-            sn->storeOnFiles(vm["storemat_path"].as<string>(),
+            exp.storeOnFiles(vm["storemat_path"].as<string>(),
                     vm["decompressmat"].as<bool>(), 0, storemat_format == "csv");
         } else if (storemat_format == "db") {
             //I will store the details on a Trident index
@@ -634,7 +733,7 @@ void printRepresentationSize(std::shared_ptr<SemiNaiver> sn) {
         if (!sn->getProgram()->doesPredicateExist(i)) {
             continue;
         }
-        FCIterator itr = sn->getTable(i);
+        FCIterator itr = sn->getTableItr(i);
         while (!itr.isEmpty()) {
             auto table = itr.getCurrentTable();
             //Get predicate name
@@ -1136,9 +1235,9 @@ void execLiteralQuery(EDBLayer &edb, ProgramArgs &vm) {
 }
 
 void checkAcyclicity(std::string ruleFile, std::string alg, EDBLayer &db, bool rewriteMultihead) {
-	std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     int response = Checker::checkFromFile(ruleFile, alg, db, rewriteMultihead);
-	std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+    std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
     std::cout << "The response is: ";
     if (response == 0) {
         std::cout << "Unknown";
@@ -1148,8 +1247,8 @@ void checkAcyclicity(std::string ruleFile, std::string alg, EDBLayer &db, bool r
         std::cout << "Does not always terminate.";
     }
     std::cout << std::endl;
-	std::cout << "Runtime " << alg << " check = " <<
-                sec.count() * 1000 << " milliseconds" << std::endl;
+    std::cout << "Runtime " << alg << " check = " <<
+        sec.count() * 1000 << " milliseconds" << std::endl;
 }
 
 void detectDeps(std::string ruleFile, EDBLayer &db) {
@@ -1314,6 +1413,12 @@ int main(int argc, const char** argv) {
         EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
         launchTriggeredMat(argc, argv, full_path, *layer, vm,
                 vm["rules"].as<string>(), vm["trigger_paths"].as<string>());
+        delete layer;
+    } else if (cmd == "tgchase") {
+        EDBConf conf(edbFile);
+        conf.setRootPath(Utils::parentDir(edbFile));
+        EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
+        launchTGChase(argc, argv, full_path, *layer, vm, vm["rules"].as<string>());
         delete layer;
     } else if (cmd == "trigger") {
         EDBConf conf(edbFile);

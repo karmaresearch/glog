@@ -1,3 +1,4 @@
+#include <vlog/chase.h>
 #include <vlog/seminaiver.h>
 #include <vlog/consts.h>
 
@@ -12,27 +13,31 @@ struct _EDBPredicates {
 };
 
 class Exporter {
-private:
-    std::shared_ptr<SemiNaiver> sn;
+    private:
+        std::shared_ptr<Chase> sn;
 
-    void extractTriples(std::vector <uint64_t> &all_s,
-                        std::vector <uint64_t> &all_p,
-                        std::vector <uint64_t> &all_o);
+        void extractTriples(std::vector <uint64_t> &all_s,
+                std::vector <uint64_t> &all_p,
+                std::vector <uint64_t> &all_o);
 
-    void copyTable(std::vector<uint64_t> &all_s,
-                   std::vector<uint64_t> &all_p,
-                   std::vector<uint64_t> &all_o,
-                   std::vector<_EDBPredicates>::iterator it,
-                   std::shared_ptr<const FCInternalTable> intTable,
-                   const long nrows,
-                   long triple[3]);
+        void copyTable(std::vector<uint64_t> &all_s,
+                std::vector<uint64_t> &all_p,
+                std::vector<uint64_t> &all_o,
+                std::vector<_EDBPredicates>::iterator it,
+                std::shared_ptr<const FCInternalTable> intTable,
+                const long nrows,
+                long triple[3]);
 
-public:
-    Exporter(std::shared_ptr<SemiNaiver> sn) : sn(sn) {}
+    public:
+        Exporter(std::shared_ptr<Chase> sn) : sn(sn) {}
 
-    VLIBEXP void generateTridentDiffIndex(std::string outputdir);
+        VLIBEXP void generateTridentDiffIndex(std::string outputdir);
 
-    //void generateTridentDiffIndexTabByTab(std::string outputdir);
+        VLIBEXP void generateNTTriples(std::string outputdir, bool decompress);
 
-    VLIBEXP void generateNTTriples(std::string outputdir, bool decompress);
+        VLIBEXP void storeOnFile(std::string path, const PredId_t pred, const bool decompress,
+                const int minLevel, const bool csv);
+
+        VLIBEXP void storeOnFiles(std::string path, const bool decompress,
+                const int minLevel, const bool csv);
 };

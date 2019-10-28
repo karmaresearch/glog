@@ -337,7 +337,7 @@ bool Checker::RMSA(Program &originalProgram) {
 
     //Parse the content of the special relation. If we find a cycle, then we stop
     bool foundCycles = false;
-    auto itr = sn->getTable(specialPredTransId);
+    auto itr = sn->getTableItr(specialPredTransId);
     while (!itr.isEmpty() && !foundCycles) {
         auto table = itr.getCurrentTable();
         auto tableItr = table->getIterator();

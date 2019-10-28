@@ -6,6 +6,7 @@
 #include <vlog/fctable.h>
 #include <vlog/seminaiver.h>
 #include <vlog/seminaiver_trigger.h>
+#include <vlog/tgchase.h>
 #include <vlog/consts.h>
 
 #include <trident/kb/kb.h>
@@ -119,12 +120,17 @@ class Reasoner {
         VLIBEXP static std::shared_ptr<SemiNaiver> getSemiNaiver(EDBLayer &layer,
                 Program *p, bool opt_intersect, bool opt_filtering, bool opt_threaded,
                 TypeChase typeChase,
-                int nthreads, int interRuleThreads, bool shuffleRules, Program *RMFC_check = NULL);
+                int nthreads, int interRuleThreads, bool shuffleRules,
+                Program *RMFC_check = NULL);
 
         VLIBEXP static std::shared_ptr<TriggerSemiNaiver> getTriggeredSemiNaiver(
                 EDBLayer &layer,
                 Program *p,
                 TypeChase typeChase);
+
+        VLIBEXP static std::shared_ptr<TGChase> getTGChase(
+                EDBLayer &layer,
+                Program *p);
 
         int getNumberOfIDBPredicates(Literal&, Program&);
 

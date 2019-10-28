@@ -462,13 +462,13 @@ bool SemiNaiver::executeUntilSaturation(
         }
         iteration++;
 
-		if (checkCyclicTerms) {
-			foundCyclicTerms = chaseMgmt->checkCyclicTerms(currentRule);
-			if (foundCyclicTerms) {
-				LOG(DEBUGL) << "Found a cyclic term";
-				return newDer;
-			}
-		}
+        if (checkCyclicTerms) {
+            foundCyclicTerms = chaseMgmt->checkCyclicTerms(currentRule);
+            if (foundCyclicTerms) {
+                LOG(DEBUGL) << "Found a cyclic term";
+                return newDer;
+            }
+        }
 
         if (response) {
 
@@ -564,107 +564,6 @@ bool SemiNaiver::executeUntilSaturation(
         }
     } while (rulesWithoutDerivation != ruleset.size());
                     return newDer;
-}
-
-void SemiNaiver::storeOnFile(std::string path, const PredId_t pred, const bool decompress, const int minLevel, const bool csv) {
-    FCTable *table = predicatesTables[pred];
-    char buffer[MAX_TERM_SIZE];
-
-    std::ofstream streamout(path);
-    if (streamout.fail()) {
-        throw("Could not open " + path + " for writing");
-    }
-
-    if (table != NULL && !table->isEmpty()) {
-        FCIterator itr = table->read(0);
-        if (! itr.isEmpty()) {
-            const uint8_t sizeRow = table->getSizeRow();
-            while (!itr.isEmpty()) {
-                std::shared_ptr<const FCInternalTable> t = itr.getCurrentTable();
-                FCInternalTableItr *iitr = t->getIterator();
-                while (iitr->hasNext()) {
-                    iitr->next();
-                    std::string row = "";
-                    if (! csv) {
-                        row = to_string(iitr->getCurrentIteration());
-                    }
-                    bool first = true;
-                    for (uint8_t m = 0; m < sizeRow; ++m) {
-                        if (decompress || csv) {
-                            if (layer.getDictText(iitr->getCurrentValue(m), buffer)) {
-                                if (csv) {
-                                    if (first) {
-                                        first = false;
-                                    } else {
-                                        row += ",";
-                                    }
-                                    row += VLogUtils::csvString(std::string(buffer));
-                                } else {
-                                    row += "\t";
-                                    row += std::string(buffer);
-                                }
-                            } else {
-                                uint64_t v = iitr->getCurrentValue(m);
-                                std::string t = "" + std::to_string(v >> 40) + "_"
-                                    + std::to_string((v >> 32) & 0377) + "_"
-                                    + std::to_string(v & 0xffffffff);
-                                if (csv) {
-                                    if (first) {
-                                        first = false;
-                                    } else {
-                                        row += ",";
-                                    }
-                                    row += VLogUtils::csvString(t);
-                                } else {
-                                    row += "\t";
-                                    row += t;
-                                }
-                            }
-                        } else {
-                            row += "\t" + to_string(iitr->getCurrentValue(m));
-                        }
-                    }
-                    streamout << row << std::endl;
-                }
-                t->releaseIterator(iitr);
-                itr.moveNextCount();
-            }
-        }
-    }
-    streamout.close();
-}
-
-static std::string generateFileName(std::string name) {
-    std::stringstream stream;
-
-    stream << std::oct << std::setfill('0');
-
-    for(char ch : name) {
-        int code = static_cast<unsigned char>(ch);
-
-        if (code != '\\' && code != '/') {
-            stream.put(ch);
-        } else {
-            stream << "\\" << std::setw(3) << code;
-        }
-    }
-
-    return stream.str();
-}
-
-void SemiNaiver::storeOnFiles(std::string path, const bool decompress,
-        const int minLevel, const bool csv) {
-    char buffer[MAX_TERM_SIZE];
-
-    Utils::create_directories(path);
-
-    //I create a new file for every idb predicate
-    for (PredId_t i = 0; i < program->getNPredicates(); ++i) {
-        FCTable *table = predicatesTables[i];
-        if (table != NULL && !table->isEmpty()) {
-            storeOnFile(path + "/" + generateFileName(program->getPredicateName(i)), i, decompress, minLevel, csv);
-        }
-    }
 }
 
 bool _sortCards(const std::pair<uint8_t, size_t> &v1, const std::pair<uint8_t, size_t> &v2) {
@@ -1115,6 +1014,10 @@ FCTable *SemiNaiver::getTable(const PredId_t pred, const uint8_t card) {
         predicatesTables[pred] = endTable;
     }
     return endTable;
+}
+
+FCTable *SemiNaiver::getTable(const PredId_t pred) {
+    return predicatesTables[pred];
 }
 
 void SemiNaiver::saveDerivationIntoDerivationList(FCTable *endTable) {
@@ -1592,7 +1495,7 @@ FCIterator SemiNaiver::getTable(const Literal & literal,
 
 }
 
-FCIterator SemiNaiver::getTable(const PredId_t predid) {
+FCIterator SemiNaiver::getTableItr(const PredId_t predid) {
     if (predicatesTables[predid] == NULL) {
         return FCIterator();
     }

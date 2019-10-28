@@ -1,6 +1,7 @@
 #include <vlog/exporter.h>
 #include <vlog/seminaiver.h>
 #include <vlog/trident/tridenttable.h>
+#include <vlog/utils.h>
 
 #include <kognac/utils.h>
 #include <trident/tree/root.h>
@@ -16,6 +17,21 @@ struct AggrIndex {
     uint64_t first, second;
     size_t begin, end;
 };
+
+static std::string generateFileName(std::string name) {
+    std::stringstream stream;
+    stream << std::oct << std::setfill('0');
+    for(char ch : name) {
+        int code = static_cast<unsigned char>(ch);
+
+        if (code != '\\' && code != '/') {
+            stream.put(ch);
+        } else {
+            stream << "\\" << std::setw(3) << code;
+        }
+    }
+    return stream.str();
+}
 
 void Exporter::extractTriples(std::vector <uint64_t> &all_s,
         std::vector <uint64_t> &all_p,
@@ -78,7 +94,7 @@ void Exporter::extractTriples(std::vector <uint64_t> &all_s,
     for (auto it = predicatesToExtract.begin(); it != predicatesToExtract.end();
             ++it) {
         LOG(DEBUGL) << "Get table for pred " << it->id;
-        FCIterator tableItr = sn->getTable(it->id);
+        FCIterator tableItr = sn->getTableItr(it->id);
         long triple[3];
         triple[0] = it->triple[0];
         triple[1] = it->triple[1];
@@ -208,125 +224,6 @@ void Exporter::extractTriples(std::vector <uint64_t> &all_s,
     LOG(DEBUGL) << "Merged " << ntables << " tables";
 }
 
-/*void Exporter::generateTridentDiffIndexTabByTab(std::string outputdir) {
-  std::vector<uint64_t> all_s;
-  std::vector<uint64_t> all_p;
-  std::vector<uint64_t> all_o;
-  PredId_t idpred = sn->getEDBLayer().getFirstEDBPredicate();
-  std::shared_ptr<EDBTable> table = sn->getEDBLayer().getEDBTable(idpred);
-  Querier *q = ((TridentTable*)table.get())->getQuerier();
-  KB *kb = ((TridentTable*)table.get())->getKB();
-  int idxUpdate = 0;
-
-//Get all rules that define IDB predicates from the standard EDB ternary triple
-//e.g. P1(a,b) :- TE(a, rdf:type, b)
-PredId_t edbpred = sn->getEDBLayer().getFirstEDBPredicate();
-std::vector<Rule> rules = sn->getProgram()->getAllRules();
-std::vector<_EDBPredicates> predicatesToExtract;
-int ruleid = 0;
-for (auto it = rules.begin(); it != rules.end(); ++it) {
-const auto &body = it->getBody();
-if (body.size() == 1 && body[0].getPredicate().getId() == edbpred) {
-VTuple t = body[0].getTuple();
-_EDBPredicates pred;
-pred.nPosToCopy = 0;
-pred.triple[0] = pred.triple[1] = pred.triple[2] = -1;
-if (t.get(0).isVariable()) {
-pred.posToCopy[pred.nPosToCopy++] = 0;
-} else {
-pred.triple[0] = t.get(0).getValue();
-}
-if (t.get(1).isVariable()) {
-pred.posToCopy[pred.nPosToCopy++] = 1;
-} else {
-pred.triple[1] = t.get(1).getValue();
-}
-if (t.get(2).isVariable()) {
-pred.posToCopy[pred.nPosToCopy++] = 2;
-} else {
-pred.triple[2] = t.get(2).getValue();
-}
-pred.id = it->getHead().getPredicate().getId();
-pred.ruleid = ruleid;
-predicatesToExtract.push_back(pred);
-}
-ruleid++;
-}
-
-//How many tuples should I store?
-long count = 0;
-for (auto it = predicatesToExtract.begin(); it != predicatesToExtract.end();
-++it) {
-count += sn->getSizeTable(it->id);
-}
-LOG(DEBUGL) << "Copying up to " << count << " triples ...";
-
-//Get tables for all such predicates, put the subjects in a large array
-all_s.reserve(count);
-all_p.reserve(count);
-all_o.reserve(count);
-
-long ntables = 0;
-for (auto it = predicatesToExtract.begin(); it != predicatesToExtract.end();
-++it) {
-LOG(DEBUGL) << "Get table for pred " << it->id;
-FCIterator tableItr = sn->getTable(it->id);
-long triple[3];
-triple[0] = it->triple[0];
-triple[1] = it->triple[1];
-triple[2] = it->triple[2];
-
-bool isFirst = true;
-while (!tableItr.isEmpty()) {
-if (isFirst) {
-isFirst = false;
-if (tableItr.getCurrentBlock()->rule->ruleid == it->ruleid) {
-    //Skip the first table since they are all duplicates
-    tableItr.moveNextCount();
-    continue;
-}
-}
-
-ntables++;
-std::shared_ptr<const FCInternalTable> intTable = tableItr.getCurrentTable();
-size_t nrows = intTable->getNRows();
-LOG(INFOL) << "Copying table of " << nrows <<
-" postocopy " << (int)it->nPosToCopy;
-copyTable(all_s, all_p, all_o, it, intTable, nrows, triple);
-
-std::string diffdir = outputdir + string("/") + to_string(idxUpdate++);
-fs::create_directories(diffdir);
-LOG(INFOL) << "Creating the index " << diffdir
-<< " posToCopy=" << (int)it->nPosToCopy;
-
-if (it->nPosToCopy == 1) {
-    std::vector<uint64_t> *out;
-    if (it->posToCopy[0] == 0) {
-        out = &all_s;
-    } else if (it->posToCopy[0] == 1) {
-        out = &all_p;
-    } else {
-        out = &all_o;
-    }
-    DiffIndex1::createDiffIndex(diffdir, true, q, triple, *out, it->posToCopy[0]);
-} else {
-    DiffIndex3::createDiffIndex(DiffIndex::TypeUpdate::ADDITION,
-            diffdir, outputdir, all_s, all_p,
-            all_o, true, q, true);
-}
-
-//Add the index to the KB
-kb->addDiffIndex(diffdir, q);
-
-all_s.clear();
-all_p.clear();
-all_o.clear();
-
-tableItr.moveNextCount();
-}
-}
-}*/
-
 void Exporter::copyTable(std::vector<uint64_t> &all_s,
         std::vector<uint64_t> &all_p,
         std::vector<uint64_t> &all_o,
@@ -453,4 +350,90 @@ void Exporter::generateNTTriples(std::string outputdir, bool decompress) {
             *out << endl;
         }
     }
+}
+
+void Exporter::storeOnFiles(std::string path, const bool decompress,
+        const int minLevel, const bool csv) {
+    char buffer[MAX_TERM_SIZE];
+
+    Utils::create_directories(path);
+    Program *program = sn->getProgram();
+
+    //I create a new file for every idb predicate
+    for (PredId_t i = 0; i < program->getNPredicates(); ++i) {
+        FCTable *table = sn->getTable(i);
+        if (table != NULL && !table->isEmpty()) {
+            storeOnFile(path + "/" + generateFileName(program->getPredicateName(i)), i, decompress, minLevel, csv);
+        }
+    }
+}
+
+void Exporter::storeOnFile(std::string path, const PredId_t pred, const bool decompress, const int minLevel, const bool csv) {
+    FCTable *table = sn->getTable(pred);
+    char buffer[MAX_TERM_SIZE];
+
+    EDBLayer &layer = sn->getEDBLayer();
+
+    std::ofstream streamout(path);
+    if (streamout.fail()) {
+        throw("Could not open " + path + " for writing");
+    }
+
+    if (table != NULL && !table->isEmpty()) {
+        FCIterator itr = table->read(0);
+        if (! itr.isEmpty()) {
+            const uint8_t sizeRow = table->getSizeRow();
+            while (!itr.isEmpty()) {
+                std::shared_ptr<const FCInternalTable> t = itr.getCurrentTable();
+                FCInternalTableItr *iitr = t->getIterator();
+                while (iitr->hasNext()) {
+                    iitr->next();
+                    std::string row = "";
+                    if (! csv) {
+                        row = to_string(iitr->getCurrentIteration());
+                    }
+                    bool first = true;
+                    for (uint8_t m = 0; m < sizeRow; ++m) {
+                        if (decompress || csv) {
+                            if (layer.getDictText(iitr->getCurrentValue(m), buffer)) {
+                                if (csv) {
+                                    if (first) {
+                                        first = false;
+                                    } else {
+                                        row += ",";
+                                    }
+                                    row += VLogUtils::csvString(std::string(buffer));
+                                } else {
+                                    row += "\t";
+                                    row += std::string(buffer);
+                                }
+                            } else {
+                                uint64_t v = iitr->getCurrentValue(m);
+                                std::string t = "" + std::to_string(v >> 40) + "_"
+                                    + std::to_string((v >> 32) & 0377) + "_"
+                                    + std::to_string(v & 0xffffffff);
+                                if (csv) {
+                                    if (first) {
+                                        first = false;
+                                    } else {
+                                        row += ",";
+                                    }
+                                    row += VLogUtils::csvString(t);
+                                } else {
+                                    row += "\t";
+                                    row += t;
+                                }
+                            }
+                        } else {
+                            row += "\t" + to_string(iitr->getCurrentValue(m));
+                        }
+                    }
+                    streamout << row << std::endl;
+                }
+                t->releaseIterator(iitr);
+                itr.moveNextCount();
+            }
+        }
+    }
+    streamout.close();
 }

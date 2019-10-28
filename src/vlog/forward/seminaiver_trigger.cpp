@@ -426,7 +426,7 @@ size_t TriggerSemiNaiver::unique() {
         if (!isEmpty(pid)) {
             //std::string predname = program->getPredicateName(pid);
             std::vector<std::shared_ptr<const FCInternalTable>> tables;
-            FCIterator itr = getTable(pid);
+            FCIterator itr = getTableItr(pid);
             while (!itr.isEmpty()) {
                 tables.push_back(itr.getCurrentTable());
                 itr.moveNextCount();

@@ -29,7 +29,7 @@
 #include <csignal>
 
 WebInterface::WebInterface(
-        ProgramArgs &vm, std::shared_ptr<SemiNaiver> sn, std::string htmlfiles,
+        ProgramArgs &vm, std::shared_ptr<Chase> sn, std::string htmlfiles,
         std::string cmdArgs, std::string edbfile) : vm(vm), sn(sn),
     dirhtmlfiles(htmlfiles), cmdArgs(cmdArgs),
     isActive(false),
@@ -461,16 +461,16 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             long time = getDurationExecMs();
             pt.put("runtime", to_string(time));
             //Semi naiver details
-            if (getSemiNaiver()->isRunning())
+            if (getChase()->isRunning())
                 pt.put("finished", "false");
             else
                 pt.put("finished", "true");
-            size_t currentIteration = getSemiNaiver()->getCurrentIteration();
+            size_t currentIteration = getChase()->getCurrentIteration();
             pt.put("iteration", currentIteration);
-            pt.put("rule", getSemiNaiver()->getCurrentRule());
+            pt.put("rule", getChase()->getCurrentRule());
 
             std::vector<StatsRule> outputrules =
-                getSemiNaiver()->
+                getChase()->
                 getOutputNewIterations();
             std::string outrules = "";
             for (const auto &el : outputrules) {
@@ -507,11 +507,11 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             long totmem = Utils::getSystemMemory() / 1024 / 1024;
             pt.put("totmem", to_string(totmem));
             pt.put("commandline", getCommandLineArgs());
-            pt.put("nrules", (unsigned int) getSemiNaiver()->getProgram()->getNRules());
+            pt.put("nrules", (unsigned int) getChase()->getProgram()->getNRules());
             ////obsolete
             //pt.put("rules", getSemiNaiver()->getListAllRulesForJSONSerialization());
-            pt.put("nedbs", (unsigned int) getSemiNaiver()->getProgram()->getNEDBPredicates());
-            pt.put("nidbs", (unsigned int) getSemiNaiver()->getProgram()->getNIDBPredicates());
+            pt.put("nedbs", (unsigned int) getChase()->getProgram()->getNEDBPredicates());
+            pt.put("nidbs", (unsigned int) getChase()->getProgram()->getNIDBPredicates());
             std::ostringstream buf;
             JSON::write(buf, pt);
             //write_json(buf, pt, false);
@@ -606,7 +606,7 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
 
         } else if (path == "/sizeidbs") {
             JSON pt;
-            std::vector<std::pair<string, std::vector<StatsSizeIDB>>> sizeIDBs = getSemiNaiver()->getSizeIDBs();
+            std::vector<std::pair<string, std::vector<StatsSizeIDB>>> sizeIDBs = getChase()->getSizeIDBs();
             //Construct the string
             std::string flat = "";
             for (auto el : sizeIDBs) {

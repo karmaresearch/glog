@@ -996,9 +996,9 @@ bool ExistentialRuleProcessor::blocked_check(uint64_t *row,
     PredId_t pred = saturation->getProgram()->getPredicate(specialPredicate).getId();
 
     //Check if the head is blocked in this set, i.e., if this predicate has matching derivations.
-    auto itr = saturation->getTable(pred);
+    auto itr = saturation->getTableItr(pred);
     bool found = false;
-    while ( ! found && !itr.isEmpty()) {
+    while (!found && !itr.isEmpty()) {
         auto table = itr.getCurrentTable();
         //Iterate over the content of the table
         auto tbItr = table->getIterator();
