@@ -10,6 +10,14 @@ class TGChase : public Chase {
         Program *program;
         EDBLayer &layer;
 
+        size_t currentIteration;
+
+#ifdef WEBINTERFACE
+        PredId_t currentPredicate;
+        std::string currentRule;
+#endif
+
+
     public:
         VLIBEXP TGChase(EDBLayer &layer, Program *program);
 
@@ -28,16 +36,9 @@ class TGChase : public Chase {
         size_t getCurrentIteration();
 
 #ifdef WEBINTERFACE
-        std::chrono::system_clock::time_point getStartingTimeMs();
-
         std::string getCurrentRule();
 
-        bool isRunning();
-
-        std::vector<
-            std::pair<std::string, std::vector<StatsSizeIDB>>> getSizeIDBs();
-
-        std::vector<StatsRule> getOutputNewIterations();
+        PredId_t getCurrentPredicate();
 #endif
 
 };

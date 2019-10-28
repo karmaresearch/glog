@@ -35,11 +35,7 @@ class SemiNaiver: public Chase {
         bool opt_filtering;
         bool multithreaded;
 
-        std::chrono::system_clock::time_point startTime;
-        bool running;
-
         std::vector<FCBlock> listDerivations;
-        std::vector<StatsRule> statsRuleExecution;
 
         bool ignoreDuplicatesElimination;
         std::vector<int> stratification;
@@ -47,12 +43,9 @@ class SemiNaiver: public Chase {
         Program *RMFC_program;
 
 #ifdef WEBINTERFACE
-        long statsLastIteration;
         std::string currentRule;
         PredId_t currentPredicate;
 #endif
-
-        std::string name;
 
     private:
         FCIterator getTableFromIDBLayer(const Literal & literal,
@@ -136,8 +129,6 @@ class SemiNaiver: public Chase {
         virtual long getNLastDerivationsFromList();
 
         virtual void saveDerivationIntoDerivationList(FCTable *endTable);
-
-        virtual void saveStatistics(StatsRule &stats);
 
         virtual bool executeUntilSaturation(
                 std::vector<RuleExecutionDetails> &ruleset,
@@ -257,15 +248,15 @@ class SemiNaiver: public Chase {
             return program;
         }
 
+        EDBLayer &getEDBLayer() {
+            return layer;
+        }
+
         bool isFoundCyclicTerms() {
             return foundCyclicTerms;
         }
 
         void addDataToIDBRelation(const Predicate pred, FCBlock block);
-
-        EDBLayer &getEDBLayer() {
-            return layer;
-        }
 
         size_t estimateCardinality(const Literal &literal, const size_t min,
                 const size_t max);
@@ -291,24 +282,9 @@ class SemiNaiver: public Chase {
 #ifdef WEBINTERFACE
         std::string getCurrentRule();
 
-        bool isRunning();
-
-        std::vector<std::pair<std::string, std::vector<StatsSizeIDB>>> getSizeIDBs();
-
-        std::vector<StatsRule> getOutputNewIterations();
+        PredId_t getCurrentPredicate();
 #endif
 
-        std::chrono::system_clock::time_point getStartingTimeMs() {
-            return startTime;
-        }
-
-        void setName(const std::string &name) {
-            this->name = name;
-        }
-
-        const std::string &getName() const {
-            return name;
-        }
 };
 
 #endif

@@ -3,10 +3,6 @@
 TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer), program(program) {
 }
 
-void TGChase::run() {
-    //TODO
-}
-
 Program *TGChase::getProgram() {
     return program;
 }
@@ -15,33 +11,37 @@ EDBLayer &TGChase::getEDBLayer() {
     return layer;
 }
 
+void TGChase::run() {
+    //TODO
+}
+
 size_t TGChase::getSizeTable(const PredId_t predid) const {
+    LOG(ERRORL) << "Method not implemented";
+    throw 10;
 }
 
 FCIterator TGChase::getTableItr(const PredId_t predid) {
+    LOG(ERRORL) << "Method not implemented";
+    throw 10;
 }
 
 FCTable *TGChase::getTable(const PredId_t predid) {
+    LOG(ERRORL) << "Method not implemented";
+    throw 10;
 }
 
 size_t TGChase::getCurrentIteration() {
+    return currentIteration;
 }
 
 #ifdef WEBINTERFACE
 
-std::chrono::system_clock::time_point TGChase::getStartingTimeMs() {
-}
-
 std::string TGChase::getCurrentRule() {
+    return currentRule;
 }
 
-bool TGChase::isRunning() {
+PredId_t TGChase::getCurrentPredicate() {
+    return currentPredicate;
 }
 
-std::vector<
-std::pair<std::string, std::vector<StatsSizeIDB>>> TGChase::getSizeIDBs() {
-}
-
-std::vector<StatsRule> TGChase::getOutputNewIterations() {
-}
 #endif

@@ -85,7 +85,6 @@ SemiNaiver::SemiNaiver(EDBLayer &layer,
     opt_filtering(opt_filtering),
     multithreaded(multithreaded),
     typeChase(typeChase),
-    running(false),
     layer(layer),
     program(program),
     nthreads(nthreads),
@@ -234,7 +233,8 @@ bool SemiNaiver::executeRules(std::vector<RuleExecutionDetails> &edbRuleset,
     for (size_t i = 0; i < edbRuleset.size(); ++i) {
         newDer |= executeRule(edbRuleset[i], iteration, limitView, NULL);
         if (timeout != NULL && *timeout != 0) {
-            std::chrono::duration<double> s = std::chrono::system_clock::now() - startTime;
+            std::chrono::duration<double> s = std::chrono::system_clock::now()
+                - getStartingTimeMs();
             if (s.count() > *timeout) {
                 *timeout = 0;   // To indicate materialization was stopped because of timeout.
                 return newDer;
@@ -311,13 +311,9 @@ void SemiNaiver::run(size_t lastExecution, size_t it, unsigned long *timeout,
     this->foundCyclicTerms = false;
     this->predIgnoreBlock = predIgnoreBlock; //Used in the RMSA
 
-    running = true;
     iteration = it;
-    startTime = std::chrono::system_clock::now();
-#ifdef WEBINTERFACE
-    statsLastIteration = -1;
-#endif
     listDerivations.clear();
+    initRun();
 
     prepare(lastExecution, singleRuleToCheck);
 
@@ -390,7 +386,7 @@ void SemiNaiver::run(size_t lastExecution, size_t it, unsigned long *timeout,
         executeRules(allEDBRules, allIDBRules, costRules, 0, true, timeout);
     }
 
-    running = false;
+    stopRun();
     LOG(INFOL) << "Finished process. Iterations=" << iteration;
     LOG(INFOL) << "Triggers: " << triggers;
 
@@ -439,7 +435,7 @@ bool SemiNaiver::executeUntilSaturation(
                 NULL);
         newDer |= response;
         if (timeout != NULL && *timeout != 0) {
-            std::chrono::duration<double> s = std::chrono::system_clock::now() - startTime;
+            std::chrono::duration<double> s = std::chrono::system_clock::now() - getStartingTimeMs();
             if (s.count() > *timeout) {
                 *timeout = 0;   // To indicate materialization was stopped because of timeout.
                 return newDer;
@@ -500,7 +496,8 @@ bool SemiNaiver::executeUntilSaturation(
                     stat.derived = response;
                     costRules.push_back(stat);
                     if (timeout != NULL && *timeout != 0) {
-                        std::chrono::duration<double> s = std::chrono::system_clock::now() - startTime;
+                        std::chrono::duration<double> s = std::chrono::system_clock::now()
+                            - getStartingTimeMs();
                         if (s.count() > *timeout) {
                             *timeout = 0;   // To indicate materialization was stopped because of timeout.
                             return newDer;
@@ -1025,10 +1022,6 @@ void SemiNaiver::saveDerivationIntoDerivationList(FCTable *endTable) {
     throw 10;
 }
 
-void SemiNaiver::saveStatistics(StatsRule &stats) {
-    statsRuleExecution.push_back(stats);
-}
-
 bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
         const size_t iteration, const size_t limitView,
         std::vector<ResultJoinProcessor*> *finalResultContainer) {
@@ -1543,37 +1536,6 @@ size_t SemiNaiver::countAllIDBs() {
     return c;
 }
 
-#ifdef WEBINTERFACE
-std::vector<std::pair<string, std::vector<StatsSizeIDB>>> SemiNaiver::getSizeIDBs() {
-    std::vector<std::pair<string, std::vector<StatsSizeIDB>>> out;
-    for (PredId_t i = 0; i < program->getNPredicates(); ++i) {
-        if (predicatesTables[i] != NULL && i != currentPredicate) {
-            if (program->isPredicateIDB(i)) {
-                FCIterator itr = predicatesTables[i]->read(0);
-                std::vector<StatsSizeIDB> stats;
-                while (!itr.isEmpty()) {
-                    std::shared_ptr<const FCInternalTable> t = itr.getCurrentTable();
-                    StatsSizeIDB s;
-                    s.iteration = itr.getCurrentIteration();
-                    s.idRule = itr.getRule()->ruleid;
-                    s.derivation = t->getNRows();
-                    stats.push_back(s);
-                    itr.moveNextCount();
-                }
-
-                if (stats.size() > 0) {
-                    out.push_back(std::make_pair(program->getPredicateName(i), stats));
-                }
-
-                //long count = predicatesTables[i]->getNAllRows();
-                //out.push_back(std::make_pair(program->getPredicateName(i), count));
-            }
-        }
-    }
-    return out;
-}
-#endif
-
 void SemiNaiver::printCountAllIDBs(std::string prefix) {
     long c = 0;
     long emptyRel = 0;
@@ -1623,46 +1585,8 @@ std::string SemiNaiver::getCurrentRule() {
     return currentRule;
 }
 
-std::vector<StatsRule> SemiNaiver::getOutputNewIterations() {
-    std::vector<StatsRule> out;
-    size_t cIt = iteration;
-    int nextIteration = statsLastIteration + 1;
-    /*for (const auto &el : listDerivations) {
-      if (el.iteration > nextIteration && el.iteration < cIt) {
-      while (nextIteration < el.iteration) {
-      StatsRule r;
-      r.iteration = nextIteration;
-      r.derivation = 0;
-      out.push_back(r);
-      nextIteration++;
-      }
-      StatsRule r;
-      r.iteration = el.iteration;
-      r.derivation = el.table->getNRows();
-      r.idRule = getRuleID(el.rule);
-      out.push_back(r);
-      nextIteration++;
-      }
-      }
-      while (nextIteration < cIt) {
-      StatsRule r;
-      r.iteration = nextIteration;
-      r.derivation = 0;
-      out.push_back(r);
-      nextIteration++;
-      }*/
-    size_t sizeVector = statsRuleExecution.size();
-    for (int i = 0; i < sizeVector; ++i) {
-        StatsRule el = statsRuleExecution[i];
-        if (el.iteration >= nextIteration && el.iteration < cIt) {
-            out.push_back(el);
-            statsLastIteration = el.iteration;
-        }
-    }
-    return out;
+PredId_t SemiNaiver::getCurrentPredicate() {
+    return currentPredicate;
 }
 
-bool SemiNaiver::isRunning() {
-    return running;
-}
 #endif
