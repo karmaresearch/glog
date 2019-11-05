@@ -423,7 +423,7 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
             }
         } else {
             moveLeftItr = moveRightItr = true;
-            if (!isFiltered)
+            if (!isFiltered && countNew == 0)
                 startCopyingIdx++;
 
             //The tuple must be filtered
@@ -500,7 +500,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
+    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
