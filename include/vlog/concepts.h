@@ -579,7 +579,7 @@ class Program {
         VLIBEXP bool areExistentialRules() const;
 
         size_t getNPredicates() {
-            return cardPredicates.size();
+            return rules.size();
         }
 
         static std::string rewriteRDFOWLConstants(std::string input);

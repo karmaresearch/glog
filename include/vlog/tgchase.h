@@ -36,6 +36,9 @@ class TGChase : public Chase {
         //Methods to execute the rule
         bool executeRule(size_t nodeId);
 
+        std::shared_ptr<const Segment> projectHead(const Literal &head,
+                std::vector<size_t> &vars,
+                std::shared_ptr<const Segment> intermediateResults);
 
         int cmp(std::unique_ptr<SegmentIterator> &inputLeft,
                 std::unique_ptr<SegmentIterator> &inputRight,

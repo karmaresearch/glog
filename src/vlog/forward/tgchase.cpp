@@ -493,7 +493,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(DEBUGL) << "Executing rule " << rule.tostring();
+    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -566,10 +566,17 @@ bool TGChase::executeRule(size_t nodeId) {
         } else {
             intermediateResults = newIntermediateResults->getSortedAndUniqueSegment();
         }
+
+        if (intermediateResults->isEmpty()) {
+            intermediateResults = std::shared_ptr<const Segment>();
+            break;
+        }
     }
 
+    intermediateResults = projectHead(rule.getFirstHead(), varsIntermediate, intermediateResults);
+
     //Filter out the derivations produced by the rule
-    auto nonempty = !intermediateResults->isEmpty();
+    auto nonempty = !(intermediateResults == NULL || intermediateResults->isEmpty());
     if (nonempty) {
         auto retainedTuples = retain(currentPredicate, intermediateResults);
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
@@ -580,6 +587,30 @@ bool TGChase::executeRule(size_t nodeId) {
         }
     }
     return nonempty;
+}
+
+std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
+        std::vector<size_t> &vars,
+        std::shared_ptr<const Segment> intermediateResults) {
+    //Project the columns to instantiate the head
+    std::vector<int> posProjections;
+    const auto &tupleHead = head.getTuple();
+    for(int i = 0; i < tupleHead.getSize(); ++i) {
+        int pos = 0;
+        for(auto p : vars) {
+            if (p == tupleHead.get(i).getId())
+                break;
+            pos++;
+        }
+        posProjections.push_back(pos);
+    }
+    std::vector<std::shared_ptr<Column>> columns;
+    for(int i = 0; i < posProjections.size(); ++i) {
+        int pos = posProjections[i];
+        columns.push_back(intermediateResults->getColumn(pos));
+    }
+    return std::shared_ptr<const Segment>(
+            new Segment(posProjections.size(), columns));
 }
 
 size_t TGChase::getSizeTable(const PredId_t predid) const {

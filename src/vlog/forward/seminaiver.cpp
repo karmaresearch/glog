@@ -526,13 +526,14 @@ bool SemiNaiver::executeUntilSaturation(
         currentRule = (currentRule + 1) % ruleset.size();
 
         if (currentRule == 0) {
-            LOG(INFOL) << "Round " << roundNr;
+            LOG(DEBUGL) << "Round " << roundNr;
             roundNr++;
             std::chrono::duration<double> sec = std::chrono::system_clock::now() - round_start;
-            LOG(INFOL) << "--Time round " << sec.count() * 1000 << " " << iteration;
+            LOG(DEBUGL) << "--Time round " << sec.count() * 1000 << " " << iteration;
             round_start = std::chrono::system_clock::now();
+#ifdef DEBUG
             //CODE FOR Statistics
-            LOG(INFOL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
+            LOG(DEBUGL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
                 nRulesOnePass << " out of " << ruleset.size() << " Derivations so far " << countAllIDBs();
             printCountAllIDBs("After step " + to_string(iteration) + ": ");
             nRulesOnePass = 0;
@@ -551,10 +552,9 @@ bool SemiNaiver::executeUntilSaturation(
                     n++;
                 }
             }
-            LOG(INFOL) << "Rules with the highest cost\n\n" << out;
+            LOG(DEBUGL) << "Rules with the highest cost\n\n" << out;
             lastIteration = iteration;
             //END CODE STATISTICS
-#ifdef DEBUG
 #endif
             if (!fixpoint)
                 break;
@@ -1027,7 +1027,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
         std::vector<ResultJoinProcessor*> *finalResultContainer) {
     Rule rule = ruleDetails.rule;
     if (!bodyChangedSince(rule, ruleDetails.lastExecution)) {
-        LOG(INFOL) << "Rule application: " << iteration << ", rule " << rule.tostring(program, &layer) << " skipped because dependencies did not change since the previous application of this rule";
+        LOG(DEBUGL) << "Rule application: " << iteration << ", rule " << rule.tostring(program, &layer) << " skipped because dependencies did not change since the previous application of this rule";
         return false;
     }
 
@@ -1343,9 +1343,9 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
     }
 
     if (prodDer) {
-        LOG(INFOL) << "Rule application: " << iteration << ", derived " << getNLastDerivationsFromList() << " new tuple(s) using rule " << rule.tostring(program, &layer);
+        LOG(DEBUGL) << "Rule application: " << iteration << ", derived " << getNLastDerivationsFromList() << " new tuple(s) using rule " << rule.tostring(program, &layer);
     } else {
-        LOG(INFOL) << "Rule application: " << iteration << ", derived no new tuples using rule " << rule.tostring(program, &layer);
+        LOG(DEBUGL) << "Rule application: " << iteration << ", derived no new tuples using rule " << rule.tostring(program, &layer);
     }
     LOG(DEBUGL) << "Combinations " << orderExecution
         << ", Processed IDB Tables=" << processedTables
