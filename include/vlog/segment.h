@@ -55,16 +55,17 @@ struct SegmentSorter {
 class SegmentIterator {
     private:
         std::unique_ptr<ColumnReader> *readers;
+        bool finished;
 
     protected:
         int nfields;
         Term_t values[256];
-        SegmentIterator(int nfields) : nfields(nfields) {
+        SegmentIterator(int nfields) : nfields(nfields), finished(false) {
             readers = NULL;
         }
 
     public:
-        SegmentIterator(const uint8_t nfields, std::shared_ptr<Column> *columns) : nfields(nfields) {
+        SegmentIterator(const uint8_t nfields, std::shared_ptr<Column> *columns) : nfields(nfields), finished(false) {
             readers = new std::unique_ptr<ColumnReader>[nfields];
             for (int i = 0; i < nfields; i++) {
                 readers[i] = columns[i]->getReader();
@@ -72,8 +73,12 @@ class SegmentIterator {
         }
 
         virtual bool hasNext() {
+            if (finished)
+                return !finished;
+
             for (int i = 0; i < nfields; i++) {
-                if (! readers[i]->hasNext()) {
+                if (!readers[i]->hasNext()) {
+                    finished = true;
                     return false;
                 }
             }

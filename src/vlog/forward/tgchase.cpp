@@ -444,6 +444,21 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
         }
     }
 
+    if (!isFiltered && countNew > 0 && startCopyingIdx > 0) {
+        //Remove the initial duplicates
+        inserter = std::unique_ptr<SegmentInserter>(
+                new SegmentInserter(rightItr->getNFields()));
+        //Copy all the previous new tuples in the right iterator
+        size_t i = 0;
+        auto itrTmp = newtuples->iterator();
+        while (itrTmp->hasNext()) {
+            itrTmp->next();
+            if (i >= startCopyingIdx)
+                inserter->addRow(*itrTmp.get());
+            i++;
+        }
+        isFiltered = true;
+    }
     if (isFiltered && rightItr->hasNext()) {
         do {
             rightItr->next();
@@ -454,7 +469,7 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
     if (isFiltered) {
         return inserter->getSegment();
     } else {
-        if (countNew == 0) {
+        if (countNew == 0 && moveRightItr) {
             return std::shared_ptr<const Segment>();
         } else {
             //They are all new
@@ -500,7 +515,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
+    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
