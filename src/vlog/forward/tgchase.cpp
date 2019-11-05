@@ -381,7 +381,9 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
         std::shared_ptr<const Segment> existuples,
         std::shared_ptr<const Segment> newtuples) {
     std::unique_ptr<SegmentInserter> inserter;
+
     bool isFiltered = false;
+    size_t startCopyingIdx = 0;
 
     //Do outer join
     auto leftItr = existuples->iterator();
@@ -421,6 +423,9 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
             }
         } else {
             moveLeftItr = moveRightItr = true;
+            if (!isFiltered)
+                startCopyingIdx++;
+
             //The tuple must be filtered
             if (!isFiltered && countNew > 0) {
                 inserter = std::unique_ptr<SegmentInserter>(
@@ -428,9 +433,11 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
                 //Copy all the previous new tuples in the right iterator
                 size_t i = 0;
                 auto itrTmp = newtuples->iterator();
-                while (i < countNew && itrTmp->hasNext()) {
+                while (i < (startCopyingIdx + countNew) && itrTmp->hasNext()) {
                     itrTmp->next();
-                    inserter->addRow(*itrTmp.get());
+                    if (i >= startCopyingIdx)
+                        inserter->addRow(*itrTmp.get());
+                    i++;
                 }
                 isFiltered = true;
             }
@@ -573,11 +580,11 @@ bool TGChase::executeRule(size_t nodeId) {
         }
     }
 
-    intermediateResults = projectHead(rule.getFirstHead(), varsIntermediate, intermediateResults);
-
     //Filter out the derivations produced by the rule
     auto nonempty = !(intermediateResults == NULL || intermediateResults->isEmpty());
     if (nonempty) {
+        //Compute the head
+        intermediateResults = projectHead(rule.getFirstHead(), varsIntermediate, intermediateResults);
         auto retainedTuples = retain(currentPredicate, intermediateResults);
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
@@ -604,13 +611,12 @@ std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
         }
         posProjections.push_back(pos);
     }
-    std::vector<std::shared_ptr<Column>> columns;
+    SegmentInserter ins(posProjections.size());
     for(int i = 0; i < posProjections.size(); ++i) {
         int pos = posProjections[i];
-        columns.push_back(intermediateResults->getColumn(pos));
+        ins.addColumn(i, intermediateResults->getColumn(pos), false);
     }
-    return std::shared_ptr<const Segment>(
-            new Segment(posProjections.size(), columns));
+    return ins.getSortedAndUniqueSegment();
 }
 
 size_t TGChase::getSizeTable(const PredId_t predid) const {
