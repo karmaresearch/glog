@@ -93,7 +93,8 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
 
     if (cmd != "help" && cmd != "query" && cmd != "lookup" && cmd != "load" && cmd != "queryLiteral"
             && cmd != "mat" && cmd != "mat_tg" && cmd != "rulesgraph" && cmd != "server" && cmd != "gentq" &&
-            cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger") {
+            cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger"
+            && cmd != "tgchase") {
         printErrorMsg("The command \"" + cmd + "\" is unknown.");
         return false;
     }
@@ -562,6 +563,8 @@ void launchTGChase(int argc,
     sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
     LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
+    LOG(INFOL) << "Derived tuples = " << sn->getNDerivedFacts();
+    LOG(INFOL) << "N. nodes = " << sn->getNnodes();
 
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     if (vm["monitorThread"].as<bool>()) {

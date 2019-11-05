@@ -27,6 +27,16 @@ class ColumnReader {
 
         virtual void clear() = 0;
 
+        virtual void reset() {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
+        virtual void mark() {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
         virtual std::vector<Term_t> asVector() = 0;
 
         virtual ~ColumnReader() { }
@@ -315,6 +325,8 @@ class InmemColumnReader final : public ColumnReader {
         size_t currentPos;
         size_t end;
 
+        size_t markedPos;
+
     public:
         InmemColumnReader(const std::vector<Term_t> &vals) : col(vals),
         start(0), currentPos(0), end(vals.size()) {
@@ -324,6 +336,15 @@ class InmemColumnReader final : public ColumnReader {
                 uint64_t start, uint64_t len) : col(vals),
         start(start), currentPos(start), end(start + len) {
         }
+
+        void reset() {
+            currentPos = markedPos;
+        }
+
+        void mark() {
+            markedPos = currentPos;
+        }
+
 
         Term_t first() {
             return col[start];

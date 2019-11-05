@@ -457,7 +457,7 @@ struct RowFilterer {
 
     void operator()(const ParallelRange& r) const {
         for (int i = r.begin(); i != r.end(); ++i) {
-            SegmentInserter inserter(iterators[i]->getNColumns());
+            SegmentInserter inserter(iterators[i]->getNFields());
             segments[i] = InmemoryFCInternalTable::filter_row(iterators[i], nConstantsToFilter, posConstantsToFilter,
                     valuesConstantsToFilter, nRepeatedVars, repeatedVars, inserter);
         }

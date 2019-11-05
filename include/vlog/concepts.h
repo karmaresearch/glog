@@ -475,17 +475,13 @@ class Rule {
 
 class Program {
     private:
-        //const uint64_t assignedIds;
         EDBLayer *kb;
-        std::vector<std::vector<uint32_t>> rules; // [head_predicate_id (idx) : [rule_ids]]
+        std::vector<std::vector<uint32_t>> rules;
         std::vector<Rule> allrules;
         int rewriteCounter;
 
         Dictionary dictPredicates;
         std::unordered_map<PredId_t, uint8_t> cardPredicates;
-
-        //Move them to the EDB layer ...
-        //Dictionary additionalConstants;
 
         void rewriteRule(std::vector<Literal> &heads, std::vector<Literal> &body);
 
@@ -582,8 +578,8 @@ class Program {
 
         VLIBEXP bool areExistentialRules() const;
 
-        int getNPredicates() {
-            return rules.size();
+        size_t getNPredicates() {
+            return cardPredicates.size();
         }
 
         static std::string rewriteRDFOWLConstants(std::string input);

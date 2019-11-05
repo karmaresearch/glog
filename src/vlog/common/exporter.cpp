@@ -360,10 +360,13 @@ void Exporter::storeOnFiles(std::string path, const bool decompress,
     Program *program = sn->getProgram();
 
     //I create a new file for every idb predicate
-    for (PredId_t i = 0; i < program->getNPredicates(); ++i) {
-        FCTable *table = sn->getTable(i);
+    size_t npredicates = program->getNPredicates();
+    for (PredId_t predid : program->getAllPredicateIDs()) {
+        FCTable *table = sn->getTable(predid);
         if (table != NULL && !table->isEmpty()) {
-            storeOnFile(path + "/" + generateFileName(program->getPredicateName(i)), i, decompress, minLevel, csv);
+            storeOnFile(path + "/" +
+                    generateFileName(program->getPredicateName(predid)),
+                    predid, decompress, minLevel, csv);
         }
     }
 }

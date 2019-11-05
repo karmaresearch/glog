@@ -55,11 +55,11 @@ struct SegmentSorter {
 class SegmentIterator {
     private:
         std::unique_ptr<ColumnReader> *readers;
-        int nfields;
 
     protected:
+        int nfields;
         Term_t values[256];
-        SegmentIterator() {
+        SegmentIterator(int nfields) : nfields(nfields) {
             readers = NULL;
         }
 
@@ -92,6 +92,22 @@ class SegmentIterator {
             }
         }
 
+        int getNFields() const {
+            return nfields;
+        }
+
+        virtual void reset() {
+            for (int i = 0; i < nfields; i++) {
+                readers[i]->reset();
+            }
+        }
+
+        virtual void mark() {
+            for (int i = 0; i < nfields; i++) {
+                readers[i]->mark();
+            }
+        }
+
         Term_t get(const uint8_t pos) {
             return values[pos];
         }
@@ -104,13 +120,16 @@ class SegmentIterator {
 class VectorSegmentIterator final : public SegmentIterator {
     private:
         const std::vector<const std::vector<Term_t> *> vectors;
-        int currentIndex;
-        int endIndex;
-        int ncols;
+        int64_t currentIndex;
+        int64_t endIndex;
+        int64_t markedCurrentIndex;
         std::vector<bool> *allocatedVectors;
     public:
-        VectorSegmentIterator(const std::vector<const std::vector<Term_t> *> &vectors, int firstIndex, int endIndex, std::vector<bool> *allocatedVectors)
-            : vectors(vectors), currentIndex(firstIndex-1), endIndex(endIndex), ncols(vectors.size()), allocatedVectors(allocatedVectors) {
+        VectorSegmentIterator(const std::vector<const std::vector<Term_t> *> &vectors,
+                int firstIndex,
+                int endIndex, std::vector<bool> *allocatedVectors)
+            : SegmentIterator(vectors.size()),
+                    vectors(vectors), currentIndex(firstIndex-1), endIndex(endIndex), allocatedVectors(allocatedVectors) {
                 if (endIndex > vectors[0]->size()) {
                     this->endIndex = vectors[0]->size();
                 }
@@ -122,9 +141,20 @@ class VectorSegmentIterator final : public SegmentIterator {
 
         void next() {
             currentIndex++;
-            for (int i = 0; i < ncols; i++) {
+            for (int i = 0; i < nfields; i++) {
                 values[i] = (*vectors[i])[currentIndex];
             }
+        }
+
+        void reset() {
+            currentIndex = markedCurrentIndex;
+            for (int i = 0; i < nfields; i++) {
+                values[i] = (*vectors[i])[currentIndex];
+            }
+        }
+
+        void mark() {
+            markedCurrentIndex = currentIndex;
         }
 
         void clear() {
@@ -137,10 +167,6 @@ class VectorSegmentIterator final : public SegmentIterator {
                 delete allocatedVectors;
                 allocatedVectors = NULL;
             }
-        }
-
-        int getNColumns() {
-            return ncols;
         }
 
         ~VectorSegmentIterator() {
@@ -247,6 +273,8 @@ class Segment {
         }
 
         std::shared_ptr<Segment> sortBy(const std::vector<uint8_t> *fields) const;
+
+        std::shared_ptr<Segment> sortByField(const uint8_t field) const;
 
         std::shared_ptr<Segment> sortBy(const std::vector<uint8_t> *fields,
                 const int nthreads,

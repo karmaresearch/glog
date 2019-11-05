@@ -1026,7 +1026,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
         const size_t iteration, const size_t limitView,
         std::vector<ResultJoinProcessor*> *finalResultContainer) {
     Rule rule = ruleDetails.rule;
-    if (! bodyChangedSince(rule, ruleDetails.lastExecution)) {
+    if (!bodyChangedSince(rule, ruleDetails.lastExecution)) {
         LOG(INFOL) << "Rule application: " << iteration << ", rule " << rule.tostring(program, &layer) << " skipped because dependencies did not change since the previous application of this rule";
         return false;
     }
