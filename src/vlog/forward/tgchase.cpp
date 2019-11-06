@@ -153,12 +153,14 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
 
     auto &rightBodyAtom = bodyAtoms[bodyAtomIdx];
     auto rightVars = rightBodyAtom.getAllVars();
+    std::set<int> addedVars;
     if (bodyAtomIdx > 0) {
         //First check whether variables in the left are used in the next body
         //atoms or in the head
         for(size_t i = 0; i < leftVars.size(); ++i) {
             if (futureOccurrences.count(leftVars[i])) {
                 copyVarPosLeft.push_back(i);
+                addedVars.insert(rightVars[i]);
             }
         }
         //Search for the join variable
@@ -185,8 +187,9 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
 
     //Copy variables from the right atom
     for(size_t i = 0; i < rightVars.size(); ++i) {
-        if (futureOccurrences.count(rightVars[i])) {
+        if (futureOccurrences.count(rightVars[i]) && !addedVars.count(rightVars[i])) {
             copyVarPosRight.push_back(i);
+            addedVars.insert(rightVars[i]);
         }
     }
 }
@@ -290,7 +293,8 @@ void TGChase::mergejoin(
 
     long countLeft = -1;
     size_t currentKey = 0;
-    Term_t currentrow[copyVarPosLeft.size() + copyVarPosRight.size()];
+    auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
+    Term_t currentrow[sizerow];
     int res = cmp(itrLeft, itrRight, joinVarPos);
     while (true) {
         //Are they matching?
@@ -340,6 +344,7 @@ void TGChase::mergejoin(
                 currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
             }
             auto c = 0;
+            bool leftActive = true;
             while (c < countLeft) {
                 for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
                     auto leftPos = copyVarPosLeft[idx];
@@ -347,8 +352,11 @@ void TGChase::mergejoin(
                     currentrow[idx] = el;
                 }
                 output->addRow(currentrow);
-                if (itrLeft->hasNext())
+                if (itrLeft->hasNext()) {
                     itrLeft->next();
+                } else {
+                    leftActive = false;
+                }
                 c++;
             }
 
@@ -363,7 +371,7 @@ void TGChase::mergejoin(
             if (newKey != currentKey) {
                 countLeft = -1;
                 //LeftItr is already pointing to the next element ...
-                if (!itrLeft->hasNext()) {
+                if (!leftActive) {
                     break;
                 }
                 res = cmp(itrLeft, itrRight, joinVarPos);
@@ -515,7 +523,8 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId;
+    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
+
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -573,6 +582,7 @@ bool TGChase::executeRule(size_t nodeId) {
                 auto var = copyVarPosLeft[varIdx];
                 newVarsIntermediateResults.push_back(varsIntermediate[var]);
             }
+            currentBodyNode++;
         }
         //Update the list of variables from the right atom
         for(auto varIdx = 0; varIdx < copyVarPosRight.size(); ++varIdx) {
