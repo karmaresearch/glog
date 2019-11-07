@@ -467,14 +467,14 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
         }
         isFiltered = true;
     }
-    if (isFiltered && rightItr->hasNext()) {
-        do {
-            rightItr->next();
-            inserter->addRow(*rightItr.get());
-        } while (rightItr->hasNext());
-    }
 
     if (isFiltered) {
+        if (!moveRightItr)
+            inserter->addRow(*rightItr.get());
+        while (rightItr->hasNext()) {
+            rightItr->next();
+            inserter->addRow(*rightItr.get());
+        }
         return inserter->getSegment();
     } else {
         if (countNew == 0 && moveRightItr) {
@@ -496,6 +496,7 @@ std::shared_ptr<const Segment> TGChase::retain(
     for(auto &nodeIdx : nodeIdxs) {
         auto node = nodes[nodeIdx];
         newtuples = retainVsNode(node.data, newtuples);
+
         if (newtuples == NULL || newtuples->isEmpty())
             return std::shared_ptr<const Segment>();
     }
