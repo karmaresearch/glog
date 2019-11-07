@@ -1,6 +1,12 @@
 #include <vlog/tgchase.h>
 
-TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer), program(program) {
+TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
+    program(program),
+    durationJoin(0),
+    durationRetain(0),
+    durationCreateHead(0),
+    durationFirst(0)
+{
 }
 
 Program *TGChase::getProgram() {
@@ -123,13 +129,19 @@ void TGChase::run() {
         //Execute the rule associated to the node
         size_t idxNode = nnodes;
         while (idxNode < nodes.size()) {
-            if (!executeRule(idxNode)) {
+            bool res = executeRule(idxNode);
+            if (!res) {
                 nodes.erase(nodes.begin() + idxNode);
             } else {
                 idxNode++;
             }
         }
     } while (nnodes != nodes.size());
+
+    LOG(INFOL) << "Time first (ms): " << durationFirst.count();
+    LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
+    LOG(INFOL) << "Time head (ms): " << durationCreateHead.count();
+    LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
     stopRun();
 }
 
@@ -534,6 +546,7 @@ bool TGChase::executeRule(size_t nodeId) {
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const Segment> intermediateResults;
     size_t currentBodyNode = 0;
+
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
         const Literal &currentBodyAtom = bodyAtoms[i];
         VTuple currentVars = currentBodyAtom.getTuple();
@@ -553,8 +566,11 @@ bool TGChase::executeRule(size_t nodeId) {
         std::vector<size_t> newVarsIntermediateResults;
         std::unique_ptr<SegmentInserter> newIntermediateResults
             (new SegmentInserter(copyVarPosLeft.size() + copyVarPosRight.size()));
+
         if (i == 0) {
             //Process first body atom, no join
+            std::chrono::steady_clock::time_point start =
+                std::chrono::steady_clock::now();
             if (bodyAtom.getPredicate().getType() == EDB) {
                 processFirstAtom_EDB(bodyAtom, copyVarPosRight,
                         newIntermediateResults);
@@ -565,18 +581,27 @@ bool TGChase::executeRule(size_t nodeId) {
                         newIntermediateResults);
                 currentBodyNode++;
             }
+            std::chrono::steady_clock::time_point end =
+                std::chrono::steady_clock::now();
+            durationFirst += end - start;
         } else {
             size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
             auto bodyNode = nodes[idbBodyAtomIdx];
 
             //Perform merge join between the intermediate results and
             //the new collection
+            std::chrono::steady_clock::time_point start =
+                std::chrono::steady_clock::now();
             mergejoin(intermediateResults,
                     bodyNode.data,
                     joinVarPos,
                     copyVarPosLeft,
                     copyVarPosRight,
                     newIntermediateResults);
+            std::chrono::steady_clock::time_point end =
+                std::chrono::steady_clock::now();
+            durationJoin += end - start;
+
 
             //Update the list of variables from the left atom
             for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
@@ -593,12 +618,7 @@ bool TGChase::executeRule(size_t nodeId) {
         }
 
         varsIntermediate = newVarsIntermediateResults;
-        //If it's the last vector, then sort and store only unique tuples
-        if (i < bodyAtoms.size() - 1) {
-            intermediateResults = newIntermediateResults->getSegment();
-        } else {
-            intermediateResults = newIntermediateResults->getSortedAndUniqueSegment();
-        }
+        intermediateResults = newIntermediateResults->getSegment();
 
         if (intermediateResults->isEmpty()) {
             intermediateResults = std::shared_ptr<const Segment>();
@@ -610,8 +630,19 @@ bool TGChase::executeRule(size_t nodeId) {
     auto nonempty = !(intermediateResults == NULL || intermediateResults->isEmpty());
     if (nonempty) {
         //Compute the head
-        intermediateResults = projectHead(rule.getFirstHead(), varsIntermediate, intermediateResults);
+        std::chrono::steady_clock::time_point start =
+            std::chrono::steady_clock::now();
+        intermediateResults = projectHead(rule.getFirstHead(),
+                varsIntermediate, intermediateResults);
+        std::chrono::steady_clock::time_point end =
+            std::chrono::steady_clock::now();
+        durationCreateHead += end - start;
+
+        start = std::chrono::steady_clock::now();
         auto retainedTuples = retain(currentPredicate, intermediateResults);
+        end = std::chrono::steady_clock::now();
+        durationRetain += end - start;
+
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
             node.data = retainedTuples;

@@ -7,6 +7,7 @@
 #include <vlog/fcinttable.h>
 
 #include <map>
+#include <chrono>
 
 struct TGChase_Node {
     size_t ruleIdx;
@@ -32,6 +33,11 @@ class TGChase : public Chase {
 
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
         std::vector<TGChase_Node> nodes;
+
+        std::chrono::duration<double, std::milli> durationFirst;
+        std::chrono::duration<double, std::milli> durationJoin;
+        std::chrono::duration<double, std::milli> durationRetain;
+        std::chrono::duration<double, std::milli> durationCreateHead;
 
         //Methods to execute the rule
         bool executeRule(size_t nodeId);
