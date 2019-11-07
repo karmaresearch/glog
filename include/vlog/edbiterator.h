@@ -21,6 +21,14 @@ class EDBIterator {
 
         virtual void clear() = 0;
 
+        virtual void reset() {
+            throw 10;
+        }
+
+        virtual void mark() {
+            throw 10;
+        }
+
         virtual const char *getUnderlyingArray(uint8_t column) {
             return NULL;
         }

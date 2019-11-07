@@ -63,15 +63,13 @@ class TGChase : public Chase {
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight);
 
-        void processFirstAtom_EDB(
+        std::shared_ptr<const Segment> processFirstAtom_EDB(
                 const Literal &atom,
-                std::vector<int> &copyVarPos,
-                std::unique_ptr<SegmentInserter> &output);
+                std::vector<int> &copyVarPos);
 
-        void processFirstAtom_IDB(
+        std::shared_ptr<const Segment> processFirstAtom_IDB(
                 std::shared_ptr<const Segment> &input,
-                std::vector<int> &copyVarPos,
-                std::unique_ptr<SegmentInserter> &output);
+                std::vector<int> &copyVarPos);
 
         void recursiveCreateNode(
                 const size_t step,

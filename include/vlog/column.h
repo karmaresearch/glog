@@ -688,6 +688,10 @@ class EDBColumnReader final : public ColumnReader {
 
         bool hasNext();
 
+        void reset();
+
+        void mark();
+
         Term_t next();
 
         const char *getUnderlyingArray();

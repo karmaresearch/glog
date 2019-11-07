@@ -63,6 +63,10 @@ class EDBMemIterator : public EDBIterator {
             return predid;
         }
 
+        void reset();
+
+        void mark();
+
         void moveTo(const uint8_t fieldId, const Term_t t) {}
 
         VLIBEXP Term_t getElementAt(const uint8_t p);

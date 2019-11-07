@@ -17,6 +17,8 @@ class InmemoryIterator : public EDBIterator {
         bool hasNextValue;
         bool isFirst;
 
+        //bool m_isFirst, m_hasNextValue, m_hasNextChecked;
+
     public:
         InmemoryIterator(std::shared_ptr<const Segment> segment, PredId_t predid, std::vector<uint8_t> sortFields) :
             segment(segment), predid(predid), sortFields(sortFields), skipDuplicatedFirst(false),
@@ -29,6 +31,10 @@ class InmemoryIterator : public EDBIterator {
             }
 
         bool hasNext();
+
+        void reset();
+
+        void mark();
 
         void next();
 
@@ -85,10 +91,10 @@ class InmemoryTable : public EDBTable {
         InmemoryTable(PredId_t predid, uint8_t arity, std::vector<uint64_t> &entries, EDBLayer *layer);
 
         InmemoryTable(PredId_t predid,
-                      const Literal &query,
-                      // const
-                      EDBIterator *iter,
-                      EDBLayer *layer);
+                const Literal &query,
+                // const
+                EDBIterator *iter,
+                EDBLayer *layer);
 
         virtual uint8_t getArity() const;
 

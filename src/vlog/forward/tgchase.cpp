@@ -206,21 +206,22 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
     }
 }
 
-void TGChase::processFirstAtom_IDB(
+std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
         std::shared_ptr<const Segment> &input,
-        std::vector<int> &copyVarPos,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::vector<int> &copyVarPos) {
+    std::vector<std::shared_ptr<Column>> columns;
     for(int i = 0; i < copyVarPos.size(); ++i) {
         int pos = copyVarPos[i];
         auto col = input->getColumn(pos);
-        output->addColumn(i, col, false);
+        columns.push_back(col);
     }
+    return std::shared_ptr<const Segment>(
+            new Segment(columns.size(), columns));
 }
 
-void TGChase::processFirstAtom_EDB(
+std::shared_ptr<const Segment> TGChase::processFirstAtom_EDB(
         const Literal &atom,
-        std::vector<int> &copyVarPos,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::vector<int> &copyVarPos) {
     PredId_t p = atom.getPredicate().getId();
     if (!edbTables.count(p)) {
         VTuple t = atom.getTuple();
@@ -234,11 +235,14 @@ void TGChase::processFirstAtom_EDB(
     }
     //Get the columns
     auto &table = edbTables[p];
+    std::vector<std::shared_ptr<Column>> columns;
     for(int i = 0; i < copyVarPos.size(); ++i) {
         int pos = copyVarPos[i];
         auto col = table->getColumn(pos);
-        output->addColumn(i, col, false);
+        columns.push_back(col);
     }
+    return std::shared_ptr<const Segment>(
+            new Segment(columns.size(), columns));
 }
 
 int TGChase::cmp(std::unique_ptr<SegmentIterator> &inputLeft,
@@ -547,7 +551,6 @@ void TGChase::shouldSortDelDupls(const Literal &head,
     } else {
         shouldSort = shouldDelDupl = true;
     }
-    LOG(INFOL) << "ShouldSort=" << shouldSort << " ShouldDelDupl=" << shouldDelDupl;
 }
 
 bool TGChase::executeRule(size_t nodeId) {
@@ -559,7 +562,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
+    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
 
 
     //Perform the joins and populate the head
@@ -587,21 +590,19 @@ bool TGChase::executeRule(size_t nodeId) {
         //Get the node of the current bodyAtom (if it's IDB)
         auto &bodyAtom = bodyAtoms[i];
         std::vector<size_t> newVarsIntermediateResults;
-        std::unique_ptr<SegmentInserter> newIntermediateResults
-            (new SegmentInserter(copyVarPosLeft.size() + copyVarPosRight.size()));
 
         if (i == 0) {
             //Process first body atom, no join
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
             if (bodyAtom.getPredicate().getType() == EDB) {
-                processFirstAtom_EDB(bodyAtom, copyVarPosRight,
-                        newIntermediateResults);
+                intermediateResults = processFirstAtom_EDB(bodyAtom,
+                        copyVarPosRight);
             } else {
                 size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
                 auto bodyNode = nodes[idbBodyAtomIdx];
-                processFirstAtom_IDB(bodyNode.data, copyVarPosRight,
-                        newIntermediateResults);
+                intermediateResults = processFirstAtom_IDB(bodyNode.data,
+                        copyVarPosRight);
                 currentBodyNode++;
             }
             std::chrono::steady_clock::time_point end =
@@ -610,6 +611,8 @@ bool TGChase::executeRule(size_t nodeId) {
         } else {
             size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
             auto bodyNode = nodes[idbBodyAtomIdx];
+            std::unique_ptr<SegmentInserter> newIntermediateResults
+                (new SegmentInserter(copyVarPosLeft.size() + copyVarPosRight.size()));
 
             //Perform merge join between the intermediate results and
             //the new collection
@@ -642,7 +645,6 @@ bool TGChase::executeRule(size_t nodeId) {
         }
 
         varsIntermediate = newVarsIntermediateResults;
-
         if (intermediateResults->isEmpty()) {
             intermediateResults = std::shared_ptr<const Segment>();
             break;
@@ -664,12 +666,14 @@ bool TGChase::executeRule(size_t nodeId) {
                 shouldDelDupl);
         std::chrono::steady_clock::time_point end =
             std::chrono::steady_clock::now();
-        durationCreateHead += end - start;
+        auto dur = end - start;
+        durationCreateHead += dur;
 
         start = std::chrono::steady_clock::now();
         auto retainedTuples = retain(currentPredicate, intermediateResults);
         end = std::chrono::steady_clock::now();
-        durationRetain += end - start;
+        dur = end - start;
+        durationRetain += dur;
 
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
@@ -687,6 +691,20 @@ std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
         bool shouldSort,
         bool shouldDelDupl) {
     //Project the columns to instantiate the head
+    /*std::vector<std::shared_ptr<Column>> columns;
+      const auto &tupleHead = head.getTuple();
+      for(int i = 0; i < tupleHead.getSize(); ++i) {
+      for(int j = 0; j < vars.size(); ++j) {
+      if (vars[j] == tupleHead.get(i).getId()) {
+      columns.push_back(intermediateResults->getColumn(j));
+      break;
+      }
+      }
+      }
+      std::shared_ptr<const Segment> segment(new Segment(columns.size(),
+      columns));
+      */
+
     std::vector<int> posProjections;
     const auto &tupleHead = head.getTuple();
     for(int i = 0; i < tupleHead.getSize(); ++i) {
@@ -706,14 +724,18 @@ std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
     if (shouldSort) {
         if (shouldDelDupl) {
             return ins.getSortedAndUniqueSegment();
+            //return SegmentInserter::unique(segment->sortBy(NULL));
         } else {
             return ins.getSegment()->sortBy(NULL);
+            //return segment->sortBy(NULL);
         }
     } else {
         if (shouldDelDupl) {
             return SegmentInserter::unique(ins.getSegment());
+            //return SegmentInserter::unique(segment);
         } else {
             return ins.getSegment();
+            //return segment;
         }
     }
 }

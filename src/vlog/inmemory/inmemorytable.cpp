@@ -927,5 +927,21 @@ void InmemoryIterator::skipDuplicatedFirstColumn() {
     skipDuplicatedFirst = true;
 }
 
+void InmemoryIterator::reset() {
+    throw 10;
+    //iterator->reset();
+    //isFirst = m_isFirst;
+    //hasNextValue = m_hasNextValue;
+    //hasNextChecked = m_hasNextChecked;
+}
+
+void InmemoryIterator::mark() {
+    throw 10;
+    //iterator->mark();
+    //m_isFirst = isFirst;
+    //m_hasNextValue = hasNextValue;
+    //m_hasNextChecked = hasNextChecked;
+}
+
 void InmemoryIterator::clear() {
 }

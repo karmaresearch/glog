@@ -1186,6 +1186,14 @@ void EDBMemIterator::init2(PredId_t id, const bool defaultSorting, std::vector<s
     hasFirst = twoColumns != endTwoColumns;
 }
 
+void EDBMemIterator::reset() {
+    throw 10;
+}
+
+void EDBMemIterator::mark() {
+    throw 10;
+}
+
 void EDBMemIterator::skipDuplicatedFirstColumn() {
     if (isIgnoreAllowed)
         ignoreSecondColumn = true;
