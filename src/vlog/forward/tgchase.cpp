@@ -527,6 +527,29 @@ size_t TGChase::getNnodes() {
     return nodes.size();
 }
 
+void TGChase::shouldSortDelDupls(const Literal &head,
+        const std::vector<Literal> &bodyAtoms,
+        bool &shouldSort,
+        bool &shouldDelDupl) {
+    if (bodyAtoms.size() == 1) {
+        auto &bodyAtom = bodyAtoms[0];
+        auto th = head.getTuple();
+        auto tb = bodyAtom.getTuple();
+        int sortedFields = 0;
+        for(int i = 0; i < th.getSize() && i < tb.getSize(); ++i) {
+            if (th.get(i).getId() != tb.get(i).getId()) {
+                break;
+            }
+            sortedFields++;
+        }
+        shouldSort = !(sortedFields == th.getSize());
+        shouldDelDupl = th.getSize() < tb.getSize();
+    } else {
+        shouldSort = shouldDelDupl = true;
+    }
+    LOG(INFOL) << "ShouldSort=" << shouldSort << " ShouldDelDupl=" << shouldDelDupl;
+}
+
 bool TGChase::executeRule(size_t nodeId) {
     auto &node = nodes[nodeId];
     auto &bodyNodes = node.incomingEdges;
@@ -536,7 +559,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
+    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
 
 
     //Perform the joins and populate the head
@@ -602,6 +625,7 @@ bool TGChase::executeRule(size_t nodeId) {
                 std::chrono::steady_clock::now();
             durationJoin += end - start;
 
+            intermediateResults = newIntermediateResults->getSegment();
 
             //Update the list of variables from the left atom
             for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
@@ -618,7 +642,6 @@ bool TGChase::executeRule(size_t nodeId) {
         }
 
         varsIntermediate = newVarsIntermediateResults;
-        intermediateResults = newIntermediateResults->getSegment();
 
         if (intermediateResults->isEmpty()) {
             intermediateResults = std::shared_ptr<const Segment>();
@@ -632,8 +655,13 @@ bool TGChase::executeRule(size_t nodeId) {
         //Compute the head
         std::chrono::steady_clock::time_point start =
             std::chrono::steady_clock::now();
-        intermediateResults = projectHead(rule.getFirstHead(),
-                varsIntermediate, intermediateResults);
+        Literal head = rule.getFirstHead();
+        bool shouldSort = true, shouldDelDupl = true;
+        shouldSortDelDupls(head, bodyAtoms, shouldSort, shouldDelDupl);
+        intermediateResults = projectHead(head,
+                varsIntermediate, intermediateResults,
+                shouldSort,
+                shouldDelDupl);
         std::chrono::steady_clock::time_point end =
             std::chrono::steady_clock::now();
         durationCreateHead += end - start;
@@ -655,7 +683,9 @@ bool TGChase::executeRule(size_t nodeId) {
 
 std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
         std::vector<size_t> &vars,
-        std::shared_ptr<const Segment> intermediateResults) {
+        std::shared_ptr<const Segment> intermediateResults,
+        bool shouldSort,
+        bool shouldDelDupl) {
     //Project the columns to instantiate the head
     std::vector<int> posProjections;
     const auto &tupleHead = head.getTuple();
@@ -673,7 +703,19 @@ std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
         int pos = posProjections[i];
         ins.addColumn(i, intermediateResults->getColumn(pos), false);
     }
-    return ins.getSortedAndUniqueSegment();
+    if (shouldSort) {
+        if (shouldDelDupl) {
+            return ins.getSortedAndUniqueSegment();
+        } else {
+            return ins.getSegment()->sortBy(NULL);
+        }
+    } else {
+        if (shouldDelDupl) {
+            return SegmentInserter::unique(ins.getSegment());
+        } else {
+            return ins.getSegment();
+        }
+    }
 }
 
 size_t TGChase::getSizeTable(const PredId_t predid) const {

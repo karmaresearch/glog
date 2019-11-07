@@ -44,7 +44,9 @@ class TGChase : public Chase {
 
         std::shared_ptr<const Segment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
-                std::shared_ptr<const Segment> intermediateResults);
+                std::shared_ptr<const Segment> intermediateResults,
+                bool shouldSort,
+                bool shouldDelDupl);
 
         int cmp(std::unique_ptr<SegmentIterator> &inputLeft,
                 std::unique_ptr<SegmentIterator> &inputRight,
@@ -85,6 +87,11 @@ class TGChase : public Chase {
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
                 std::unique_ptr<SegmentInserter> &output);
+
+        void shouldSortDelDupls(const Literal &head,
+                const std::vector<Literal> &bodyAtoms,
+                bool &shouldSort,
+                bool &shouldDelDupl);
 
         std::shared_ptr<const Segment> retain(
                 PredId_t pred,
