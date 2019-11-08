@@ -126,7 +126,10 @@ InmemoryTable::InmemoryTable(std::string repository, std::string tablename,
             }
             for (int i = 0; i < arity; i++) {
                 uint64_t val;
-                layer->getOrAddDictNumber(row[i].c_str(), row[i].size(), val);
+                std::string tval = row[i];
+                if (tval == "")
+                    tval = "<EMPTY>";
+                layer->getOrAddDictNumber(tval.c_str(), tval.size(), val);
                 rowc[i] = val;
             }
             if (loadData)
