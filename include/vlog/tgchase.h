@@ -24,7 +24,7 @@ class TGChase : public Chase {
         EDBLayer &layer;
         size_t currentIteration;
 
-        std::map<PredId_t, std::unique_ptr<FCInternalTable>> edbTables;
+        std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
 
 #ifdef WEBINTERFACE
         PredId_t currentPredicate;

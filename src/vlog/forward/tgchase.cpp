@@ -224,21 +224,20 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_EDB(
         std::vector<int> &copyVarPos) {
     PredId_t p = atom.getPredicate().getId();
     if (!edbTables.count(p)) {
-        VTuple t = atom.getTuple();
-        for (uint8_t i = 0; i < t.getSize(); ++i) {
-            t.set(VTerm(i + 1, 0), i);
-        }
-        Literal mostGenericLiteral(atom.getPredicate(), t);
-        std::unique_ptr<FCInternalTable> ptrTable(new EDBFCInternalTable(0,
-                    mostGenericLiteral, &layer));
-        edbTables.insert(std::make_pair(p, std::move(ptrTable)));
+        auto edbTable = layer.getEDBTable(p);
+        edbTables[p] = edbTable;
     }
     //Get the columns
     auto &table = edbTables[p];
+    if (!table->useSegments()) {
+        LOG(ERRORL) << "EDB table not supported";
+        throw 10;
+    }
+    auto seg = table->getSegment();
     std::vector<std::shared_ptr<Column>> columns;
     for(int i = 0; i < copyVarPos.size(); ++i) {
         int pos = copyVarPos[i];
-        auto col = table->getColumn(pos);
+        auto col = seg->getColumn(pos);
         columns.push_back(col);
     }
     return std::shared_ptr<const Segment>(
@@ -691,51 +690,30 @@ std::shared_ptr<const Segment> TGChase::projectHead(const Literal &head,
         bool shouldSort,
         bool shouldDelDupl) {
     //Project the columns to instantiate the head
-    /*std::vector<std::shared_ptr<Column>> columns;
-      const auto &tupleHead = head.getTuple();
-      for(int i = 0; i < tupleHead.getSize(); ++i) {
-      for(int j = 0; j < vars.size(); ++j) {
-      if (vars[j] == tupleHead.get(i).getId()) {
-      columns.push_back(intermediateResults->getColumn(j));
-      break;
-      }
-      }
-      }
-      std::shared_ptr<const Segment> segment(new Segment(columns.size(),
-      columns));
-      */
-
-    std::vector<int> posProjections;
+    std::vector<std::shared_ptr<Column>> columns;
     const auto &tupleHead = head.getTuple();
     for(int i = 0; i < tupleHead.getSize(); ++i) {
-        int pos = 0;
-        for(auto p : vars) {
-            if (p == tupleHead.get(i).getId())
+        for(int j = 0; j < vars.size(); ++j) {
+            if (vars[j] == tupleHead.get(i).getId()) {
+                columns.push_back(intermediateResults->getColumn(j));
                 break;
-            pos++;
+            }
         }
-        posProjections.push_back(pos);
     }
-    SegmentInserter ins(posProjections.size());
-    for(int i = 0; i < posProjections.size(); ++i) {
-        int pos = posProjections[i];
-        ins.addColumn(i, intermediateResults->getColumn(pos), false);
-    }
+    std::shared_ptr<const Segment> segment(new Segment(columns.size(),
+                columns));
+
     if (shouldSort) {
         if (shouldDelDupl) {
-            return ins.getSortedAndUniqueSegment();
-            //return SegmentInserter::unique(segment->sortBy(NULL));
+            return SegmentInserter::unique(segment->sortBy(NULL));
         } else {
-            return ins.getSegment()->sortBy(NULL);
-            //return segment->sortBy(NULL);
+            return segment->sortBy(NULL);
         }
     } else {
         if (shouldDelDupl) {
-            return SegmentInserter::unique(ins.getSegment());
-            //return SegmentInserter::unique(segment);
+            return SegmentInserter::unique(segment);
         } else {
-            return ins.getSegment();
-            //return segment;
+            return segment;
         }
     }
 }
