@@ -17,6 +17,13 @@ struct TGChase_Node {
     TGChase_Node() : ruleIdx(0), step(0) {}
 };
 
+struct TGChase_SuperNode {
+    size_t ruleIdx;
+    size_t step;
+    std::vector<std::vector<size_t>> incomingEdges;
+    TGChase_SuperNode() : ruleIdx(0), step(0) {}
+};
+
 class TGChase : public Chase {
     private:
         Program *program;
@@ -40,7 +47,9 @@ class TGChase : public Chase {
         std::chrono::duration<double, std::milli> durationCreateHead;
 
         //Methods to execute the rule
-        bool executeRule(TGChase_Node &node);
+        bool executeRule(TGChase_SuperNode &node);
+
+        std::shared_ptr<const Segment> concatenate(std::vector<size_t> &bodyNodeIdxs);
 
         std::shared_ptr<const Segment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
@@ -71,6 +80,10 @@ class TGChase : public Chase {
                 std::shared_ptr<const Segment> &input,
                 std::vector<int> &copyVarPos);
 
+        std::shared_ptr<const Segment> processFirstAtom_IDB(
+                std::vector<size_t> &nodeIdxs,
+                std::vector<int> &copyVarPos);
+
         void recursiveCreateNode(
                 const size_t step,
                 const size_t ruleIdx,
@@ -82,6 +95,14 @@ class TGChase : public Chase {
         void mergejoin(
                 std::shared_ptr<const Segment> inputLeft,
                 std::shared_ptr<const Segment> inputRight,
+                std::pair<int, int> &joinVarPos,
+                std::vector<int> &copyVarPosLeft,
+                std::vector<int> &copyVarPosRight,
+                std::unique_ptr<SegmentInserter> &output);
+
+        void join(
+                std::shared_ptr<const Segment> inputLeft,
+                std::vector<size_t> &bodyIdxs,
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,

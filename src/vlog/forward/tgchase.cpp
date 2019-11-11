@@ -54,7 +54,7 @@ void TGChase::run() {
         currentIteration = step;
         nnodes = nodes.size();
 
-        std::vector<TGChase_Node> newnodes;
+        std::vector<TGChase_SuperNode> newnodes;
         for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
             auto &rule = rules[ruleIdx];
             std::vector<std::vector<size_t>> nodesForRule;
@@ -69,18 +69,17 @@ void TGChase::run() {
                     nodesForRule.push_back(pred2Nodes[pred.getId()]);
                 }
             }
-            if (empty)
-                continue;
+            if (empty) continue;
 
             if (rule.getNIDBPredicates() == 0) {
                 //It's a rule with only EDB body atoms. Create a single node
                 //I only execute these rules in the first step
                 if (step == 1) {
                     newnodes.emplace_back();
-                    TGChase_Node &newnode = newnodes.back();
-                    newnode.step = step;
+                    TGChase_SuperNode &newnode = newnodes.back();
                     newnode.ruleIdx = ruleIdx;
-                    newnode.incomingEdges = std::vector<size_t>();
+                    newnode.step = step;
+                    newnode.incomingEdges = std::vector<std::vector<size_t>>();
                 }
             } else {
                 size_t prevstep = 0;
@@ -119,11 +118,18 @@ void TGChase::run() {
                     }
                     if (acceptableNodesEmpty) continue;
 
+                    newnodes.emplace_back();
+                    TGChase_SuperNode &newnode = newnodes.back();
+                    newnode.ruleIdx = ruleIdx;
+                    newnode.step = step;
+                    newnode.incomingEdges = acceptableNodes;
+
                     //Create new nodes with all possible combinations
-                    std::vector<size_t> bodyNodes;
-                    bodyNodes.resize(acceptableNodes.size());
-                    recursiveCreateNode(step, ruleIdx, acceptableNodes,
-                            bodyNodes, 0, newnodes);
+                    //std::vector<size_t> bodyNodes;
+                    //bodyNodes.resize(acceptableNodes.size());
+                    //recursiveCreateNode(step, ruleIdx, acceptableNodes, bodyNodes,
+                    //        0, newnodes);
+
                 }
             }
         }
@@ -218,6 +224,27 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
 }
 
 std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
+        std::vector<size_t> &nodeIdxs,
+        std::vector<int> &copyVarPos) {
+    if (nodeIdxs.size() == 1) {
+        size_t idbBodyAtomIdx = nodeIdxs[0];
+        auto bodyNode = nodes[idbBodyAtomIdx];
+        return processFirstAtom_IDB(bodyNode.data, copyVarPos);
+    } else {
+        SegmentInserter ins(copyVarPos.size());
+        for(auto idbBodyAtomIdx : nodeIdxs) {
+            auto bodyNode = nodes[idbBodyAtomIdx];
+            for(int i = 0; i < copyVarPos.size(); ++i) {
+                int pos = copyVarPos[i];
+                auto col = bodyNode.data->getColumn(pos);
+                ins.addColumn(i, col, false);
+            }
+        }
+        return ins.getSegment();
+    }
+}
+
+std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
         std::shared_ptr<const Segment> &input,
         std::vector<int> &copyVarPos) {
     std::vector<std::shared_ptr<Column>> columns;
@@ -281,6 +308,42 @@ int TGChase::cmp(std::unique_ptr<SegmentIterator> &inputLeft,
         }
     }
     return 0;
+}
+
+std::shared_ptr<const Segment> TGChase::concatenate(
+        std::vector<size_t> &bodyNodeIdxs) {
+    std::unique_ptr<SegmentInserter> ins;
+    int nfields = -1;
+    for(size_t i = 0; i < bodyNodeIdxs.size(); ++i) {
+        auto &node = nodes[bodyNodeIdxs[i]].data;
+        if (i == 0) {
+            nfields = node->getNColumns();
+            ins = std::unique_ptr<SegmentInserter>(new SegmentInserter(nfields));
+        }
+        for(int j = 0; j < nfields; ++j) {
+            ins->addColumn(j, node->getColumn(j), false);
+        }
+    }
+    return ins->getSegment();
+}
+
+void TGChase::join(
+        std::shared_ptr<const Segment> inputLeft,
+        std::vector<size_t> &bodyNodeIdxs,
+        std::pair<int, int> &joinVarPos,
+        std::vector<int> &copyVarPosLeft,
+        std::vector<int> &copyVarPosRight,
+        std::unique_ptr<SegmentInserter> &output) {
+    std::shared_ptr<const Segment> inputRight;
+    if (bodyNodeIdxs.size() == 1) {
+        size_t idbBodyAtomIdx = bodyNodeIdxs[0];
+        auto bodyNode = nodes[idbBodyAtomIdx];
+        inputRight = bodyNode.data;
+    } else {
+        inputRight = concatenate(bodyNodeIdxs);
+    }
+    mergejoin(inputLeft, inputRight, joinVarPos, copyVarPosLeft,
+            copyVarPosRight, output);
 }
 
 void TGChase::mergejoin(
@@ -623,7 +686,7 @@ void TGChase::shouldSortDelDupls(const Literal &head,
     }
 }
 
-bool TGChase::executeRule(TGChase_Node &node) {
+bool TGChase::executeRule(TGChase_SuperNode &node) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE
@@ -631,11 +694,13 @@ bool TGChase::executeRule(TGChase_Node &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " " << rule.getFirstHead().getPredicate().getId();
+    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
+        " " << rule.getFirstHead().getPredicate().getId();
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
-    //Maybe Rearrange the body atoms? Don't forget to also re-arrange the body nodes
+    //Maybe Rearrange the body atoms? Don't forget to also re-arrange the body
+    //nodes
 
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const Segment> intermediateResults;
@@ -667,19 +732,17 @@ bool TGChase::executeRule(TGChase_Node &node) {
                 intermediateResults = processFirstAtom_EDB(bodyAtom,
                         copyVarPosRight);
             } else {
-                size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
-                auto bodyNode = nodes[idbBodyAtomIdx];
-
-                intermediateResults = processFirstAtom_IDB(bodyNode.data,
-                        copyVarPosRight);
+                /*size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
+                  auto bodyNode = nodes[idbBodyAtomIdx];
+                  intermediateResults = processFirstAtom_IDB(bodyNode.data,
+                  copyVarPosRight);*/
+                intermediateResults = processFirstAtom_IDB(bodyNodes[currentBodyNode], copyVarPosRight);
                 currentBodyNode++;
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             durationFirst += end - start;
         } else {
-            size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
-            auto bodyNode = nodes[idbBodyAtomIdx];
             std::unique_ptr<SegmentInserter> newIntermediateResults
                 (new SegmentInserter(copyVarPosLeft.size() + copyVarPosRight.size()));
 
@@ -687,12 +750,21 @@ bool TGChase::executeRule(TGChase_Node &node) {
             //the new collection
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
-            mergejoin(intermediateResults,
-                    bodyNode.data,
+            /*size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
+              auto bodyNode = nodes[idbBodyAtomIdx];
+              mergejoin(intermediateResults,
+              bodyNode.data,
+              joinVarPos,
+              copyVarPosLeft,
+              copyVarPosRight,
+              newIntermediateResults);*/
+            join(intermediateResults,
+                    bodyNodes[currentBodyNode],
                     joinVarPos,
                     copyVarPosLeft,
                     copyVarPosRight,
                     newIntermediateResults);
+
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             durationJoin += end - start;
@@ -746,9 +818,13 @@ bool TGChase::executeRule(TGChase_Node &node) {
 
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
-            node.data = retainedTuples;
             auto nodeId = nodes.size();
-            nodes.push_back(node);
+            nodes.emplace_back();
+            TGChase_Node &outputNode = nodes.back();
+            outputNode.ruleIdx = node.ruleIdx;
+            outputNode.step = node.step;
+            outputNode.data = retainedTuples;
+            nodes.push_back(outputNode);
             //Index the non-empty node
             pred2Nodes[currentPredicate].push_back(nodeId);
         }
