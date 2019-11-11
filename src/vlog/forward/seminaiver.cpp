@@ -531,10 +531,10 @@ bool SemiNaiver::executeUntilSaturation(
             std::chrono::duration<double> sec = std::chrono::system_clock::now() - round_start;
             LOG(DEBUGL) << "--Time round " << sec.count() * 1000 << " " << iteration;
             round_start = std::chrono::system_clock::now();
-#ifdef DEBUG
             //CODE FOR Statistics
-            LOG(DEBUGL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
+            LOG(INFOL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
                 nRulesOnePass << " out of " << ruleset.size() << " Derivations so far " << countAllIDBs();
+#ifdef DEBUG
             printCountAllIDBs("After step " + to_string(iteration) + ": ");
             nRulesOnePass = 0;
 

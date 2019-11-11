@@ -379,14 +379,6 @@ const char *EDBColumnReader::getUnderlyingArray() {
     return NULL;
 }
 
-void EDBColumnReader::reset() {
-    throw 10;
-}
-
-void EDBColumnReader::mark() {
-    throw 10;
-}
-
 std::pair<uint8_t, std::pair<uint8_t, uint8_t>> EDBColumnReader::getSizeElemUnderlyingArray() {
     if (hasNext()) {
         return itr->getSizeElemUnderlyingArray(posInItr);

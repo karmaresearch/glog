@@ -103,16 +103,10 @@ class SegmentIterator {
 
         virtual void reset() {
             throw 10;
-            for (int i = 0; i < nfields; i++) {
-                readers[i]->reset();
-            }
         }
 
         virtual void mark() {
             throw 10;
-            for (int i = 0; i < nfields; i++) {
-                readers[i]->mark();
-            }
         }
 
         Term_t get(const uint8_t pos) {
@@ -136,7 +130,7 @@ class VectorSegmentIterator final : public SegmentIterator {
                 int firstIndex,
                 int endIndex, std::vector<bool> *allocatedVectors)
             : SegmentIterator(vectors.size()),
-                    vectors(vectors), currentIndex(firstIndex-1), endIndex(endIndex), allocatedVectors(allocatedVectors) {
+            vectors(vectors), currentIndex(firstIndex-1), endIndex(endIndex), allocatedVectors(allocatedVectors) {
                 if (endIndex > vectors[0]->size()) {
                     this->endIndex = vectors[0]->size();
                 }

@@ -385,9 +385,9 @@ std::vector<uint8_t> Literal::getNewVars(std::vector<uint8_t> &vars) const {
         if (t.isVariable() &&
                 std::find(vars.begin(), vars.end(), t.getId()) == vars.end() &&
                 std::find(output.begin(), output.end(), t.getId()) == output.end()) {
-                output.push_back(t.getId());
-            }
+            output.push_back(t.getId());
         }
+    }
     return output;
 }
 
@@ -398,7 +398,7 @@ static std::vector<uint8_t> getAllVars(std::vector<Literal> &lits) {
             VTerm t = lit.getTermAtPos(i);
             if (t.isVariable() &&
                     std::find(output.begin(), output.end(), t.getId()) == output.end()) {
-                    output.push_back(t.getId());
+                output.push_back(t.getId());
             }
         }
     }
@@ -411,9 +411,9 @@ std::vector<uint8_t> Literal::getAllVars() const {
         VTerm t = getTermAtPos(i);
         if (t.isVariable() &&
                 std::find(output.begin(), output.end(), t.getId()) == output.end()) {
-                output.push_back(t.getId());
-            }
+            output.push_back(t.getId());
         }
+    }
     return output;
 }
 
@@ -658,9 +658,9 @@ std::map<uint8_t, std::vector<uint8_t>> Rule::calculateDependencies() const {
     for (const auto& extVar : getExistentialVariables()){
         for (const auto& frontierVar : frontierVars) {
             if ((itr = dependenciesExtVars.find(extVar)) != dependenciesExtVars.end()){
-               if (std::find(itr->second.begin(), itr->second.end(), frontierVar) == itr->second.end()) {
-                   itr->second.push_back(frontierVar);
-               }
+                if (std::find(itr->second.begin(), itr->second.end(), frontierVar) == itr->second.end()) {
+                    itr->second.push_back(frontierVar);
+                }
             } else {
                 dependenciesExtVars[extVar].push_back(frontierVar);
             }
@@ -1218,13 +1218,13 @@ std::string Program::parseRule(std::string rule, bool rewriteMultihead) {
             }
             LOG(DEBUGL) << "headliteral = \"" << headLiteral << "\"";
             Literal h = parseLiteral(headLiteral, dictVariables);
-			if (h.isNegated()) {
-				throw "head literal cannot be negated";
-			}
-			Predicate pred = h.getPredicate();
-			if (pred.getType() == EDB) {
-				throw "predicate in head cannot be EDB";
-			}
+            if (h.isNegated()) {
+                throw "head literal cannot be negated";
+            }
+            Predicate pred = h.getPredicate();
+            if (pred.getType() == EDB) {
+                throw "predicate in head cannot be EDB";
+            }
             lHeads.push_back(h);
         }
 
@@ -1343,10 +1343,10 @@ int64_t Program::getOrAddPredicate(const std::string & p, uint8_t cardinality) {
     if (cardPredicates.find(id) == cardPredicates.end()) {
         cardPredicates.insert(std::make_pair(id, cardinality));
     } else if (cardPredicates.find(id)->second == 0) {
-		cardPredicates.find(id)->second = cardinality;
-	} else if (cardPredicates.find(id)->second != cardinality) {
-		LOG(INFOL) << "Wrong cardinality for predicate " << p << ": should be " << (int) cardPredicates.find(id)->second;
-		return -1;
+        cardPredicates.find(id)->second = cardinality;
+    } else if (cardPredicates.find(id)->second != cardinality) {
+        LOG(INFOL) << "Wrong cardinality for predicate " << p << ": should be " << (int) cardPredicates.find(id)->second;
+        return -1;
     }
     if (id >= rules.size()) {
         rules.resize(id+1);

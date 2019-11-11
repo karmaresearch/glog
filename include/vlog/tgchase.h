@@ -40,7 +40,7 @@ class TGChase : public Chase {
         std::chrono::duration<double, std::milli> durationCreateHead;
 
         //Methods to execute the rule
-        bool executeRule(size_t nodeId);
+        bool executeRule(TGChase_Node &node);
 
         std::shared_ptr<const Segment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
@@ -76,7 +76,8 @@ class TGChase : public Chase {
                 const size_t ruleIdx,
                 std::vector<std::vector<size_t>> &input,
                 std::vector<size_t> &currentRow,
-                const size_t columnIdx);
+                const size_t columnIdx,
+                std::vector<TGChase_Node> &output);
 
         void mergejoin(
                 std::shared_ptr<const Segment> inputLeft,
@@ -96,6 +97,10 @@ class TGChase : public Chase {
                 std::shared_ptr<const Segment> newtuples);
 
         std::shared_ptr<const Segment> retainVsNode(
+                std::shared_ptr<const Segment> existuples,
+                std::shared_ptr<const Segment> newtuples);
+
+        std::shared_ptr<const Segment> retainVsNodeFast(
                 std::shared_ptr<const Segment> existuples,
                 std::shared_ptr<const Segment> newtuples);
 

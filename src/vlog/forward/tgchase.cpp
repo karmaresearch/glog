@@ -22,17 +22,18 @@ void TGChase::recursiveCreateNode(
         const size_t ruleIdx,
         std::vector<std::vector<size_t>> &input,
         std::vector<size_t> &currentRow,
-        const size_t columnIdx) {
+        const size_t columnIdx,
+        std::vector<TGChase_Node> &output) {
     size_t rowIdx = 0;
     while (rowIdx < input[columnIdx].size()) {
         currentRow[columnIdx] = input[columnIdx][rowIdx];
         if (columnIdx < input.size() - 1) {
             recursiveCreateNode(step, ruleIdx, input, currentRow,
-                    columnIdx + 1);
+                    columnIdx + 1, output);
         } else {
             //Create a new node
-            nodes.emplace_back();
-            TGChase_Node &newnode = nodes.back();
+            output.emplace_back();
+            TGChase_Node &newnode = output.back();
             newnode.step = step;
             newnode.ruleIdx = ruleIdx;
             newnode.incomingEdges = currentRow;
@@ -49,8 +50,11 @@ void TGChase::run() {
 
     do {
         step++;
+        LOG(INFOL) << "Step " << step;
         currentIteration = step;
         nnodes = nodes.size();
+
+        std::vector<TGChase_Node> newnodes;
         for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
             auto &rule = rules[ruleIdx];
             std::vector<std::vector<size_t>> nodesForRule;
@@ -72,8 +76,8 @@ void TGChase::run() {
                 //It's a rule with only EDB body atoms. Create a single node
                 //I only execute these rules in the first step
                 if (step == 1) {
-                    nodes.emplace_back();
-                    TGChase_Node &newnode = nodes.back();
+                    newnodes.emplace_back();
+                    TGChase_Node &newnode = newnodes.back();
                     newnode.step = step;
                     newnode.ruleIdx = ruleIdx;
                     newnode.incomingEdges = std::vector<size_t>();
@@ -119,7 +123,7 @@ void TGChase::run() {
                     std::vector<size_t> bodyNodes;
                     bodyNodes.resize(acceptableNodes.size());
                     recursiveCreateNode(step, ruleIdx, acceptableNodes,
-                            bodyNodes, 0);
+                            bodyNodes, 0, newnodes);
                 }
             }
         }
@@ -127,15 +131,22 @@ void TGChase::run() {
         //TODO: Prune nodes that lead only to duplicate derivations
 
         //Execute the rule associated to the node
-        size_t idxNode = nnodes;
-        while (idxNode < nodes.size()) {
-            bool res = executeRule(idxNode);
-            if (!res) {
-                nodes.erase(nodes.begin() + idxNode);
-            } else {
-                idxNode++;
-            }
+        auto nnodes = nodes.size();
+
+        auto nodesToProcess = newnodes.size();
+        LOG(INFOL) << "Nodes to process " << nodesToProcess;
+        for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
+            executeRule(newnodes[idxNode]);
         }
+
+        if (nnodes != nodes.size()) {
+            auto derivedTuples = 0;
+            for(size_t idx = nnodes; idx < nodes.size(); ++idx) {
+                derivedTuples += nodes[idx].data->getNRows();
+            }
+            LOG(INFOL) << "Derived Tuples: " << derivedTuples;
+        }
+
     } while (nnodes != nodes.size());
 
     LOG(INFOL) << "Time first (ms): " << durationFirst.count();
@@ -172,7 +183,7 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
         for(size_t i = 0; i < leftVars.size(); ++i) {
             if (futureOccurrences.count(leftVars[i])) {
                 copyVarPosLeft.push_back(i);
-                addedVars.insert(rightVars[i]);
+                addedVars.insert(leftVars[i]);
             }
         }
         //Search for the join variable
@@ -403,17 +414,15 @@ void TGChase::mergejoin(
 std::shared_ptr<const Segment> TGChase::retainVsNode(
         std::shared_ptr<const Segment> existuples,
         std::shared_ptr<const Segment> newtuples) {
-    std::unique_ptr<SegmentInserter> inserter;
-
-    bool isFiltered = false;
-    size_t startCopyingIdx = 0;
 
     //Do outer join
     auto leftItr = existuples->iterator();
     auto rightItr = newtuples->iterator();
+    bool activeRightValue = false;
     bool moveLeftItr = true;
     bool moveRightItr = true;
-    size_t countNew = 0;
+    std::unique_ptr<SegmentInserter> inserter = std::unique_ptr<SegmentInserter>(
+            new SegmentInserter(rightItr->getNFields()));
     while (true) {
         if (moveLeftItr) {
             if (leftItr->hasNext()) {
@@ -426,11 +435,70 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
 
         if (moveRightItr) {
             if (rightItr->hasNext()) {
+                activeRightValue = true;
                 rightItr->next();
             } else {
+                activeRightValue = false;
                 break;
             }
             moveRightItr = false;
+        }
+
+        //Compare the iterators
+        int res = cmp(leftItr, rightItr);
+        if (res < 0) {
+            moveLeftItr = true;
+        } else if (res > 0) {
+            moveRightItr = true;
+            inserter->addRow(*rightItr.get());
+        } else {
+            moveLeftItr = moveRightItr = true;
+            activeRightValue = false;
+        }
+    }
+
+    if (activeRightValue)
+        inserter->addRow(*rightItr.get());
+    while (rightItr->hasNext()) {
+        rightItr->next();
+        inserter->addRow(*rightItr.get());
+    }
+    return inserter->getSegment();
+}
+
+std::shared_ptr<const Segment> TGChase::retainVsNodeFast(
+        std::shared_ptr<const Segment> existuples,
+        std::shared_ptr<const Segment> newtuples) {
+    std::unique_ptr<SegmentInserter> inserter;
+
+    //Do outer join
+    auto leftItr = existuples->iterator();
+    auto rightItr = newtuples->iterator();
+    bool moveLeftItr = true;
+    bool moveRightItr = true;
+    bool activeRightValue = false;
+    size_t countNew = 0;
+    bool isFiltered = false;
+    size_t startCopyingIdx = 0;
+    while (true) {
+        if (moveRightItr) {
+            if (rightItr->hasNext()) {
+                rightItr->next();
+                activeRightValue = true;
+            } else {
+                activeRightValue = false;
+                break;
+            }
+            moveRightItr = false;
+        }
+
+        if (moveLeftItr) {
+            if (leftItr->hasNext()) {
+                leftItr->next();
+            } else {
+                break;
+            }
+            moveLeftItr = false;
         }
 
         //Compare the iterators
@@ -446,6 +514,7 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
             }
         } else {
             moveLeftItr = moveRightItr = true;
+            activeRightValue = false;
             if (!isFiltered && countNew == 0)
                 startCopyingIdx++;
 
@@ -467,24 +536,8 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
         }
     }
 
-    if (!isFiltered && countNew > 0 && startCopyingIdx > 0) {
-        //Remove the initial duplicates
-        inserter = std::unique_ptr<SegmentInserter>(
-                new SegmentInserter(rightItr->getNFields()));
-        //Copy all the previous new tuples in the right iterator
-        size_t i = 0;
-        auto itrTmp = newtuples->iterator();
-        while (itrTmp->hasNext()) {
-            itrTmp->next();
-            if (i >= startCopyingIdx)
-                inserter->addRow(*itrTmp.get());
-            i++;
-        }
-        isFiltered = true;
-    }
-
     if (isFiltered) {
-        if (!moveRightItr)
+        if (activeRightValue)
             inserter->addRow(*rightItr.get());
         while (rightItr->hasNext()) {
             rightItr->next();
@@ -492,11 +545,28 @@ std::shared_ptr<const Segment> TGChase::retainVsNode(
         }
         return inserter->getSegment();
     } else {
-        if (countNew == 0 && moveRightItr) {
-            return std::shared_ptr<const Segment>();
+        if (countNew > 0 || activeRightValue) {
+            if (startCopyingIdx == 0) {
+                //They are all new ...
+                return newtuples;
+            } else {
+                //Remove the initial duplicates
+                inserter = std::unique_ptr<SegmentInserter>(
+                        new SegmentInserter(rightItr->getNFields()));
+                //Copy all the previous new tuples in the right iterator
+                size_t i = 0;
+                auto itrTmp = newtuples->iterator();
+                while (itrTmp->hasNext()) {
+                    itrTmp->next();
+                    if (i >= startCopyingIdx)
+                        inserter->addRow(*itrTmp.get());
+                    i++;
+                }
+                return inserter->getSegment();
+            }
         } else {
-            //They are all new
-            return newtuples;
+            //They are all duplicates
+            return std::shared_ptr<const Segment>();
         }
     }
 }
@@ -510,10 +580,11 @@ std::shared_ptr<const Segment> TGChase::retain(
     auto &nodeIdxs = pred2Nodes[p];
     for(auto &nodeIdx : nodeIdxs) {
         auto node = nodes[nodeIdx];
-        newtuples = retainVsNode(node.data, newtuples);
+        newtuples = retainVsNodeFast(node.data, newtuples);
 
-        if (newtuples == NULL || newtuples->isEmpty())
+        if (newtuples == NULL || newtuples->isEmpty()) {
             return std::shared_ptr<const Segment>();
+        }
     }
     return newtuples;
 }
@@ -552,8 +623,7 @@ void TGChase::shouldSortDelDupls(const Literal &head,
     }
 }
 
-bool TGChase::executeRule(size_t nodeId) {
-    auto &node = nodes[nodeId];
+bool TGChase::executeRule(TGChase_Node &node) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE
@@ -561,8 +631,7 @@ bool TGChase::executeRule(size_t nodeId) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " nodeId=" << nodeId << " " << rule.getFirstHead().getPredicate().getId();
-
+    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) << " " << rule.getFirstHead().getPredicate().getId();
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -600,6 +669,7 @@ bool TGChase::executeRule(size_t nodeId) {
             } else {
                 size_t idbBodyAtomIdx = bodyNodes[currentBodyNode];
                 auto bodyNode = nodes[idbBodyAtomIdx];
+
                 intermediateResults = processFirstAtom_IDB(bodyNode.data,
                         copyVarPosRight);
                 currentBodyNode++;
@@ -677,6 +747,8 @@ bool TGChase::executeRule(size_t nodeId) {
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
             node.data = retainedTuples;
+            auto nodeId = nodes.size();
+            nodes.push_back(node);
             //Index the non-empty node
             pred2Nodes[currentPredicate].push_back(nodeId);
         }

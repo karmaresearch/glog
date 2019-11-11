@@ -1503,7 +1503,7 @@ std::shared_ptr<Column> EDBTable::checkIn(
     iter->clear();
     delete iter;
     t_merge.stop();
-    LOG(INFOL) << t_merge.tostring();
+    LOG(DEBUGL) << t_merge.tostring();
 
     return col->getColumn();
 }
