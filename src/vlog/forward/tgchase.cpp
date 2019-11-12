@@ -2,10 +2,12 @@
 
 TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
     program(program),
+    durationMergeSort(0),
     durationJoin(0),
     durationRetain(0),
     durationCreateHead(0),
-    durationFirst(0)
+    durationFirst(0),
+    trackProvenance(false)
 {
 }
 
@@ -16,31 +18,6 @@ Program *TGChase::getProgram() {
 EDBLayer &TGChase::getEDBLayer() {
     return layer;
 }
-
-/*void TGChase::recursiveCreateNode(
-  const size_t step,
-  const size_t ruleIdx,
-  std::vector<std::vector<size_t>> &input,
-  std::vector<size_t> &currentRow,
-  const size_t columnIdx,
-  std::vector<TGChase_Node> &output) {
-  size_t rowIdx = 0;
-  while (rowIdx < input[columnIdx].size()) {
-  currentRow[columnIdx] = input[columnIdx][rowIdx];
-  if (columnIdx < input.size() - 1) {
-  recursiveCreateNode(step, ruleIdx, input, currentRow,
-  columnIdx + 1, output);
-  } else {
-//Create a new node
-output.emplace_back();
-TGChase_Node &newnode = output.back();
-newnode.step = step;
-newnode.ruleIdx = ruleIdx;
-newnode.incomingEdges = currentRow;
-}
-rowIdx++;
-}
-}*/
 
 void TGChase::run() {
     initRun();
@@ -123,18 +100,9 @@ void TGChase::run() {
                     newnode.ruleIdx = ruleIdx;
                     newnode.step = step;
                     newnode.incomingEdges = acceptableNodes;
-
-                    //Create new nodes with all possible combinations
-                    //std::vector<size_t> bodyNodes;
-                    //bodyNodes.resize(acceptableNodes.size());
-                    //recursiveCreateNode(step, ruleIdx, acceptableNodes, bodyNodes,
-                    //        0, newnodes);
-
                 }
             }
         }
-
-        //TODO: Prune nodes that lead only to duplicate derivations
 
         //Execute the rule associated to the node
         auto nnodes = nodes.size();
@@ -157,6 +125,7 @@ void TGChase::run() {
     } while (nnodes != nodes.size());
 
     LOG(INFOL) << "Time first (ms): " << durationFirst.count();
+    LOG(INFOL) << "Time mergesort (ms): " << durationMergeSort.count();
     LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
     LOG(INFOL) << "Time head (ms): " << durationCreateHead.count();
     LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
@@ -232,7 +201,8 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
         auto bodyNode = nodes[idbBodyAtomIdx];
         return processFirstAtom_IDB(bodyNode.data, copyVarPos, idbBodyAtomIdx);
     } else {
-        SegmentInserter ins(copyVarPos.size() + 1);
+        const uint8_t extraCol = trackProvenance ? 1 : 0;
+        SegmentInserter ins(copyVarPos.size() + extraCol);
         for(auto idbBodyAtomIdx : nodeIdxs) {
             auto bodyNode = nodes[idbBodyAtomIdx];
             for(int i = 0; i < copyVarPos.size(); ++i) {
@@ -240,11 +210,12 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
                 auto col = bodyNode.data->getColumn(pos);
                 ins.addColumn(i, col, false);
             }
-            //Add an extra column with the node ID
-            ins.addColumn(copyVarPos.size(), std::shared_ptr<Column>(
-                        new CompressedColumn(idbBodyAtomIdx,
-                            bodyNode.data->getNRows())), true);
-
+            if (trackProvenance) {
+                //Add an extra column with the node ID
+                ins.addColumn(copyVarPos.size(), std::shared_ptr<Column>(
+                            new CompressedColumn(idbBodyAtomIdx,
+                                bodyNode.data->getNRows())), true);
+            }
         }
         return ins.getSortedAndUniqueSegment();
     }
@@ -260,8 +231,11 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
         auto col = input->getColumn(pos);
         columns.push_back(col);
     }
-    auto nrows = columns[0]->size();
-    columns.push_back(std::shared_ptr<Column>(new CompressedColumn(nodeId, nrows)));
+    if (trackProvenance) {
+        auto nrows = columns[0]->size();
+        columns.push_back(std::shared_ptr<Column>(
+                    new CompressedColumn(nodeId, nrows)));
+    }
     return std::shared_ptr<const Segment>(
             new Segment(columns.size(), columns));
 }
@@ -287,9 +261,11 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_EDB(
         auto col = seg->getColumn(pos);
         columns.push_back(col);
     }
-    //Add a column with a fictional node
-    auto nrows = columns[0]->size();
-    columns.push_back(std::shared_ptr<Column>(new CompressedColumn(~0lu, nrows)));
+    if (trackProvenance) {
+        //Add a column with a fictional node
+        auto nrows = columns[0]->size();
+        columns.push_back(std::shared_ptr<Column>(new CompressedColumn(~0lu, nrows)));
+    }
     return std::shared_ptr<const Segment>(
             new Segment(columns.size(), columns));
 }
@@ -331,16 +307,19 @@ std::shared_ptr<const Segment> TGChase::concatenate(
         auto &node = nodes[idbBodyAtomIdx].data;
         if (i == 0) {
             nfields = node->getNColumns();
+            const uint8_t extraCol = trackProvenance ? 1 : 0;
             ins = std::unique_ptr<SegmentInserter>(
-                    new SegmentInserter(nfields + 1));
+                    new SegmentInserter(nfields + extraCol));
         }
         for(int j = 0; j < nfields; ++j) {
             ins->addColumn(j, node->getColumn(j), false);
         }
-        //Add an extra column with the node ID
-        ins->addColumn(nfields, std::shared_ptr<Column>(
-                    new CompressedColumn(idbBodyAtomIdx,
-                        node->getNRows())), true);
+        if (trackProvenance) {
+            //Add an extra column with the node ID
+            ins->addColumn(nfields, std::shared_ptr<Column>(
+                        new CompressedColumn(idbBodyAtomIdx,
+                            node->getNRows())), true);
+        }
     }
     return ins->getSegment();
 }
@@ -357,15 +336,17 @@ void TGChase::join(
         size_t idbBodyAtomIdx = bodyNodeIdxs[0];
         auto bodyNode = nodes[idbBodyAtomIdx];
         inputRight = bodyNode.data;
-        //Add extra column
-        std::vector<std::shared_ptr<Column>> columns;
-        for(int j = 0; j < inputRight->getNColumns(); ++j) {
-            columns.push_back(inputRight->getColumn(j));
+        if (trackProvenance) {
+            //Add extra column
+            std::vector<std::shared_ptr<Column>> columns;
+            for(int j = 0; j < inputRight->getNColumns(); ++j) {
+                columns.push_back(inputRight->getColumn(j));
+            }
+            columns.push_back(std::shared_ptr<Column>(new CompressedColumn(
+                            idbBodyAtomIdx, inputRight->getNRows())));
+            inputRight = std::shared_ptr<const Segment>(new Segment(
+                        columns.size(), columns));
         }
-        columns.push_back(std::shared_ptr<Column>(new CompressedColumn(
-                        idbBodyAtomIdx, inputRight->getNRows())));
-        inputRight = std::shared_ptr<const Segment>(new Segment(
-                    columns.size(), columns));
     } else {
         inputRight = concatenate(bodyNodeIdxs);
     }
@@ -383,9 +364,11 @@ void TGChase::mergejoin(
     std::chrono::system_clock::time_point startL = std::chrono::system_clock::now();
 
     //Sort the left segment by the join variable
+    std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
     auto sortedInputLeft = inputLeft->sortByField(joinVarPos.first);
     //Sort the right segment by the join variable
     auto sortedInputRight = inputRight->sortByField(joinVarPos.second);
+    durationMergeSort += std::chrono::system_clock::now() - startS;
     auto itrLeft = sortedInputLeft->iterator();
     auto itrRight = sortedInputRight->iterator();
 
@@ -755,8 +738,8 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-//    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
-//        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+    //    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
+    //        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -765,6 +748,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
 
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const Segment> intermediateResults;
+    //Used only if trackProvenance=true
     std::vector<std::shared_ptr<Column>> intermediateResultsNodes;
     size_t currentBodyNode = 0;
 
@@ -802,9 +786,11 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                 std::chrono::steady_clock::now();
             durationFirst += end - start;
         } else {
+            const uint8_t extraColumns = trackProvenance ? 2 : 0;
             std::unique_ptr<SegmentInserter> newIntermediateResults
                 (new SegmentInserter(copyVarPosLeft.size() +
-                                     copyVarPosRight.size() + 2));
+                                     copyVarPosRight.size() + extraColumns));
+
             //Perform merge join between the intermediate results and
             //the new collection
             std::chrono::steady_clock::time_point start =
@@ -820,10 +806,11 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             durationJoin += end - start;
 
             intermediateResults = newIntermediateResults->getSegment();
-            //Process the output of nodes
-            postprocessJoin(intermediateResults, intermediateResultsNodes,
-                    i < bodyAtoms.size() - 1);
-
+            if (trackProvenance) {
+                //Process the output of nodes
+                postprocessJoin(intermediateResults, intermediateResultsNodes,
+                        i < bodyAtoms.size() - 1);
+            }
 
             //Update the list of variables from the left atom
             for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {

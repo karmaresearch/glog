@@ -31,6 +31,8 @@ class TGChase : public Chase {
         EDBLayer &layer;
         size_t currentIteration;
 
+        bool trackProvenance;
+
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
 
 #ifdef WEBINTERFACE
@@ -42,6 +44,7 @@ class TGChase : public Chase {
         std::vector<TGChase_Node> nodes;
 
         std::chrono::duration<double, std::milli> durationFirst;
+        std::chrono::duration<double, std::milli> durationMergeSort;
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationRetain;
         std::chrono::duration<double, std::milli> durationCreateHead;
