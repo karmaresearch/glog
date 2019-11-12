@@ -148,7 +148,8 @@ void TGChase::run() {
         if (nnodes != nodes.size()) {
             auto derivedTuples = 0;
             for(size_t idx = nnodes; idx < nodes.size(); ++idx) {
-                derivedTuples += nodes[idx].data->getNRows();
+                auto nrows = nodes[idx].data->getNRows();
+                derivedTuples += nrows;
             }
             LOG(INFOL) << "Derived Tuples: " << derivedTuples;
         }
@@ -240,7 +241,7 @@ std::shared_ptr<const Segment> TGChase::processFirstAtom_IDB(
                 ins.addColumn(i, col, false);
             }
         }
-        return ins.getSegment();
+        return ins.getSortedAndUniqueSegment();
     }
 }
 
@@ -824,7 +825,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             outputNode.ruleIdx = node.ruleIdx;
             outputNode.step = node.step;
             outputNode.data = retainedTuples;
-            nodes.push_back(outputNode);
             //Index the non-empty node
             pred2Nodes[currentPredicate].push_back(nodeId);
         }
