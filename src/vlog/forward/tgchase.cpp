@@ -734,13 +734,13 @@ void TGChase::postprocessJoin(
         blocks.push_back(b);
         columns.push_back(std::shared_ptr<Column>(
                     new CompressedColumn(blocks, columns[0]->size())));
-
-        //Save the columns with the mappings to the nodes
-        auto col1 = intermediateResults->getColumn(ncolumns - 2);
-        auto col2 = intermediateResults->getColumn(ncolumns - 1);
-        intermediateResultsNodes.push_back(col1);
-        intermediateResultsNodes.push_back(col2);
     }
+
+    //Save the columns with the mappings to the nodes
+    auto col1 = intermediateResults->getColumn(ncolumns - 2);
+    auto col2 = intermediateResults->getColumn(ncolumns - 1);
+    intermediateResultsNodes.push_back(col1);
+    intermediateResultsNodes.push_back(col2);
 
     //Create new intermediate results
     intermediateResults = std::shared_ptr<const Segment>(new Segment(
@@ -755,8 +755,8 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
-        " " << rule.getFirstHead().getPredicate().getId();
+//    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
+//        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();

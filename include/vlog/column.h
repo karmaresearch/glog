@@ -290,7 +290,7 @@ class ColumnReaderImpl final : public ColumnReader {
         size_t posInBlock;
         size_t position;
 
-        size_t m_posInBlock, m_position;
+        size_t m_posInBlock, m_position, m_currentBlock;
 
     public:
         ColumnReaderImpl(const std::vector<CompressedColumnBlock> &blocks,
@@ -321,6 +321,7 @@ class ColumnReaderImpl final : public ColumnReader {
                 throw 10;
             posInBlock = m_posInBlock;
             position = m_position;
+            currentBlock = m_currentBlock;
         }
 
         void mark() {
@@ -329,6 +330,7 @@ class ColumnReaderImpl final : public ColumnReader {
                 throw 10;
             m_posInBlock = posInBlock;
             m_position = position;
+            m_currentBlock = currentBlock;
         }
 };
 

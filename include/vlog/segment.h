@@ -64,6 +64,10 @@ class SegmentIterator {
             readers = NULL;
         }
 
+
+        Term_t m_values[256];
+        bool m_finished;
+
     public:
         SegmentIterator(const uint8_t nfields, std::shared_ptr<Column> *columns) : nfields(nfields), finished(false) {
             readers = new std::unique_ptr<ColumnReader>[nfields];
@@ -104,13 +108,17 @@ class SegmentIterator {
         virtual void reset() {
             for (int i = 0; i < nfields; i++) {
                 readers[i]->reset();
+                values[i] = m_values[i];
             }
+            finished = m_finished;
         }
 
         virtual void mark() {
             for (int i = 0; i < nfields; i++) {
                 readers[i]->mark();
+                m_values[i] = values[i];
             }
+            m_finished = finished;
         }
 
         Term_t get(const uint8_t pos) {
