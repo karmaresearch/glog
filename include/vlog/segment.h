@@ -102,11 +102,15 @@ class SegmentIterator {
         }
 
         virtual void reset() {
-            throw 10;
+            for (int i = 0; i < nfields; i++) {
+                readers[i]->reset();
+            }
         }
 
         virtual void mark() {
-            throw 10;
+            for (int i = 0; i < nfields; i++) {
+                readers[i]->mark();
+            }
         }
 
         Term_t get(const uint8_t pos) {

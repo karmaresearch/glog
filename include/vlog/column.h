@@ -29,6 +29,14 @@ class ColumnReader {
 
         virtual std::vector<Term_t> asVector() = 0;
 
+        virtual void reset() {
+            throw 10;
+        }
+
+        virtual void mark() {
+            throw 10;
+        }
+
         virtual ~ColumnReader() { }
 };
 
@@ -282,13 +290,14 @@ class ColumnReaderImpl final : public ColumnReader {
         size_t posInBlock;
         size_t position;
 
-        //Term_t get(const size_t pos);
+        size_t m_posInBlock, m_position;
 
     public:
         ColumnReaderImpl(const std::vector<CompressedColumnBlock> &blocks,
-                const size_t size) : /*beginRange(0), endRange(0),*/
-            blocks(blocks.size() == 0 ? NULL : &blocks[0]), /*offsetsize(offsetsize), deltas(deltas),*/
-            _size(size), numBlocks(blocks.size()), currentBlock(0), posInBlock(0), position(0) {
+                const size_t size) :
+            blocks(blocks.size() == 0 ? NULL : &blocks[0]),
+            _size(size), numBlocks(blocks.size()), currentBlock(0),
+            posInBlock(0), position(0) {
             }
 
         Term_t first();
@@ -305,6 +314,22 @@ class ColumnReaderImpl final : public ColumnReader {
 
         void clear() {
         }
+
+        void reset() {
+            assert(currentBlock == 0);
+            if (numBlocks > 1)
+                throw 10;
+            posInBlock = m_posInBlock;
+            position = m_position;
+        }
+
+        void mark() {
+            assert(currentBlock == 0);
+            if (numBlocks > 1)
+                throw 10;
+            m_posInBlock = posInBlock;
+            m_position = position;
+        }
 };
 
 //----- INMEMORY COLUMN ----------
@@ -314,6 +339,8 @@ class InmemColumnReader final : public ColumnReader {
         size_t start;
         size_t currentPos;
         size_t end;
+
+        size_t m_currentPos;
 
     public:
         InmemColumnReader(const std::vector<Term_t> &vals) : col(vals),
@@ -350,6 +377,14 @@ class InmemColumnReader final : public ColumnReader {
         }
 
         void clear() {
+        }
+
+        void reset() {
+            currentPos = m_currentPos;
+        }
+
+        void mark() {
+            m_currentPos = currentPos;
         }
 };
 

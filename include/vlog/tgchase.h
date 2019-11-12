@@ -57,6 +57,11 @@ class TGChase : public Chase {
                 bool shouldSort,
                 bool shouldDelDupl);
 
+        void postprocessJoin(
+            std::shared_ptr<const Segment> &intermediateResults,
+            std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
+            bool replace);
+
         int cmp(std::unique_ptr<SegmentIterator> &inputLeft,
                 std::unique_ptr<SegmentIterator> &inputRight,
                 std::pair<int, int> &joinVarPos);
@@ -78,19 +83,20 @@ class TGChase : public Chase {
 
         std::shared_ptr<const Segment> processFirstAtom_IDB(
                 std::shared_ptr<const Segment> &input,
-                std::vector<int> &copyVarPos);
+                std::vector<int> &copyVarPos,
+                size_t nodeId);
 
         std::shared_ptr<const Segment> processFirstAtom_IDB(
                 std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos);
 
-        void recursiveCreateNode(
-                const size_t step,
-                const size_t ruleIdx,
-                std::vector<std::vector<size_t>> &input,
-                std::vector<size_t> &currentRow,
-                const size_t columnIdx,
-                std::vector<TGChase_Node> &output);
+        /*        void recursiveCreateNode(
+                  const size_t step,
+                  const size_t ruleIdx,
+                  std::vector<std::vector<size_t>> &input,
+                  std::vector<size_t> &currentRow,
+                  const size_t columnIdx,
+                  std::vector<TGChase_Node> &output); */
 
         void mergejoin(
                 std::shared_ptr<const Segment> inputLeft,
