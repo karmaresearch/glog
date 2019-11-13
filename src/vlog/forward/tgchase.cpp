@@ -7,7 +7,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(false)
+    trackProvenance(true)
 {
 }
 
@@ -748,7 +748,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
 
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const Segment> intermediateResults;
-    //Used only if trackProvenance=true
+    //The following data structure is used only if trackProvenance=true
     std::vector<std::shared_ptr<Column>> intermediateResultsNodes;
     size_t currentBodyNode = 0;
 
