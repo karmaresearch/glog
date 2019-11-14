@@ -7,7 +7,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(true)
+    trackProvenance(false)
 {
 }
 
