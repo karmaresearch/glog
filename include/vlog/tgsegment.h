@@ -241,6 +241,29 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
             return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
         }
 
+        std::unique_ptr<TGSegment> swap() const {
+            std::vector<K> newtuples;
+            for(const K &t : TGSegmentImpl<K>::tuples) {
+                K newt = t;
+                newt.first = t.second;
+                newt.second = t.first;
+                newtuples.push_back(newt);
+            }
+            return std::unique_ptr<TGSegment>(new S(newtuples, TGSegmentImpl<K>::getNodeId()));
+        }
+
+        void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
+            if (colPos == 0) {
+                for(const K &t : TGSegmentImpl<K>::tuples) {
+                    out.push_back(t.first);
+                }
+            } else {
+                assert(colPos == 1);
+                for(const K &t : TGSegmentImpl<K>::tuples) {
+                    out.push_back(t.second);
+                }
+            }
+        }
 };
 
 class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTGSegmentItr> {

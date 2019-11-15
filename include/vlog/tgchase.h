@@ -110,6 +110,7 @@ class TGChase : public Chase {
 
         void shouldSortDelDupls(const Literal &head,
                 const std::vector<Literal> &bodyAtoms,
+                const std::vector<std::vector<size_t>> &bodyNodes,
                 bool &shouldSort,
                 bool &shouldDelDupl);
 

@@ -707,6 +707,7 @@ size_t TGChase::getNnodes() {
 
 void TGChase::shouldSortDelDupls(const Literal &head,
         const std::vector<Literal> &bodyAtoms,
+        const std::vector<std::vector<size_t>> &bodyNodes,
         bool &shouldSort,
         bool &shouldDelDupl) {
     if (bodyAtoms.size() == 1) {
@@ -720,7 +721,7 @@ void TGChase::shouldSortDelDupls(const Literal &head,
             }
             sortedFields++;
         }
-        shouldSort = !(sortedFields == th.getSize());
+        shouldSort = !(sortedFields == th.getSize()) || (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
         shouldDelDupl = th.getSize() < tb.getSize();
     } else {
         shouldSort = shouldDelDupl = true;
@@ -770,8 +771,8 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    //    LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
-    //        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
+        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -873,7 +874,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             std::chrono::steady_clock::now();
         Literal head = rule.getFirstHead();
         bool shouldSort = true, shouldDelDupl = true;
-        shouldSortDelDupls(head, bodyAtoms, shouldSort, shouldDelDupl);
+        shouldSortDelDupls(head, bodyAtoms, bodyNodes, shouldSort, shouldDelDupl);
         intermediateResults = projectHead(head,
                 varsIntermediate, intermediateResults,
                 shouldSort,
