@@ -5,6 +5,7 @@
 #include <vlog/chase.h>
 #include <vlog/edb.h>
 #include <vlog/fcinttable.h>
+#include <vlog/tgsegment.h>
 
 #include <map>
 #include <chrono>
@@ -13,7 +14,7 @@ struct TGChase_Node {
     size_t ruleIdx;
     size_t step;
     std::vector<size_t> incomingEdges;
-    std::shared_ptr<const Segment> data;
+    std::shared_ptr<const TGSegment> data;
     TGChase_Node() : ruleIdx(0), step(0) {}
 };
 
@@ -52,25 +53,23 @@ class TGChase : public Chase {
         //Methods to execute the rule
         bool executeRule(TGChase_SuperNode &node);
 
-        std::shared_ptr<const Segment> concatenate(std::vector<size_t> &bodyNodeIdxs);
-
-        std::shared_ptr<const Segment> projectHead(const Literal &head,
+        std::shared_ptr<const TGSegment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
-                std::shared_ptr<const Segment> intermediateResults,
+                std::shared_ptr<const TGSegment> intermediateResults,
                 bool shouldSort,
                 bool shouldDelDupl);
 
         void postprocessJoin(
-            std::shared_ptr<const Segment> &intermediateResults,
+            std::shared_ptr<const TGSegment> &intermediateResults,
             std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
             bool replace);
 
-        int cmp(std::unique_ptr<SegmentIterator> &inputLeft,
-                std::unique_ptr<SegmentIterator> &inputRight,
+        int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+                std::unique_ptr<TGSegmentItr> &inputRight,
                 std::pair<int, int> &joinVarPos);
 
-        int cmp(std::unique_ptr<SegmentIterator> &inputLeft,
-                std::unique_ptr<SegmentIterator> &inputRight);
+        int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+                std::unique_ptr<TGSegmentItr> &inputRight);
 
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,
@@ -80,37 +79,29 @@ class TGChase : public Chase {
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight);
 
-        std::shared_ptr<const Segment> processFirstAtom_EDB(
+        std::shared_ptr<const TGSegment> processFirstAtom_EDB(
                 const Literal &atom,
                 std::vector<int> &copyVarPos);
 
-        std::shared_ptr<const Segment> processFirstAtom_IDB(
-                std::shared_ptr<const Segment> &input,
+        std::shared_ptr<const TGSegment> processFirstAtom_IDB(
+                std::shared_ptr<const TGSegment> &input,
                 std::vector<int> &copyVarPos,
                 size_t nodeId);
 
-        std::shared_ptr<const Segment> processFirstAtom_IDB(
+        std::shared_ptr<const TGSegment> mergeNodes(
                 std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos);
 
-        /*        void recursiveCreateNode(
-                  const size_t step,
-                  const size_t ruleIdx,
-                  std::vector<std::vector<size_t>> &input,
-                  std::vector<size_t> &currentRow,
-                  const size_t columnIdx,
-                  std::vector<TGChase_Node> &output); */
-
         void mergejoin(
-                std::shared_ptr<const Segment> inputLeft,
-                std::shared_ptr<const Segment> inputRight,
+                std::shared_ptr<const TGSegment> inputLeft,
+                std::shared_ptr<const TGSegment> inputRight,
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
                 std::unique_ptr<SegmentInserter> &output);
 
         void join(
-                std::shared_ptr<const Segment> inputLeft,
+                std::shared_ptr<const TGSegment> inputLeft,
                 std::vector<size_t> &bodyIdxs,
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
@@ -122,17 +113,13 @@ class TGChase : public Chase {
                 bool &shouldSort,
                 bool &shouldDelDupl);
 
-        std::shared_ptr<const Segment> retain(
+        std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
-                std::shared_ptr<const Segment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples);
 
-        std::shared_ptr<const Segment> retainVsNode(
-                std::shared_ptr<const Segment> existuples,
-                std::shared_ptr<const Segment> newtuples);
-
-        std::shared_ptr<const Segment> retainVsNodeFast(
-                std::shared_ptr<const Segment> existuples,
-                std::shared_ptr<const Segment> newtuples);
+        std::shared_ptr<const TGSegment> retainVsNodeFast(
+                std::shared_ptr<const TGSegment> existuples,
+                std::shared_ptr<const TGSegment> newtuples);
 
     public:
         VLIBEXP TGChase(EDBLayer &layer, Program *program);
