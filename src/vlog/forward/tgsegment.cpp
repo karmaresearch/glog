@@ -103,5 +103,5 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::swap() const {
     std::vector<std::shared_ptr<Column>> c;
     c.push_back(columns[1]);
     c.push_back(columns[0]);
-    return std::unique_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, ~0ul));
+    return std::unique_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false));
 }

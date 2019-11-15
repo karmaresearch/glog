@@ -771,8 +771,8 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
-        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+    //LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
+    //    " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
