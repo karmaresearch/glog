@@ -687,6 +687,7 @@ std::shared_ptr<const TGSegment> TGChase::retain(
 
         if (newtuples == NULL || newtuples->isEmpty()) {
             return std::shared_ptr<const TGSegment>();
+        } else {
         }
     }
     return newtuples;

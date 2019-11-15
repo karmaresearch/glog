@@ -183,8 +183,7 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
 
         std::unique_ptr<TGSegment> sort() const {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
-            auto itr = std::unique(t.begin(), t.end());
-            t.erase(itr, t.end());
+            std::sort(t.begin(), t.end());
             return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
         }
 };
@@ -238,8 +237,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
 
         std::unique_ptr<TGSegment> sort() const {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
-            auto itr = std::unique(t.begin(), t.end());
-            t.erase(itr, t.end());
+            std::sort(t.begin(), t.end());
             return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
         }
 
