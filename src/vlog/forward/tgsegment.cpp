@@ -7,8 +7,27 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
 }
 
 std::unique_ptr<TGSegmentItr> TGSegmentLegacy::sortBy(uint8_t field) const {
-    throw 10;
-    //TODO
+    if (field == 0 && sorted) {
+        return iterator();
+    } else {
+        if (columns.size() == 1) {
+            auto column = columns[0]->sort();
+            std::vector<std::shared_ptr<Column>> columns;
+            columns.push_back(column);
+            return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns));
+        } else {
+            //General case. Might want to optimize it for binary columns
+            auto nfields = columns.size();
+            auto oldcols(columns);
+            Segment s(nfields, oldcols);
+            auto snew = s.sortByField(field);
+            std::vector<std::shared_ptr<Column>> newColumns;
+            for(int i = 0; i < nfields; ++i) {
+                newColumns.push_back(s.getColumn(i));
+            }
+            return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(newColumns));
+        }
+    }
 }
 
 std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {

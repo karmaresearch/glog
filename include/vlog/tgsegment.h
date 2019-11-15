@@ -70,9 +70,7 @@ class TGSegmentLegacy : public TGSegment {
     public:
         TGSegmentLegacy(const std::vector<std::shared_ptr<Column>> &columns,
                 size_t nrows, bool sorted=false) : nrows(nrows), sorted(sorted),
-                columns(columns) {
-                    if (nrows > 10)
-                        std::cout << "stop";
+        columns(columns) {
         }
 
         size_t getNRows() const {
@@ -191,6 +189,11 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
         }
 };
 
+template<typename K>
+bool invertedSorter(const K &a, const K &b) {
+    return a.second < b.second || (a.second == b.second && a.first < b.first);
+}
+
 template<typename S, typename K, typename I>
 class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
     public:
@@ -206,7 +209,6 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
         }
 
         std::unique_ptr<TGSegmentItr> sortBy(uint8_t field) const {
-            assert(field == 0);
             if (TGSegmentImpl<K>::isSorted && field == 0) {
                 return iterator();
             } else {
@@ -214,7 +216,12 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
                 const K* key = TGSegmentImpl<K>::tuples.data();
                 if (!cache.contains(key, field)) {
                     std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
-                    std::sort(sortedTuples.begin(), sortedTuples.end());
+                    if (field == 0) {
+                        std::sort(sortedTuples.begin(), sortedTuples.end());
+                    } else {
+                        assert(field == 1);
+                        std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
+                    }
                     cache.insert(key, field, sortedTuples);
                 }
                 const std::vector<K> &cachedSegment = cache.get(key, field);
