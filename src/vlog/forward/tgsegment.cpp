@@ -24,7 +24,7 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
         auto snew = s.sortByField(field);
         std::vector<std::shared_ptr<Column>> newColumns;
         for(int i = 0; i < nfields; ++i) {
-            newColumns.push_back(s.getColumn(i));
+            newColumns.push_back(snew->getColumn(i));
         }
         return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, field));
     }

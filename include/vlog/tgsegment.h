@@ -268,7 +268,14 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
                 newt.second = t.first;
                 newtuples.push_back(newt);
             }
-            return std::unique_ptr<TGSegment>(new S(newtuples, TGSegmentImpl<K>::getNodeId()));
+            uint8_t sortedField = 0;
+            if (TGSegmentImpl<K>::isSorted && TGSegmentImpl<K>::sortedField == 0) {
+                sortedField = 1;
+            }
+            if (TGSegmentImpl<K>::isSorted && TGSegmentImpl<K>::sortedField == 1) {
+                sortedField = 0;
+            }
+            return std::unique_ptr<TGSegment>(new S(newtuples, TGSegmentImpl<K>::getNodeId(), TGSegmentImpl<K>::isSorted, sortedField));
         }
 
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
@@ -288,7 +295,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
 class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTGSegmentItr> {
     public:
         UnaryTGSegment(std::vector<Term_t> &tuples, const size_t nodeId,
-                bool isSorted=false, uint8_t sortedField = 0) :
+                bool isSorted, uint8_t sortedField) :
             UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
             std::copy(tuples.begin(), tuples.end(), std::back_inserter(out));
@@ -318,7 +325,7 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<UnaryWithConstProv
 class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment, std::pair<Term_t,Term_t>,BinaryTGSegmentItr> {
     public:
         BinaryTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+                const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t,Term_t>> &out) const {

@@ -19,13 +19,12 @@ EDBLayer &TGChase::getEDBLayer() {
     return layer;
 }
 
-std::shared_ptr<const TGSegment> fromSeg2TGSeg(std::shared_ptr<const Segment> seg, size_t nodeId) {
+std::shared_ptr<const TGSegment> fromSeg2TGSeg(std::shared_ptr<const Segment> seg, size_t nodeId, bool isSorted, uint8_t sortedField) {
     auto ncols = seg->getNColumns();
     if (ncols == 1) {
         const std::vector<Term_t> &orig = seg->getColumn(0)->getVectorRef();
         std::vector<Term_t> tuples(orig);
-        return std::shared_ptr<const TGSegment>(new
-                UnaryTGSegment(tuples, nodeId));
+        return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, nodeId, isSorted, sortedField));
     } else if (ncols == 2) {
         auto &col1 = seg->getColumn(0)->getVectorRef();
         auto &col2 = seg->getColumn(1)->getVectorRef();
@@ -35,15 +34,13 @@ std::shared_ptr<const TGSegment> fromSeg2TGSeg(std::shared_ptr<const Segment> se
             out[i].first = col1[i];
             out[i].second = col2[i];
         }
-        return std::shared_ptr<const TGSegment>(new
-                BinaryTGSegment(out, nodeId));
+        return std::shared_ptr<const TGSegment>(new BinaryTGSegment(out, nodeId, isSorted, sortedField));
     } else {
         std::vector<std::shared_ptr<Column>> columns;
         for(int i = 0; i < ncols; ++i) {
             columns.push_back(seg->getColumn(i));
         }
-        return std::shared_ptr<const TGSegment>(new
-                TGSegmentLegacy(columns, seg->getNRows()));
+        return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField));
     }
 }
 
@@ -274,7 +271,7 @@ std::shared_ptr<const TGSegment> TGChase::mergeNodes(
                     auto itr = std::unique(tuples.begin(), tuples.end());
                     tuples.erase(itr, tuples.end());
                 }
-                return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul));
+                return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, false, 0));
             }
         } else if (ncols == 2) {
             if (trackProvenance) {
@@ -298,8 +295,7 @@ std::shared_ptr<const TGSegment> TGChase::mergeNodes(
                     auto itr = std::unique(tuples.begin(), tuples.end());
                     tuples.erase(itr, tuples.end());
                 }
-                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul));
-
+                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, false, 0));
             }
         } else {
             LOG(ERRORL) << "Not implemented";
@@ -321,7 +317,10 @@ std::shared_ptr<const TGSegment> TGChase::processFirstAtom_IDB(
             if (trackProvenance) {
                 return std::shared_ptr<const TGSegment>(new UnaryWithConstProvTGSegment(tuples, nodeId));
             } else {
-                return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, nodeId));
+                std::sort(tuples.begin(), tuples.end());
+                auto itr = std::unique(tuples.begin(), tuples.end());
+                tuples.erase(itr, tuples.end());
+                return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, nodeId, true, 0));
             }
         } else {
             return input;
@@ -331,11 +330,11 @@ std::shared_ptr<const TGSegment> TGChase::processFirstAtom_IDB(
             return input; //Can be reused
         } else {
             std::vector<std::pair<Term_t, Term_t>> tuples;
-            input->appendTo(1,0,tuples);
+            input->appendTo(1, 0, tuples);
             if (trackProvenance) {
                 return std::shared_ptr<const TGSegment>(new BinaryWithConstProvTGSegment(tuples, nodeId));
             } else {
-                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, nodeId));
+                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, nodeId, true, 1));
             }
         }
     } else {
@@ -650,7 +649,7 @@ std::shared_ptr<const TGSegment> TGChase::retainVsNodeFast(
             }
             inserter->addRow(row);
         }
-        return fromSeg2TGSeg(inserter->getSegment(), 0); //TODO
+        return fromSeg2TGSeg(inserter->getSegment(), 0, true, 0); //TODO
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -673,7 +672,7 @@ std::shared_ptr<const TGSegment> TGChase::retainVsNodeFast(
                     }
                     i++;
                 }
-                return fromSeg2TGSeg(inserter->getSegment(), 0); //TODO
+                return fromSeg2TGSeg(inserter->getSegment(), 0, true, 0); //TODO
             }
         } else {
             //They are all duplicates
@@ -846,7 +845,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                 std::chrono::steady_clock::now();
             durationJoin += end - start;
 
-            intermediateResults = fromSeg2TGSeg(newIntermediateResults->getSegment(), 0); //TODO
+            intermediateResults = fromSeg2TGSeg(newIntermediateResults->getSegment(), 0, false, 0); //TODO
             if (trackProvenance) {
                 //Process the output of nodes
                 postprocessJoin(intermediateResults, intermediateResultsNodes,
@@ -900,7 +899,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
 
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
-            LOG(INFOL) << "Adding a node with class " << retainedTuples->getName() << " size=" << retainedTuples->getNRows() << " isSorted=" << retainedTuples->isSortedBy(0);
             auto nodeId = nodes.size();
             nodes.emplace_back();
             TGChase_Node &outputNode = nodes.back();
