@@ -4,7 +4,6 @@
 #include <vlog/concepts.h>
 #include <vlog/column.h>
 #include <vlog/tgsegmentitr.h>
-#include <vlog/tgsegmentcache.h>
 
 #include <vector>
 #include <map>
@@ -22,7 +21,9 @@ class TGSegment {
 
         virtual std::unique_ptr<TGSegmentItr> iterator() const = 0;
 
-        virtual std::unique_ptr<TGSegmentItr> sortBy(uint8_t field) const = 0;
+        virtual bool isSortedBy(uint8_t field) const = 0;
+
+        virtual std::unique_ptr<TGSegment> sortBy(uint8_t field) const = 0;
 
         virtual std::unique_ptr<TGSegment> unique() const = 0;
 
@@ -87,7 +88,9 @@ class TGSegmentLegacy : public TGSegment {
 
         std::unique_ptr<TGSegmentItr> iterator() const;
 
-        std::unique_ptr<TGSegmentItr> sortBy(uint8_t field) const;
+        bool isSortedBy(uint8_t field) const;
+
+        std::unique_ptr<TGSegment> sortBy(uint8_t field) const;
 
         std::unique_ptr<TGSegment> unique() const;
 
@@ -157,21 +160,15 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
             return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<K>::getNodeId(), TGSegmentImpl<K>::tuples));
         }
 
-        std::unique_ptr<TGSegmentItr> sortBy(uint8_t field) const {
+        bool isSortedBy(uint8_t field) const {
             assert(field == 0);
-            if (TGSegmentImpl<K>::isSorted) {
-                return iterator();
-            } else {
-                SegmentCache &cache = SegmentCache::getInstance();
-                const K* key = TGSegmentImpl<K>::tuples.data();
-                if (!cache.contains(key)) {
-                    std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
-                    std::sort(sortedTuples.begin(), sortedTuples.end());
-                    cache.insert(key, sortedTuples);
-                }
-                const std::vector<K> &cachedSegment = cache.get(key);
-                return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<K>::getNodeId(), cachedSegment));
-            }
+            return TGSegmentImpl<K>::isSorted;
+        }
+
+        std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
+            std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
+            std::sort(sortedTuples.begin(), sortedTuples.end());
+            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId()));
         }
 
         std::unique_ptr<TGSegment> unique() const {
@@ -207,25 +204,21 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
             return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<K>::getNodeId(), TGSegmentImpl<K>::tuples));
         }
 
-        std::unique_ptr<TGSegmentItr> sortBy(uint8_t field) const {
-            if (TGSegmentImpl<K>::isSorted && field == 0) {
-                return iterator();
+        bool isSortedBy(uint8_t field) const {
+            assert(field == 0 || field == 1);
+            return TGSegmentImpl<K>::isSorted && field == 0;
+        }
+
+        std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
+            std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
+            if (field == 0) {
+                std::sort(sortedTuples.begin(), sortedTuples.end());
             } else {
-                SegmentCache &cache = SegmentCache::getInstance();
-                const K* key = TGSegmentImpl<K>::tuples.data();
-                if (!cache.contains(key, field)) {
-                    std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
-                    if (field == 0) {
-                        std::sort(sortedTuples.begin(), sortedTuples.end());
-                    } else {
-                        assert(field == 1);
-                        std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
-                    }
-                    cache.insert(key, field, sortedTuples);
-                }
-                const std::vector<K> &cachedSegment = cache.get(key, field);
-                return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<K>::getNodeId(), cachedSegment));
+                assert(field == 1);
+                std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
             }
+            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId()));
+
         }
 
         std::unique_ptr<TGSegment> unique() const {

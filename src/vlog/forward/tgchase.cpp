@@ -432,9 +432,17 @@ void TGChase::mergejoin(
 
     //Sort the left segment by the join variable
     std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
-    auto itrLeft = inputLeft->sortBy(joinVarPos.first);
+    std::unique_ptr<TGSegmentItr> itrLeft;
+    if (!inputLeft->isSortedBy(joinVarPos.first)) {
+        inputLeft = inputLeft->sortBy(joinVarPos.first);
+    }
+    itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
-    auto itrRight = inputRight->sortBy(joinVarPos.second);
+    std::unique_ptr<TGSegmentItr> itrRight;
+    if (!inputRight->isSortedBy(joinVarPos.second)) {
+        inputRight = inputRight->sortBy(joinVarPos.second);
+    }
+    itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;
 
     //Do the merge join

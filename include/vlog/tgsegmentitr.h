@@ -19,13 +19,19 @@ struct BinWithProv {
 class TGSegmentItr {
     public:
         virtual void mark() = 0;
+
         virtual void reset() = 0;
+
         virtual bool hasNext() = 0;
+
         virtual void next() = 0;
 
         virtual Term_t get(const int colIdx) = 0;
+
         virtual size_t getNodeId() const = 0;
+
         virtual int getNFields() const = 0;
+
         virtual ~TGSegmentItr() {}
 };
 
