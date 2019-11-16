@@ -29,6 +29,10 @@ class TGSegment {
 
         virtual std::unique_ptr<TGSegment> sort() const = 0;
 
+        virtual std::string getName() const {
+            return "TGSegment";
+        }
+
         virtual std::unique_ptr<TGSegment> swap() const {
             LOG(ERRORL) << "Not implemented";
             throw 10;
@@ -88,6 +92,10 @@ class TGSegmentLegacy : public TGSegment {
 
         bool isEmpty() const {
             return nrows == 0;
+        }
+
+        virtual std::string getName() const {
+            return "TGSegmentLegacy";
         }
 
         std::unique_ptr<TGSegmentItr> iterator() const;
@@ -156,7 +164,8 @@ template<typename S, typename K, typename I>
 class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
     public:
         UnaryTGSegmentImpl(std::vector<K> &tuples,
-                const size_t nodeId) : TGSegmentImpl<K>(tuples, nodeId) {}
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0)
+            : TGSegmentImpl<K>(tuples, nodeId, isSorted, sortedField) {}
 
         size_t getNColumns() const {
             return 1;
@@ -175,20 +184,24 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
             assert(field == 0);
             std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
             std::sort(sortedTuples.begin(), sortedTuples.end());
-            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
+        }
+
+        virtual std::string getName() const {
+            return "TGUnarySegment";
         }
 
         std::unique_ptr<TGSegment> unique() const {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
             auto itr = std::unique(t.begin(), t.end());
             t.erase(itr, t.end());
-            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId(), true, 0));
         }
 
         std::unique_ptr<TGSegment> sort() const {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
             std::sort(t.begin(), t.end());
-            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId(), true, 0));
         }
 };
 
@@ -201,7 +214,9 @@ template<typename S, typename K, typename I>
 class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
     public:
         BinaryTGSegmentImpl(std::vector<K> &tuples,
-                const size_t nodeId) : TGSegmentImpl<K>(tuples, nodeId) {}
+                const size_t nodeId,
+                bool isSorted=false, uint8_t sortedField = 0) : TGSegmentImpl<K>(tuples, nodeId,
+                    isSorted, sortedField) {}
 
         size_t getNColumns() const {
             return 2;
@@ -216,6 +231,10 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
             return TGSegmentImpl<K>::isSorted && field == TGSegmentImpl<K>::sortedField;
         }
 
+        virtual std::string getName() const {
+            return "TGBinarySegment";
+        }
+
         std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
             std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
             if (field == 0) {
@@ -224,7 +243,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
                 assert(field == 1);
                 std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
             }
-            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
 
         }
 
@@ -232,13 +251,13 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
             auto itr = std::unique(t.begin(), t.end());
             t.erase(itr, t.end());
-            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId(), true, 0));
         }
 
         std::unique_ptr<TGSegment> sort() const {
             auto t = std::vector<K>(TGSegmentImpl<K>::tuples);
             std::sort(t.begin(), t.end());
-            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId()));
+            return std::unique_ptr<TGSegment>(new S(t, TGSegmentImpl<K>::getNodeId(), true, 0));
         }
 
         std::unique_ptr<TGSegment> swap() const {
@@ -268,7 +287,9 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
 
 class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTGSegmentItr> {
     public:
-        UnaryTGSegment(std::vector<Term_t> &tuples, const size_t nodeId) : UnaryTGSegmentImpl(tuples, nodeId) { }
+        UnaryTGSegment(std::vector<Term_t> &tuples, const size_t nodeId,
+                bool isSorted=false, uint8_t sortedField = 0) :
+            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
             std::copy(tuples.begin(), tuples.end(), std::back_inserter(out));
         }
@@ -278,8 +299,8 @@ class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTG
 class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment, std::pair<Term_t,Term_t>, UnaryWithProvTGSegmentItr> {
     public:
         UnaryWithProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId) :
-            UnaryTGSegmentImpl(tuples, nodeId) { }
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendToWithProv(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out,
                 size_t prov) const {
@@ -290,15 +311,15 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
 class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<UnaryWithConstProvTGSegment, Term_t, UnaryTGSegmentItr> {
     public:
         UnaryWithConstProvTGSegment(std::vector<Term_t> &tuples,
-                const size_t nodeId) :
-            UnaryTGSegmentImpl(tuples, nodeId) { }
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
 };
 
 class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment, std::pair<Term_t,Term_t>,BinaryTGSegmentItr> {
     public:
         BinaryTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId) :
-            BinaryTGSegmentImpl(tuples, nodeId) { }
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t,Term_t>> &out) const {
             if (colPos1 == 0 && colPos2 == 1) {
@@ -315,8 +336,8 @@ class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment, std::pair<Te
 class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegment, BinWithProv, BinaryWithProvTGSegmentItr> {
     public:
         BinaryWithProvTGSegment(std::vector<BinWithProv> &tuples,
-                const size_t nodeId) :
-            BinaryTGSegmentImpl(tuples, nodeId) { }
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
         void appendToWithProv(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithProv> &out,
                 size_t prov) const {
@@ -338,8 +359,8 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegme
 class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<BinaryWithConstProvTGSegment, std::pair<Term_t,Term_t>, BinaryTGSegmentItr> {
     public:
         BinaryWithConstProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId) :
-            BinaryTGSegmentImpl(tuples, nodeId) { }
+                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0) :
+            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
 };
 
 #endif

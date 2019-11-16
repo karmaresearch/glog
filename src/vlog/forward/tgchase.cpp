@@ -779,7 +779,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 #endif
 
-    //LOG(DEBUGL) << "Executing rule " << rule.tostring(program, &layer) <<
+    //LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
     //    " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
     //Perform the joins and populate the head
@@ -900,6 +900,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
 
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
+            LOG(INFOL) << "Adding a node with class " << retainedTuples->getName() << " size=" << retainedTuples->getNRows() << " isSorted=" << retainedTuples->isSortedBy(0);
             auto nodeId = nodes.size();
             nodes.emplace_back();
             TGChase_Node &outputNode = nodes.back();
