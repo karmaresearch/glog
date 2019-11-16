@@ -65,14 +65,18 @@ class TGSegment {
 class TGSegmentLegacy : public TGSegment {
     private:
         const size_t nrows;
-        const bool sorted;
+        const bool isSorted;
+        const uint8_t sortedField;
         const std::vector<std::shared_ptr<Column>> columns;
 
     public:
         TGSegmentLegacy(const std::vector<std::shared_ptr<Column>> &columns,
-                size_t nrows, bool sorted=false) : nrows(nrows), sorted(sorted),
-        columns(columns) {
-        }
+                size_t nrows, bool isSorted=false, uint8_t sortedField = 0) :
+            nrows(nrows),
+            isSorted(isSorted),
+            sortedField(sortedField),
+            columns(columns) {
+            }
 
         size_t getNRows() const {
             return nrows;
@@ -120,10 +124,12 @@ class TGSegmentImpl : public TGSegment {
         std::vector<K> tuples;
         const size_t nodeId;
         const bool isSorted;
+        const uint8_t sortedField;
 
     public:
-        TGSegmentImpl(std::vector<K> &t, const size_t nodeId, bool isSorted=false) :
-            nodeId(nodeId), isSorted(isSorted) {
+        TGSegmentImpl(std::vector<K> &t, const size_t nodeId, bool isSorted=false,
+                uint8_t sortedField=0) :
+            nodeId(nodeId), isSorted(isSorted), sortedField(sortedField) {
                 tuples.swap(t);
             }
 
@@ -166,6 +172,7 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
         }
 
         std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
+            assert(field == 0);
             std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
             std::sort(sortedTuples.begin(), sortedTuples.end());
             return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId()));
@@ -206,7 +213,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
 
         bool isSortedBy(uint8_t field) const {
             assert(field == 0 || field == 1);
-            return TGSegmentImpl<K>::isSorted && field == 0;
+            return TGSegmentImpl<K>::isSorted && field == TGSegmentImpl<K>::sortedField;
         }
 
         std::unique_ptr<TGSegment> sortBy(uint8_t field) const {

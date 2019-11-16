@@ -6,9 +6,8 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
     return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns));
 }
 
-
 bool TGSegmentLegacy::isSortedBy(uint8_t field) const {
-    return (sorted && field == 0);
+    return (isSorted && sortedField == field);
 }
 
 std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
@@ -16,7 +15,7 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
         auto column = columns[0]->sort();
         std::vector<std::shared_ptr<Column>> columns;
         columns.push_back(column);
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true));
+        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0));
     } else {
         //General case. Might want to optimize it for binary columns
         auto nfields = columns.size();
@@ -27,12 +26,12 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
         for(int i = 0; i < nfields; ++i) {
             newColumns.push_back(s.getColumn(i));
         }
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true));
+        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, field));
     }
 }
 
 std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {
-    if (!sorted) {
+    if (!isSorted || sortedField != 0) {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
     }
@@ -45,11 +44,11 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {
     for(int i = 0; i < retained->getNColumns(); ++i) {
         newcols.push_back(retained->getColumn(i));
     }
-    return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, retained->getNRows(), true));
+    return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, retained->getNRows(), true, sortedField));
 }
 
 std::unique_ptr<TGSegment> TGSegmentLegacy::sort() const {
-    if (!sorted) {
+    if (!isSorted || sortedField != 0) {
         auto nfields = columns.size();
         auto oldcols(columns);
         Segment s(nfields, oldcols);
@@ -58,9 +57,9 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sort() const {
         for(int i = 0; i < news->getNColumns(); ++i) {
             newcols.push_back(news->getColumn(i));
         }
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true));
+        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0));
     } else {
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true));
+        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0));
     }
 }
 
