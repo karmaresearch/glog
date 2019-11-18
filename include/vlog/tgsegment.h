@@ -23,7 +23,7 @@ class TGSegment {
 
         virtual bool isSortedBy(uint8_t field) const = 0;
 
-        virtual std::unique_ptr<TGSegment> sortBy(uint8_t field) const = 0;
+        virtual std::shared_ptr<TGSegment> sortBy(uint8_t field) const = 0;
 
         virtual std::unique_ptr<TGSegment> unique() const = 0;
 
@@ -102,7 +102,7 @@ class TGSegmentLegacy : public TGSegment {
 
         bool isSortedBy(uint8_t field) const;
 
-        std::unique_ptr<TGSegment> sortBy(uint8_t field) const;
+        std::shared_ptr<TGSegment> sortBy(uint8_t field) const;
 
         std::unique_ptr<TGSegment> unique() const;
 
@@ -180,11 +180,11 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<K> {
             return TGSegmentImpl<K>::isSorted;
         }
 
-        std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
+        std::shared_ptr<TGSegment> sortBy(uint8_t field) const {
             assert(field == 0);
             std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
             std::sort(sortedTuples.begin(), sortedTuples.end());
-            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
+            return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
         }
 
         virtual std::string getName() const {
@@ -235,7 +235,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
             return "TGBinarySegment";
         }
 
-        std::unique_ptr<TGSegment> sortBy(uint8_t field) const {
+        std::shared_ptr<TGSegment> sortBy(uint8_t field) const {
             std::vector<K> sortedTuples(TGSegmentImpl<K>::tuples);
             if (field == 0) {
                 std::sort(sortedTuples.begin(), sortedTuples.end());
@@ -243,7 +243,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
                 assert(field == 1);
                 std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
             }
-            return std::unique_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
+            return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<K>::getNodeId(), true, field));
 
         }
 

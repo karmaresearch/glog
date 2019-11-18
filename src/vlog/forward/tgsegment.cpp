@@ -10,12 +10,12 @@ bool TGSegmentLegacy::isSortedBy(uint8_t field) const {
     return (isSorted && sortedField == field);
 }
 
-std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
+std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
     if (columns.size() == 1) {
         auto column = columns[0]->sort();
         std::vector<std::shared_ptr<Column>> columns;
         columns.push_back(column);
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0));
     } else {
         //General case. Might want to optimize it for binary columns
         auto nfields = columns.size();
@@ -26,7 +26,7 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
         for(int i = 0; i < nfields; ++i) {
             newColumns.push_back(snew->getColumn(i));
         }
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, field));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, field));
     }
 }
 

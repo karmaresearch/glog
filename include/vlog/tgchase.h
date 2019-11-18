@@ -33,6 +33,7 @@ class TGChase : public Chase {
         size_t currentIteration;
 
         bool trackProvenance;
+        std::vector<size_t> noBodyNodes;
 
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
 
@@ -60,9 +61,9 @@ class TGChase : public Chase {
                 bool shouldDelDupl);
 
         void postprocessJoin(
-            std::shared_ptr<const TGSegment> &intermediateResults,
-            std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
-            bool replace);
+                std::shared_ptr<const TGSegment> &intermediateResults,
+                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
+                bool replace);
 
         int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
                 std::unique_ptr<TGSegmentItr> &inputRight,
@@ -94,7 +95,9 @@ class TGChase : public Chase {
 
         void mergejoin(
                 std::shared_ptr<const TGSegment> inputLeft,
+                const std::vector<size_t> &nodesLeft,
                 std::shared_ptr<const TGSegment> inputRight,
+                const std::vector<size_t> &nodesRight,
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
@@ -102,6 +105,7 @@ class TGChase : public Chase {
 
         void join(
                 std::shared_ptr<const TGSegment> inputLeft,
+                const std::vector<size_t> &nodesLeft,
                 std::vector<size_t> &bodyIdxs,
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,

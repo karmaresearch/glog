@@ -7,49 +7,72 @@
 #include <map>
 #include <vector>
 
+class CacheEntry {
+    private:
+        std::vector<size_t> nodes;
+
+    public:
+        CacheEntry(const std::vector<size_t> &n) : nodes(n) {}
+
+        bool operator <(const CacheEntry& rhs) const {
+            if (nodes.size() != rhs.nodes.size()) {
+                return nodes.size() < rhs.nodes.size();
+            } else {
+                for(int i = 0; i < nodes.size(); ++i) {
+                    if (nodes[i] != rhs.nodes[i]) {
+                        return nodes[i] < rhs.nodes[i];
+                    }
+                }
+            }
+            return false;
+        }
+};
+
 class TGSegment;
 class SegmentCache {
     private:
         static SegmentCache instance;
 
-        std::map<long, std::shared_ptr<const TGSegment>> cacheVar0;
-        std::map<long, std::shared_ptr<const TGSegment>> cacheVar1;
+        std::map<CacheEntry, std::shared_ptr<const TGSegment>> cacheVar0;
+        std::map<CacheEntry, std::shared_ptr<const TGSegment>> cacheVar1;
 
     public:
         static SegmentCache &getInstance() {
             return instance;
         }
 
-        static long hash(std::vector<size_t> &nodes);
-
-        bool contains(long key, const uint8_t field) {
+        bool contains(const std::vector<size_t> &key, const uint8_t field) const {
+            CacheEntry k(key);
             if (field == 0)
-                return cacheVar0.count(key);
+                return cacheVar0.count(k);
             else if (field == 1)
-                return cacheVar1.count(key);
+                return cacheVar1.count(k);
             else {
                 LOG(INFOL) << "Not supported";
                 throw 10;
             }
         }
 
-        void insert(long key, const uint8_t field,
+        void insert(const std::vector<size_t> &key, const uint8_t field,
                 std::shared_ptr<const TGSegment> value) {
+            CacheEntry k(key);
             if (field == 0) {
-                cacheVar0[key] = value;
+                cacheVar0[k] = value;
             } else {
                 assert(field == 1);
-                cacheVar1[key] = value;
+                cacheVar1[k] = value;
             }
         }
 
-        const std::shared_ptr<const TGSegment> get(long key,
+        const std::shared_ptr<const TGSegment> get(
+                const std::vector<size_t> &key,
                 const uint8_t field) {
+            CacheEntry k(key);
             if (field == 0) {
-                return cacheVar0[key];
+                return cacheVar0[k];
             } else {
                 assert(field == 1);
-                return cacheVar1[key];
+                return cacheVar1[k];
             }
         }
 

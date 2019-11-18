@@ -1,4 +1,5 @@
 #include <vlog/tgchase.h>
+#include <vlog/tgsegmentcache.h>
 
 TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
     program(program),
@@ -167,7 +168,7 @@ void TGChase::run() {
             }
             LOG(INFOL) << "Derived Tuples: " << derivedTuples;
         }
-
+        SegmentCache::getInstance().clear();
     } while (nnodes != nodes.size());
 
     LOG(INFOL) << "Time first (ms): " << durationFirst.count();
@@ -403,6 +404,7 @@ int TGChase::cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
 
 void TGChase::join(
         std::shared_ptr<const TGSegment> inputLeft,
+        const std::vector<size_t> &nodesLeft,
         std::vector<size_t> &bodyNodeIdxs,
         std::pair<int, int> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
@@ -420,13 +422,21 @@ void TGChase::join(
             projectedPos.push_back(i);
         inputRight = mergeNodes(bodyNodeIdxs, projectedPos);
     }
-    mergejoin(inputLeft, inputRight, joinVarPos, copyVarPosLeft, copyVarPosRight,
+    mergejoin(inputLeft,
+            nodesLeft,
+            inputRight,
+            bodyNodeIdxs,
+            joinVarPos,
+            copyVarPosLeft,
+            copyVarPosRight,
             output);
 }
 
 void TGChase::mergejoin(
         std::shared_ptr<const TGSegment> inputLeft,
+        const std::vector<size_t> &nodesLeft,
         std::shared_ptr<const TGSegment> inputRight,
+        const std::vector<size_t> &nodesRight,
         std::pair<int, int> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
@@ -437,15 +447,33 @@ void TGChase::mergejoin(
     std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
     std::unique_ptr<TGSegmentItr> itrLeft;
     if (!inputLeft->isSortedBy(joinVarPos.first)) {
-        inputLeft = inputLeft->sortBy(joinVarPos.first);
-    } else {
+        if (nodesLeft.size() > 0) {
+            SegmentCache &c = SegmentCache::getInstance();
+            if (!c.contains(nodesLeft, joinVarPos.first)) {
+                inputLeft = inputLeft->sortBy(joinVarPos.first);
+                c.insert(nodesLeft, joinVarPos.first, inputLeft);
+            } else {
+                inputLeft = c.get(nodesLeft, joinVarPos.first);
+            }
+        } else {
+            inputLeft = inputLeft->sortBy(joinVarPos.first);
+        }
     }
     itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     std::unique_ptr<TGSegmentItr> itrRight;
     if (!inputRight->isSortedBy(joinVarPos.second)) {
-        inputRight = inputRight->sortBy(joinVarPos.second);
-    } else {
+        if (nodesRight.size() > 0) {
+            SegmentCache &c = SegmentCache::getInstance();
+            if (!c.contains(nodesRight, joinVarPos.second)) {
+                inputRight = inputRight->sortBy(joinVarPos.second);
+                c.insert(nodesRight, joinVarPos.second, inputRight);
+            } else {
+                inputRight = c.get(nodesRight, joinVarPos.second);
+            }
+        } else {
+            inputRight = inputRight->sortBy(joinVarPos.second);
+        }
     }
     itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;
@@ -797,6 +825,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     //The following data structure is used only if trackProvenance=true
     std::vector<std::shared_ptr<Column>> intermediateResultsNodes;
     size_t currentBodyNode = 0;
+    bool firstBodyAtomIsIDB = false;
 
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
         const Literal &currentBodyAtom = bodyAtoms[i];
@@ -824,6 +853,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                 intermediateResults = processFirstAtom_EDB(bodyAtom,
                         copyVarPosRight);
             } else {
+                firstBodyAtomIsIDB = true;
                 intermediateResults = mergeNodes(
                         bodyNodes[currentBodyNode], copyVarPosRight);
                 currentBodyNode++;
@@ -842,6 +872,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
             join(intermediateResults,
+                    i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
                     bodyNodes[currentBodyNode],
                     joinVarPos,
                     copyVarPosLeft,
