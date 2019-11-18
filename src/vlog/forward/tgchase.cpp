@@ -168,9 +168,9 @@ void TGChase::run() {
             }
             LOG(INFOL) << "Derived Tuples: " << derivedTuples;
         }
-        SegmentCache::getInstance().clear();
     } while (nnodes != nodes.size());
 
+    SegmentCache::getInstance().clear();
     LOG(INFOL) << "Time first (ms): " << durationFirst.count();
     LOG(INFOL) << "Time mergesort (ms): " << durationMergeSort.count();
     LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
