@@ -314,12 +314,12 @@ std::shared_ptr<const TGSegment> TGChase::processFirstAtom_IDB(
         if (project) {
             std::vector<Term_t> tuples;
             input->appendTo(copyVarPos[0], tuples);
+            std::sort(tuples.begin(), tuples.end());
+            auto itr = std::unique(tuples.begin(), tuples.end());
+            tuples.erase(itr, tuples.end());
             if (trackProvenance) {
                 return std::shared_ptr<const TGSegment>(new UnaryWithConstProvTGSegment(tuples, nodeId));
             } else {
-                std::sort(tuples.begin(), tuples.end());
-                auto itr = std::unique(tuples.begin(), tuples.end());
-                tuples.erase(itr, tuples.end());
                 return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, nodeId, true, 0));
             }
         } else {
@@ -334,7 +334,7 @@ std::shared_ptr<const TGSegment> TGChase::processFirstAtom_IDB(
             if (trackProvenance) {
                 return std::shared_ptr<const TGSegment>(new BinaryWithConstProvTGSegment(tuples, nodeId));
             } else {
-                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, nodeId, true, 1));
+                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, nodeId, false, 0));
             }
         }
     } else {
@@ -354,6 +354,10 @@ std::shared_ptr<const TGSegment> TGChase::processFirstAtom_EDB(
     //Get the columns
     auto &table = edbTables[p];
     if (!table->useSegments()) {
+        LOG(ERRORL) << "EDB table not supported";
+        throw 10;
+    }
+    if (copyVarPos.size() != atom.getNVars()) {
         LOG(ERRORL) << "EDB table not supported";
         throw 10;
     }
@@ -434,12 +438,14 @@ void TGChase::mergejoin(
     std::unique_ptr<TGSegmentItr> itrLeft;
     if (!inputLeft->isSortedBy(joinVarPos.first)) {
         inputLeft = inputLeft->sortBy(joinVarPos.first);
+    } else {
     }
     itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     std::unique_ptr<TGSegmentItr> itrRight;
     if (!inputRight->isSortedBy(joinVarPos.second)) {
         inputRight = inputRight->sortBy(joinVarPos.second);
+    } else {
     }
     itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;

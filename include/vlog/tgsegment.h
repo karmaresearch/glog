@@ -268,14 +268,7 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<K> {
                 newt.second = t.first;
                 newtuples.push_back(newt);
             }
-            uint8_t sortedField = 0;
-            if (TGSegmentImpl<K>::isSorted && TGSegmentImpl<K>::sortedField == 0) {
-                sortedField = 1;
-            }
-            if (TGSegmentImpl<K>::isSorted && TGSegmentImpl<K>::sortedField == 1) {
-                sortedField = 0;
-            }
-            return std::unique_ptr<TGSegment>(new S(newtuples, TGSegmentImpl<K>::getNodeId(), TGSegmentImpl<K>::isSorted, sortedField));
+            return std::unique_ptr<TGSegment>(new S(newtuples, TGSegmentImpl<K>::getNodeId(), false, 0));
         }
 
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
