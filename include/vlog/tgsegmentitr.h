@@ -37,8 +37,10 @@ class TGSegmentItr {
 
 class TGSegmentLegacyItr : public TGSegmentItr {
     private:
-        int64_t nrows;
+        const bool trackProvenance;
         const std::vector<std::shared_ptr<Column>> &columns;
+
+        int64_t nrows;
         std::vector<const Term_t*> vectors;
         int64_t currentRowIdx;
 
@@ -46,14 +48,18 @@ class TGSegmentLegacyItr : public TGSegmentItr {
 
 
     public:
-        TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns) : columns(columns) {
+        TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
+                const bool trackProvenance) :
+                trackProvenance(trackProvenance),
+                columns(columns) {
             currentRowIdx = -1;
             if (columns.size() > 0) {
                 nrows = columns[0]->size();
             } else {
                 nrows = 1;
             }
-            for(int i = 0; i < columns.size(); ++i) {
+            auto ncols = trackProvenance ? columns.size() - 1 : columns.size();
+            for(int i = 0; i < ncols; ++i) {
                 vectors.push_back(columns[i]->getVectorRef().data());
             }
         }
@@ -83,7 +89,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 
         int getNFields() const {
-            return columns.size();
+            return trackProvenance ? columns.size() - 1 : columns.size();
         }
 };
 

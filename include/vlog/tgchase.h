@@ -54,14 +54,18 @@ class TGChase : public Chase {
         //Methods to execute the rule
         bool executeRule(TGChase_SuperNode &node);
 
+        std::shared_ptr<const TGSegment> fromSeg2TGSeg(
+                std::shared_ptr<const Segment> seg,
+                size_t nodeId, bool isSorted, uint8_t sortedField);
+
         std::shared_ptr<const TGSegment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
                 std::shared_ptr<const TGSegment> intermediateResults,
                 bool shouldSort,
                 bool shouldDelDupl);
 
-        void postprocessJoin(
-                std::shared_ptr<const TGSegment> &intermediateResults,
+        std::shared_ptr<const Segment> postprocessJoin(
+                std::shared_ptr<const Segment> &intermediateResults,
                 std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
                 bool replace);
 
