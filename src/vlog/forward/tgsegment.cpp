@@ -35,7 +35,6 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
     }
-
     auto nfields = columns.size();
     auto oldcols(columns);
     std::shared_ptr<Segment> s = std::shared_ptr<Segment>(new Segment(nfields, oldcols));
@@ -61,6 +60,13 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sort() const {
     } else {
         return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
+}
+
+std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
+        std::vector<size_t> &idxs,
+        std::vector<size_t> &nodes) const {
+    LOG(ERRORL) << "Not implemented";
+    throw 10;
 }
 
 void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {

@@ -66,8 +66,7 @@ class TGChase : public Chase {
 
         std::shared_ptr<const Segment> postprocessJoin(
                 std::shared_ptr<const Segment> &intermediateResults,
-                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
-                bool replace);
+                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes);
 
         int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
                 std::unique_ptr<TGSegmentItr> &inputRight,
@@ -125,6 +124,11 @@ class TGChase : public Chase {
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
                 std::shared_ptr<const TGSegment> newtuples);
+
+        void createNewNodesWithProv(
+                size_t ruleIdx, size_t step,
+                std::shared_ptr<const TGSegment> seg,
+                std::vector<std::shared_ptr<Column>> &provenance);
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,

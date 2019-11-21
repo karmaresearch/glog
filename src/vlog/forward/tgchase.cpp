@@ -8,9 +8,8 @@ TGChase::TGChase(EDBLayer &layer, Program *program) : layer(layer),
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(true)
-{
-}
+    trackProvenance(true) {
+    }
 
 Program *TGChase::getProgram() {
     return program;
@@ -65,7 +64,6 @@ std::shared_ptr<const TGSegment> TGChase::fromSeg2TGSeg(
     } else if (ncols == 3 && trackProvenance) {
         auto &col1 = seg->getColumn(0)->getVectorRef();
         auto &col2 = seg->getColumn(1)->getVectorRef();
-        //auto &col3 = seg->getColumn(2)->getVectorRef();
         bool constantNodeVal = seg->getColumn(2)->isConstant();
         size_t nrows = col1.size();
         if (constantNodeVal) {
@@ -841,8 +839,7 @@ void TGChase::shouldSortDelDupls(const Literal &head,
 
 std::shared_ptr<const Segment> TGChase::postprocessJoin(
         std::shared_ptr<const Segment> &intermediateResults,
-        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
-        bool replace) {
+        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes) {
     //Take out the last two columns
     auto ncolumns = intermediateResults->getNColumns();
     if (ncolumns < 2) {
@@ -853,14 +850,12 @@ std::shared_ptr<const Segment> TGChase::postprocessJoin(
     for(int i = 0; i < ncolumns - 2; ++i) {
         columns.push_back(intermediateResults->getColumn(i));
     }
-    //if (replace) {
     //For now, always add one extra column
     CompressedColumnBlock b(0, 1, columns[0]->size());
     std::vector<CompressedColumnBlock> blocks;
     blocks.push_back(b);
     columns.push_back(std::shared_ptr<Column>(
                 new CompressedColumn(blocks, columns[0]->size())));
-    //}
 
     //Save the columns with the mappings to the nodes
     auto col1 = intermediateResults->getColumn(ncolumns - 2);
@@ -965,8 +960,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();
             if (trackProvenance) {
                 //Process the output of nodes
-                seg = postprocessJoin(seg, intermediateResultsNodes,
-                        i < bodyAtoms.size() - 1);
+                seg = postprocessJoin(seg, intermediateResultsNodes);
             }
             intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0);
 
@@ -1006,24 +1000,97 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
         durationCreateHead += dur;
 
         start = std::chrono::steady_clock::now();
-        auto retainedTuples = retain(currentPredicate, intermediateResults);
+        auto retainedTuples = retain(currentPredicate,
+                intermediateResults);
         end = std::chrono::steady_clock::now();
         dur = end - start;
         durationRetain += dur;
 
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
-            auto nodeId = nodes.size();
-            nodes.emplace_back();
-            TGChase_Node &outputNode = nodes.back();
-            outputNode.ruleIdx = node.ruleIdx;
-            outputNode.step = node.step;
-            outputNode.data = retainedTuples;
-            //Index the non-empty node
-            pred2Nodes[currentPredicate].push_back(nodeId);
+            if (trackProvenance) {
+                createNewNodesWithProv(node.ruleIdx, node.step,
+                        retainedTuples, intermediateResultsNodes);
+            } else {
+                //Add a single node
+                auto nodeId = nodes.size();
+                nodes.emplace_back();
+                TGChase_Node &outputNode = nodes.back();
+                outputNode.ruleIdx = node.ruleIdx;
+                outputNode.step = node.step;
+                outputNode.data = retainedTuples;
+                pred2Nodes[currentPredicate].push_back(nodeId);
+            }
         }
     }
     return nonempty;
+}
+
+void TGChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
+        std::shared_ptr<const TGSegment> seg,
+        std::vector<std::shared_ptr<Column>> &provenance) {
+    if (provenance.size() == 0) {
+        //There was no join. Must replace the nodeID with a new one
+        //Note at this point calling slice will create a new vector
+        auto nodeId = nodes.size();
+        nodes.emplace_back();
+        TGChase_Node &outputNode = nodes.back();
+        outputNode.ruleIdx = ruleIdx;
+        outputNode.step = step;
+        outputNode.data = seg->slice(nodeId, 0, seg->getNRows());
+        pred2Nodes[currentPredicate].push_back(nodeId);
+    } else {
+        const auto nnodes = provenance.size() / 2 + 1;
+        const auto nrows = seg->getNRows();
+        std::vector<size_t> provnodes(nrows * nnodes);
+        for(size_t i = 0; i < nrows; ++i) {
+            size_t provRowIdx = i;
+            for(int j = nnodes - 1; j >= 0; j--) {
+                provnodes[i * nnodes + j] = provenance[j*2]->getValue(provRowIdx);
+                provRowIdx = provenance[j*2-1]->getValue(provRowIdx);
+            }
+        }
+        //For each tuple, now I know the sequence of nodes that derived them.
+        //I re-sort the nodes depending on the sequence of nodes
+        std::vector<size_t> providxs;
+        auto resortedSeg = seg->sortByProv(nnodes, providxs, provnodes);
+        size_t startidx = 0;
+        std::vector<size_t> currentNodeList(nnodes);
+        for(size_t i = 0; i < nrows; ++i) {
+            bool hasChanged = i == 0;
+            for(size_t j = 0; j < nnodes && !hasChanged; ++j) {
+                const size_t m = i * nnodes + j;
+                if (currentNodeList[j] != provnodes[m]) {
+                    hasChanged = true;
+                }
+            }
+            if (hasChanged && startidx < i) {
+                //Create a new node
+                auto nodeId = nodes.size();
+                nodes.emplace_back();
+                TGChase_Node &outputNode = nodes.back();
+                outputNode.ruleIdx = ruleIdx;
+                outputNode.step = step;
+                outputNode.data = resortedSeg->slice(nodeId, startidx, i);
+                pred2Nodes[currentPredicate].push_back(nodeId);
+                startidx = i;
+                for(size_t j = 0; j < nnodes; ++j) {
+                    const size_t m = i * nnodes + j;
+                    currentNodeList[j] = provnodes[m];
+                }
+            }
+        }
+        //Copy the last segment
+        if (startidx < nrows - 1) {
+            auto nodeId = nodes.size();
+            nodes.emplace_back();
+            TGChase_Node &outputNode = nodes.back();
+            outputNode.ruleIdx = ruleIdx;
+            outputNode.step = step;
+            outputNode.data = resortedSeg->slice(nodeId, startidx, nrows);
+            pred2Nodes[currentPredicate].push_back(nodeId);
+        }
+    }
 }
 
 std::shared_ptr<const TGSegment> TGChase::projectHead(const Literal &head,
