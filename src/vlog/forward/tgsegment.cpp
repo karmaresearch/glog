@@ -30,7 +30,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
     }
 }
 
-std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {
+std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
     if (!isSorted || sortedField != 0) {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
@@ -43,10 +43,10 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::unique() const {
     for(int i = 0; i < retained->getNColumns(); ++i) {
         newcols.push_back(retained->getColumn(i));
     }
-    return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, retained->getNRows(), true, sortedField, trackProvenance));
+    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, retained->getNRows(), true, sortedField, trackProvenance));
 }
 
-std::unique_ptr<TGSegment> TGSegmentLegacy::sort() const {
+std::shared_ptr<TGSegment> TGSegmentLegacy::sort() const {
     if (!isSorted || sortedField != 0) {
         auto nfields = columns.size();
         auto oldcols(columns);
@@ -56,9 +56,9 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::sort() const {
         for(int i = 0; i < news->getNColumns(); ++i) {
             newcols.push_back(news->getColumn(i));
         }
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
 }
 
@@ -129,7 +129,7 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
     }
 }
 
-std::unique_ptr<TGSegment> TGSegmentLegacy::swap() const {
+std::shared_ptr<TGSegment> TGSegmentLegacy::swap() const {
     if (trackProvenance) {
         if (columns.size() != 3) {
             LOG(ERRORL) << "Not supposed to be invoked on non binary predicates";
@@ -139,7 +139,7 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::swap() const {
         c.push_back(columns[1]);
         c.push_back(columns[0]);
         c.push_back(columns[2]);
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
     } else {
         if (columns.size() != 2) {
             LOG(ERRORL) << "Not supposed to be invoked on non binary predicates";
@@ -148,6 +148,6 @@ std::unique_ptr<TGSegment> TGSegmentLegacy::swap() const {
         std::vector<std::shared_ptr<Column>> c;
         c.push_back(columns[1]);
         c.push_back(columns[0]);
-        return std::unique_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
     }
 }
