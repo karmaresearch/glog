@@ -116,6 +116,10 @@ class TGSegmentLegacy : public TGSegment {
             return "TGSegmentLegacy";
         }
 
+        std::shared_ptr<TGSegment> slice(const size_t nodeId,
+                const size_t start,
+                const size_t end) const;
+
         std::unique_ptr<TGSegmentItr> iterator() const;
 
         bool isSortedBy(uint8_t field) const;
@@ -413,7 +417,7 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
                             true, 0));
             }
             std::shared_ptr<TGSegment> slice(size_t nodeId,
-                    const size_t start, const size_t end) {
+                    const size_t start, const size_t end) const {
                 std::vector<Term_t> out(end - start);
                 size_t m = 0;
                 for(size_t j = start; j < end; ++j) {
@@ -460,6 +464,27 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<BinaryWithConstP
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
 
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<BinWithProv> &out) const {
+            if (colPos1 == 0 && colPos2 == 1) {
+                for(auto &t : *tuples.get()) {
+                    BinWithProv p;
+                    p.first = t.first;
+                    p.second = t.second;
+                    p.node = nodeId;
+                    out.push_back(p);
+                }
+            } else {
+                assert(colPos1 == 1 && colPos2 == 0);
+                for(auto &t : *tuples.get()) {
+                    BinWithProv p;
+                    p.first = t.second;
+                    p.second = t.first;
+                    p.node = nodeId;
+                    out.push_back(p);
+                }
+            }
+        }
 };
 
 class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegment, BinWithProv, BinaryWithProvTGSegmentItr> {
@@ -493,6 +518,7 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegme
                 }
             }
         }
+
         std::shared_ptr<TGSegment> unique() const {
             auto t = std::vector<BinWithProv>(
                     *TGSegmentImpl<BinaryWithProvTGSegment, BinWithProv, BinaryWithProvTGSegmentItr>::tuples.get());
@@ -504,8 +530,9 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegme
                         BinWithProv,
                         BinaryWithProvTGSegmentItr>::getNodeId(), true, 0));
         }
+
         std::shared_ptr<TGSegment> slice(size_t nodeId,
-                const size_t start, const size_t end) {
+                const size_t start, const size_t end) const {
             std::vector<std::pair<Term_t,Term_t>> out(end - start);
             size_t m = 0;
             for(size_t j = start; j < end; ++j) {

@@ -69,6 +69,35 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
     throw 10;
 }
 
+std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
+        const size_t start,
+        const size_t end) const {
+    std::vector<std::shared_ptr<Column>> newcols;
+    auto length = end - start;
+    int ncols = trackProvenance ? columns.size() - 1 : columns.size();
+    for(int i = 0; i < ncols; ++i) {
+        if (start > 0 || end < nrows - 1) {
+            auto &v = columns[i]->getVectorRef();
+            std::vector<Term_t> slicedColumn(length);
+            std::copy(v.begin() + start, v.begin() + end, slicedColumn.begin());
+            std::shared_ptr<Column> c(new InmemoryColumn(slicedColumn, true));
+            newcols.push_back(c);
+        } else {
+            newcols.push_back(columns[i]);
+        }
+    }
+    if (trackProvenance) {
+        CompressedColumnBlock b(nodeId, 0, length);
+        std::vector<CompressedColumnBlock> blocks;
+        blocks.push_back(b);
+        newcols.push_back(std::shared_ptr<Column>(
+                    new CompressedColumn(blocks, length)));
+    }
+    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length, isSorted, sortedField, trackProvenance));
+
+}
+
+
 void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
     assert(colPos < columns.size());
     auto &col = columns[colPos];

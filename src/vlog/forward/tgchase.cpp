@@ -303,7 +303,7 @@ std::shared_ptr<const TGSegment> TGChase::mergeNodes(
         return processFirstAtom_IDB(bodyNode.data, copyVarPos, idbBodyAtomIdx);
     } else {
         auto ncols = copyVarPos.size(); //ncol=arity of the relation
-        bool shouldSortAndUnique = ncols < nodes[nodeIdxs[0]].data->getNColumns();
+        bool shouldSortAndUnique = ncols < nodes[nodeIdxs[0]].data->getNColumns() || copyVarPos[0] != 0;
         if (ncols == 1) { //If it has only one column ...
             if (trackProvenance) {
                 std::vector<std::pair<Term_t,Term_t>> tuples;
@@ -341,9 +341,9 @@ std::shared_ptr<const TGSegment> TGChase::mergeNodes(
                     std::sort(tuples.begin(), tuples.end());
                     auto itr = std::unique(tuples.begin(), tuples.end());
                     tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
-                } else {
                     return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
                 }
             } else {
                 std::vector<std::pair<Term_t,Term_t>> tuples;
@@ -569,6 +569,7 @@ void TGChase::mergejoin(
     size_t currentKey = 0;
     auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
     Term_t currentrow[sizerow + 2];
+    for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
     int res = cmp(itrLeft, itrRight, joinVarPos);
     while (true) {
         //Are they matching?
@@ -625,6 +626,7 @@ void TGChase::mergejoin(
                     auto el = itrLeft->get(leftPos);
                     currentrow[idx] = el;
                 }
+
                 output->addRow(currentrow);
                 if (itrLeft->hasNext()) {
                     itrLeft->next();
@@ -875,8 +877,9 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
 #endif
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 
-    LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
-        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+    //LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
+    //        " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -963,7 +966,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                 seg = postprocessJoin(seg, intermediateResultsNodes);
             }
             intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0);
-
             //Update the list of variables from the left atom
             for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
                 auto var = copyVarPosLeft[varIdx];
@@ -998,7 +1000,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             std::chrono::steady_clock::now();
         auto dur = end - start;
         durationCreateHead += dur;
-
         start = std::chrono::steady_clock::now();
         auto retainedTuples = retain(currentPredicate,
                 intermediateResults);
@@ -1040,14 +1041,18 @@ void TGChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         outputNode.data = seg->slice(nodeId, 0, seg->getNRows());
         pred2Nodes[currentPredicate].push_back(nodeId);
     } else {
-        const auto nnodes = provenance.size() / 2 + 1;
+        const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
         std::vector<size_t> provnodes(nrows * nnodes);
         for(size_t i = 0; i < nrows; ++i) {
             size_t provRowIdx = i;
             for(int j = nnodes - 1; j >= 0; j--) {
-                provnodes[i * nnodes + j] = provenance[j*2]->getValue(provRowIdx);
-                provRowIdx = provenance[j*2-1]->getValue(provRowIdx);
+                if (j == 0) {
+                    provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
+                } else {
+                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->getValue(provRowIdx);
+                    provRowIdx = provenance[(j-1)*2]->getValue(provRowIdx);
+                }
             }
         }
         //For each tuple, now I know the sequence of nodes that derived them.
