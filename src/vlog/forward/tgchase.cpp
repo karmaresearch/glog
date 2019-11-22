@@ -1086,7 +1086,7 @@ void TGChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
             }
         }
         //Copy the last segment
-        if (startidx < nrows - 1) {
+        if (startidx < nrows) {
             auto nodeId = nodes.size();
             nodes.emplace_back();
             TGChase_Node &outputNode = nodes.back();
