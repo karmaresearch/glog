@@ -25,6 +25,11 @@ struct TGChase_SuperNode {
     TGChase_SuperNode() : ruleIdx(0), step(0) {}
 };
 
+struct CacheRetainEntry {
+    size_t nnodes;
+    std::shared_ptr<const TGSegment> seg;
+};
+
 class TGChase : public Chase {
     private:
         Program *program;
@@ -50,6 +55,9 @@ class TGChase : public Chase {
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationRetain;
         std::chrono::duration<double, std::milli> durationCreateHead;
+
+        const bool cacheRetainEnabled;
+        std::map<PredId_t, CacheRetainEntry> cacheRetain;
 
         //Methods to execute the rule
         bool executeRule(TGChase_SuperNode &node);
@@ -135,7 +143,7 @@ class TGChase : public Chase {
                 std::shared_ptr<const TGSegment> newtuples);
 
     public:
-        VLIBEXP TGChase(EDBLayer &layer, Program *program);
+        VLIBEXP TGChase(EDBLayer &layer, Program *program, bool useCacheRetain = true);
 
         VLIBEXP void run();
 

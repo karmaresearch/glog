@@ -382,6 +382,12 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<UnaryWithConstProv
             for(const auto &value : *tuples.get())
                 out.push_back(std::make_pair(value, nodeId));
         }
+
+        void appendTo(uint8_t colPos,
+                std::vector<Term_t> &out) const {
+            std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
+        }
+
 };
 
 class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
@@ -485,6 +491,32 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<BinaryWithConstP
                 }
             }
         }
+
+        void appendTo(uint8_t colPos,
+                std::vector<std::pair<Term_t, Term_t>> &out) const {
+            if (colPos == 0) {
+                for(auto &t : *tuples.get()) {
+                    out.push_back(std::make_pair(t.first, nodeId));
+                }
+            } else if (colPos == 1) {
+                for(auto &t : *tuples.get()) {
+                    out.push_back(std::make_pair(t.second, nodeId));
+                }
+            } else {
+                LOG(ERRORL) << "Not implemented";
+                throw 10;
+            }
+        }
+
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<std::pair<Term_t, Term_t>> &out) const {
+            if (colPos1 != 0 || colPos2 != 1) {
+                LOG(ERRORL) << "Not implemented";
+                throw 10;
+            }
+            std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
+        }
+
 };
 
 class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<BinaryWithProvTGSegment, BinWithProv, BinaryWithProvTGSegmentItr> {

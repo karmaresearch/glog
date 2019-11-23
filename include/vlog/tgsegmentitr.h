@@ -85,7 +85,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 
         size_t getNodeId() const {
-            throw 10;
+            return columns.back()->getValue(currentRowIdx);
         }
 
         int getNFields() const {
