@@ -9,9 +9,14 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(true),
-    cacheRetainEnabled(useCacheRetain) {
+    trackProvenance(false)
+{
+    if (! program->stratify(stratification, nStratificationClasses)) {
+        LOG(ERRORL) << "Program could not be stratified";
+        throw std::runtime_error("Program could not be stratified");
     }
+    LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+}
 
 Program *TGChase::getProgram() {
     return program;
@@ -128,103 +133,110 @@ void TGChase::run() {
     size_t step = 0;
     rules = program->getAllRules();
 
-    do {
-        step++;
-        LOG(INFOL) << "Step " << step;
-        currentIteration = step;
-        nnodes = nodes.size();
+    for (int i = 0; i < nStratificationClasses; i++) {
+        do {
+            step++;
+            LOG(INFOL) << "Step " << step;
+            currentIteration = step;
+            nnodes = nodes.size();
 
-        std::vector<TGChase_SuperNode> newnodes;
-        for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
-            auto &rule = rules[ruleIdx];
-            std::vector<std::vector<size_t>> nodesForRule;
-            bool empty = false;
-            for (auto &bodyAtom : rule.getBody()) {
-                Predicate pred = bodyAtom.getPredicate();
-                if (pred.getType() != EDB) {
-                    if (!pred2Nodes.count(pred.getId())) {
-                        empty = true;
-                        break;
-                    }
-                    nodesForRule.push_back(pred2Nodes[pred.getId()]);
+            std::vector<TGChase_SuperNode> newnodes;
+            for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
+                auto &rule = rules[ruleIdx];
+                PredId_t id = rule.getFirstHead().getPredicate().getId();
+                if (nStratificationClasses > 1 && stratification[id] != i) {
+                    continue;
                 }
-            }
-            if (empty) continue;
-
-            if (rule.getNIDBPredicates() == 0) {
-                //It's a rule with only EDB body atoms. Create a single node
-                //I only execute these rules in the first step
-                if (step == 1) {
-                    newnodes.emplace_back();
-                    TGChase_SuperNode &newnode = newnodes.back();
-                    newnode.ruleIdx = ruleIdx;
-                    newnode.step = step;
-                    newnode.incomingEdges = std::vector<std::vector<size_t>>();
-                }
-            } else {
-                size_t prevstep = 0;
-                if (step > 1) prevstep = step - 1;
-                for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
-                    //First consider only combinations where at least one node
-                    //is in the previous level
-                    std::vector<std::vector<size_t>> acceptableNodes;
-                    bool acceptableNodesEmpty = false;
-                    for(int j = 0; j < nodesForRule.size(); ++j) {
-                        std::vector<size_t> selection;
-                        if (j < pivot) {
-                            for(auto &nodeId : nodesForRule[j]) {
-                                const auto &node = nodes[nodeId];
-                                if (node.step < prevstep) {
-                                    selection.push_back(nodeId);
-                                } else if (node.step >= prevstep) {
-                                    break;
-                                }
-                            }
-                        } else if (j == pivot) {
-                            for(auto &nodeId : nodesForRule[j]) {
-                                const auto &node = nodes[nodeId];
-                                if (node.step == prevstep) {
-                                    selection.push_back(nodeId);
-                                }
-                            }
-                        } else {
-                            selection = nodesForRule[j];
-                        }
-                        if (selection.empty()) {
-                            acceptableNodesEmpty = true;
+                std::vector<std::vector<size_t>> nodesForRule;
+                bool empty = false;
+                for (auto &bodyAtom : rule.getBody()) {
+                    Predicate pred = bodyAtom.getPredicate();
+                    if (pred.getType() != EDB) {
+                        if (!pred2Nodes.count(pred.getId())) {
+                            empty = true;
                             break;
                         }
-                        acceptableNodes.push_back(selection);
+                        nodesForRule.push_back(pred2Nodes[pred.getId()]);
                     }
-                    if (acceptableNodesEmpty) continue;
+                }
+                if (empty) continue;
 
-                    newnodes.emplace_back();
-                    TGChase_SuperNode &newnode = newnodes.back();
-                    newnode.ruleIdx = ruleIdx;
-                    newnode.step = step;
-                    newnode.incomingEdges = acceptableNodes;
+                if (rule.getNIDBPredicates() == 0) {
+                    //It's a rule with only EDB body atoms. Create a single node
+                    //I only execute these rules in the first step
+                    if (step == 1) {
+                        newnodes.emplace_back();
+                        TGChase_SuperNode &newnode = newnodes.back();
+                        newnode.ruleIdx = ruleIdx;
+                        newnode.step = step;
+                        newnode.incomingEdges = std::vector<std::vector<size_t>>();
+                    }
+                } else {
+                    size_t prevstep = 0;
+                    if (step > 1) prevstep = step - 1;
+                    for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
+                        //First consider only combinations where at least one node
+                        //is in the previous level
+                        std::vector<std::vector<size_t>> acceptableNodes;
+                        bool acceptableNodesEmpty = false;
+                        for(int j = 0; j < nodesForRule.size(); ++j) {
+                            std::vector<size_t> selection;
+                            if (j < pivot) {
+                                for(auto &nodeId : nodesForRule[j]) {
+                                    const auto &node = nodes[nodeId];
+                                    if (node.step < prevstep) {
+                                        selection.push_back(nodeId);
+                                    } else if (node.step >= prevstep) {
+                                        break;
+                                    }
+                                }
+                            } else if (j == pivot) {
+                                for(auto &nodeId : nodesForRule[j]) {
+                                    const auto &node = nodes[nodeId];
+                                    if (node.step == prevstep) {
+                                        selection.push_back(nodeId);
+                                    }
+                                }
+                            } else {
+                                selection = nodesForRule[j];
+                            }
+                            if (selection.empty()) {
+                                acceptableNodesEmpty = true;
+                                break;
+                            }
+                            acceptableNodes.push_back(selection);
+                        }
+                        if (acceptableNodesEmpty) continue;
+
+                        newnodes.emplace_back();
+                        TGChase_SuperNode &newnode = newnodes.back();
+                        newnode.ruleIdx = ruleIdx;
+                        newnode.step = step;
+                        newnode.incomingEdges = acceptableNodes;
+                    }
                 }
             }
-        }
 
-        //Execute the rule associated to the node
-        auto nnodes = nodes.size();
+            //Execute the rule associated to the node
+            auto nnodes = nodes.size();
 
-        auto nodesToProcess = newnodes.size();
-        LOG(INFOL) << "Nodes to process " << nodesToProcess;
-        for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
-            executeRule(newnodes[idxNode]);
-        }
-
-        if (nnodes != nodes.size()) {
-            auto derivedTuples = 0;
-            for(size_t idx = nnodes; idx < nodes.size(); ++idx) {
-                auto nrows = nodes[idx].data->getNRows();
-                derivedTuples += nrows;
+            auto nodesToProcess = newnodes.size();
+            LOG(INFOL) << "Nodes to process " << nodesToProcess;
+            for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
+                executeRule(newnodes[idxNode]);
             }
-            LOG(INFOL) << "Derived Tuples: " << derivedTuples;
-        }
-    } while (nnodes != nodes.size());
+
+            if (nnodes != nodes.size()) {
+                auto derivedTuples = 0;
+                for(size_t idx = nnodes; idx < nodes.size(); ++idx) {
+                    auto nrows = nodes[idx].data->getNRows();
+                    derivedTuples += nrows;
+                }
+                LOG(INFOL) << "Derived Tuples: " << derivedTuples;
+            }
+
+        } while (nnodes != nodes.size());
+    }
 
     SegmentCache::getInstance().clear();
     LOG(INFOL) << "Time first (ms): " << durationFirst.count();

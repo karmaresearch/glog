@@ -185,7 +185,7 @@ class SemiNaiver: public Chase {
         }
 
         VLIBEXP void run(unsigned long *timeout,
-                bool checkCyclicTerms) {
+                bool checkCyclicTerms = false) {
             run(0, 1, timeout, checkCyclicTerms, -1, -1);
         }
 

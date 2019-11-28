@@ -41,9 +41,11 @@ class TGChase : public Chase {
         std::vector<size_t> noBodyNodes;
 
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
+        std::vector<int> stratification;
+        int nStratificationClasses;
+        PredId_t currentPredicate;
 
 #ifdef WEBINTERFACE
-        PredId_t currentPredicate;
         std::string currentRule;
 #endif
 

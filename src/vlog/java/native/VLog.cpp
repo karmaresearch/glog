@@ -6,6 +6,7 @@
 #include <vlog/cycles/checker.h>
 #include <vlog/reasoner.h>
 #include <vlog/utils.h>
+#include <vlog/exporter.h>
 #include <kognac/utils.h>
 #include <kognac/logs.h>
 
@@ -776,7 +777,9 @@ extern "C" {
 			throwNonExistingPredicateException(env, "Non-existing predicate");
 		}
 		try {
-			f->sn->storeOnFile(fn, (PredId_t) predId, true, 0, true);
+            std::shared_ptr<Chase> ptr(f->sn);
+            Exporter exp(ptr);
+			exp.storeOnFile(fn, (PredId_t) predId, true, 0, true);
 		} catch(std::string s) {
 			throwIOException(env, s.c_str());
 			return;
