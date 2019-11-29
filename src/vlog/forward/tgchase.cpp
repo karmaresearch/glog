@@ -127,6 +127,15 @@ std::shared_ptr<const Segment> fromTGSeg2Seg(std::shared_ptr<const TGSegment> se
             Segment(columns.size(), columns));
 }
 
+bool lowerStrat(Rule &rule, int currentStrat, std::vector<int> &stratification) {
+    for (auto &bodyAtom : rule.getBody()) {
+        Predicate pred = bodyAtom.getPredicate();
+        if (pred.getType() != EDB && stratification[pred.getId()] >= currentStrat) {
+            return false;
+        }
+    }
+    return true;
+}
 
 void TGChase::run() {
     initRun();
@@ -134,7 +143,9 @@ void TGChase::run() {
     size_t step = 0;
     rules = program->getAllRules();
 
-    for (int i = 0; i < nStratificationClasses; i++) {
+    for (int currentStrat = 0; currentStrat < nStratificationClasses; currentStrat++) {
+        LOG(INFOL) << "Strat: " << currentStrat;
+        size_t saved_step = step;
         do {
             step++;
             LOG(INFOL) << "Step " << step;
@@ -145,9 +156,11 @@ void TGChase::run() {
             for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
                 auto &rule = rules[ruleIdx];
                 PredId_t id = rule.getFirstHead().getPredicate().getId();
-                if (nStratificationClasses > 1 && stratification[id] != i) {
+                if (nStratificationClasses > 1 && stratification[id] != currentStrat) {
+                    LOG(DEBUGL) << "Skipping rule, wrong strat: " << rule.tostring();
                     continue;
                 }
+                LOG(DEBUGL) << "Considering rule " << rule.tostring();
                 std::vector<std::vector<size_t>> nodesForRule;
                 bool empty = false;
                 for (auto &bodyAtom : rule.getBody()) {
@@ -160,21 +173,47 @@ void TGChase::run() {
                         nodesForRule.push_back(pred2Nodes[pred.getId()]);
                     }
                 }
-                if (empty) continue;
+                if (empty) {
+                    LOG(DEBUGL) << "Empty; continuing";
+                    continue;
+                }
 
                 if (rule.getNIDBPredicates() == 0) {
-                    //It's a rule with only EDB body atoms. Create a single node
-                    //I only execute these rules in the first step
-                    if (step == 1) {
+                    //It's a rule with only EDB body atoms.
+                    //Create a single node. I only execute these rules in the first iteration
+                    //of the current strat (which should be the first strat, I think).
+                    if (step == saved_step + 1) {
                         newnodes.emplace_back();
                         TGChase_SuperNode &newnode = newnodes.back();
                         newnode.ruleIdx = ruleIdx;
                         newnode.step = step;
                         newnode.incomingEdges = std::vector<std::vector<size_t>>();
+                        LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
+                    } else {
+                        LOG(DEBUGL) << "Skipping EDB rule";
+                    }
+                } else if (currentStrat > 0 && lowerStrat(rule, currentStrat, stratification)) {
+                    // All IDBs of the body are of a lower strat, so we only execute
+                    // this rule in the first iteration of the current strat.
+                    if (step == saved_step + 1) {
+                        for(int j = 0; j < nodesForRule.size(); ++j) {
+                            if (! nodesForRule[j].empty()) {
+                                LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
+                                newnodes.emplace_back();
+                                TGChase_SuperNode &newnode = newnodes.back();
+                                newnode.ruleIdx = ruleIdx;
+                                newnode.step = step;
+                                newnode.incomingEdges = std::vector<std::vector<size_t>>();
+                                newnode.incomingEdges.push_back(nodesForRule[j]);
+                            }
+                        }
+                    } else {
+                        LOG(DEBUGL) << "Skipping lowerStrat rule";
                     }
                 } else {
                     size_t prevstep = 0;
                     if (step > 1) prevstep = step - 1;
+                    // Why not just prevstep = step - 1;??? step is at least 1 here. --Ceriel
                     for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
                         //First consider only combinations where at least one node
                         //is in the previous level
@@ -188,7 +227,9 @@ void TGChase::run() {
                                     if (node.step < prevstep) {
                                         selection.push_back(nodeId);
                                     } else if (node.step >= prevstep) {
-                                        break;
+                                        // TODO: check this condition, because it could just as well have been just "} else {".
+                                        // Is this a bug? --Ceriel
+                                        break; 
                                     }
                                 }
                             } else if (j == pivot) {
@@ -207,8 +248,12 @@ void TGChase::run() {
                             }
                             acceptableNodes.push_back(selection);
                         }
-                        if (acceptableNodesEmpty) continue;
 
+                        if (acceptableNodesEmpty) {
+                            continue;
+                        }
+
+                        LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
                         newnodes.emplace_back();
                         TGChase_SuperNode &newnode = newnodes.back();
                         newnode.ruleIdx = ruleIdx;
