@@ -115,7 +115,7 @@ class TGChase : public Chase {
                 const std::vector<size_t> &nodesLeft,
                 std::shared_ptr<const TGSegment> inputRight,
                 const std::vector<size_t> &nodesRight,
-                std::pair<int, int> &joinVarPos,
+                std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
                 std::unique_ptr<SegmentInserter> &output);
@@ -131,7 +131,7 @@ class TGChase : public Chase {
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,
                 std::vector<size_t> &bodyIdxs,
-                std::pair<int, int> &joinVarPos,
+                std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
                 std::unique_ptr<SegmentInserter> &output);
