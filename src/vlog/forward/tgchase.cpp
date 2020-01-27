@@ -9,7 +9,8 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(false)
+    trackProvenance(false),
+    cacheRetainEnabled(useCacheRetain)
 {
     if (! program->stratify(stratification, nStratificationClasses)) {
         LOG(ERRORL) << "Program could not be stratified";
