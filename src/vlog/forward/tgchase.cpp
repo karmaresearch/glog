@@ -229,7 +229,7 @@ void TGChase::run() {
                                     } else if (node.step >= prevstep) {
                                         // TODO: check this condition, because it could just as well have been just "} else {".
                                         // Is this a bug? --Ceriel
-                                        break; 
+                                        break;
                                     }
                                 }
                             } else if (j == pivot) {
@@ -297,7 +297,7 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
         int bodyAtomIdx,
         const std::vector<Literal> &bodyAtoms,
         const Literal &head,
-        std::pair<int, int> &joinVarPos,
+        std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight) {
     std::set<int> futureOccurrences;
@@ -332,8 +332,7 @@ void TGChase::computeVarPos(std::vector<size_t> &leftVars,
                         LOG(ERRORL) << "Only one variable can be joined";
                         throw 10;
                     }
-                    joinVarPos.first = j;
-                    joinVarPos.second = i;
+                    joinVarPos.push_back(std::pair<int,int>(j, i));
                     found = true;
                     break;
                 }
@@ -517,6 +516,20 @@ int TGChase::cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
 }
 
 int TGChase::cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+        std::unique_ptr<TGSegmentItr> &inputRight,
+        std::vector<std::pair<int, int>> &joinVarPos) {
+    for (int i = 0; i < joinVarPos.size(); i++) {
+        const auto valLeft = inputLeft->get(joinVarPos[i].first);
+        const auto valRight = inputRight->get(joinVarPos[i].second);
+        if (valLeft < valRight)
+            return -1;
+        else if (valLeft > valRight)
+            return 1;
+    }
+    return 0;
+}
+
+int TGChase::cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
         std::unique_ptr<TGSegmentItr> &inputRight) {
     auto n = inputLeft->getNFields();
     for(size_t i = 0; i < n; ++i) {
@@ -559,6 +572,95 @@ void TGChase::join(
             copyVarPosLeft,
             copyVarPosRight,
             output);
+}
+
+void TGChase::leftjoin(
+        std::shared_ptr<const TGSegment> inputLeft,
+        std::vector<size_t> &bodyNodeIdxs,
+        std::vector<std::pair<int, int>> &joinVarPos,
+        std::vector<int> &copyVarPosLeft,
+        std::unique_ptr<SegmentInserter> &output) {
+/*    std::shared_ptr<const TGSegment> inputRight;
+    LOG(DEBUGL) << "bodyNodeIdxs.size() = " << bodyNodeIdxs.size();
+    for (int i = 0; i < bodyNodeIdxs.size(); i++) {
+        LOG(DEBUGL) << "bodyNodeIdxs[" << i << "] = " << bodyNodeIdxs[i];
+    }
+    if (bodyNodeIdxs.size() == 1) {
+        size_t idbBodyAtomIdx = bodyNodeIdxs[0];
+        auto bodyNode = nodes[idbBodyAtomIdx];
+        inputRight = bodyNode.data;
+    } else {
+        auto ncols = nodes[bodyNodeIdxs[0]].data->getNColumns();
+        std::vector<int> projectedPos;
+        for(int i = 0; i < ncols; ++i)
+            projectedPos.push_back(i);
+        inputRight = mergeNodes(bodyNodeIdxs, projectedPos);
+    }
+    LOG(DEBUGL) << "inputRight cols = " << inputRight->getNColumns() << ", size = " << inputRight->getNRows();
+
+    std::vector<uint8_t> fields1;
+    std::vector<uint8_t> fields2;
+
+    for (uint32_t i = 0; i < joinVarPos.size(); ++i) {
+        fields1.push_back(joinVarPos[i].first);
+        fields2.push_back(joinVarPos[i].second);
+    }
+    auto itrLeft = inputLeft->sortBy(fields1);
+    auto itrRight = inputRight->sortBy(fields2);
+
+    bool leftActive = false;
+    bool rightActive = false;
+    if (itrLeft->hasNext()) {
+        itrLeft->next();
+        leftActive = true;
+    } else {
+        return;
+    }
+    if (itrRight->hasNext()) {
+        itrRight->next();
+        rightActive = true;
+    }
+
+    auto sizerow = copyVarPosLeft.size();
+    Term_t currentrow[sizerow + 2];
+
+    while (leftActive && rightActive) {
+        int res = cmp(itrLeft, itrRight, joinVarPos);
+        if (res <= 0) {
+            if (res < 0) {
+                for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+                    auto leftPos = copyVarPosLeft[idx];
+                    auto el = itrLeft->get(leftPos);
+                    currentrow[idx] = el;
+                }
+                output->addRow(currentrow);
+            }
+            if (itrLeft->hasNext()) {
+                itrLeft->next();
+            } else {
+                leftActive = false;
+            }
+        } else {
+            if (itrRight->hasNext()) {
+                itrRight->next();
+            } else {
+                rightActive = false;
+            }
+        }
+    }
+    while (leftActive) {
+        for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+            auto leftPos = copyVarPosLeft[idx];
+            auto el = itrLeft->get(leftPos);
+            currentrow[idx] = el;
+        }
+        output->addRow(currentrow);
+        if (itrLeft->hasNext()) {
+            itrLeft->next();
+        } else {
+            leftActive = false;
+        }
+    }*/
 }
 
 void TGChase::mergejoin(
@@ -1006,7 +1108,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
         VTuple currentVars = currentBodyAtom.getTuple();
 
         //Which are the positions (left,right) of the variable to join?
-        std::pair<int, int> joinVarPos;
+        std::vector<std::pair<int, int>> joinVarPos;
         //Which variables should be copied from the existing collection?
         std::vector<int> copyVarPosLeft;
         //Which variables should be copied from the new body atom?
@@ -1047,17 +1149,32 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                 (new SegmentInserter(copyVarPosLeft.size() +
                                      copyVarPosRight.size() + extraColumns));
 
-            //Perform merge join between the intermediate results and
-            //the new collection
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
-            join(intermediateResults,
-                    i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
-                    bodyNodes[currentBodyNode],
-                    joinVarPos,
-                    copyVarPosLeft,
-                    copyVarPosRight,
-                    newIntermediateResults);
+
+            if (currentBodyAtom.isNegated()) {
+                // Negated atoms should not introduce new variables.
+                assert(copyVarPosRight.size() == 0);
+                leftjoin(intermediateResults,
+                        bodyNodes[currentBodyNode],
+                        joinVarPos,
+                        copyVarPosLeft,
+                        newIntermediateResults);
+            } else {
+                //Perform merge join between the intermediate results and
+                //the new collection
+                if (joinVarPos.size() != 1) {
+                    LOG(ERRORL) << "Only one variable can be joined";
+                    throw 10;
+                }
+                join(intermediateResults,
+                        i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
+                        bodyNodes[currentBodyNode],
+                        joinVarPos[0],
+                        copyVarPosLeft,
+                        copyVarPosRight,
+                        newIntermediateResults);
+            }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             durationJoin += end - start;

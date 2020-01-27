@@ -80,6 +80,10 @@ class TGChase : public Chase {
 
         int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
                 std::unique_ptr<TGSegmentItr> &inputRight,
+                std::vector<std::pair<int, int>> &joinVarPos);
+
+        int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+                std::unique_ptr<TGSegmentItr> &inputRight,
                 std::pair<int, int> &joinVarPos);
 
         int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
@@ -89,7 +93,7 @@ class TGChase : public Chase {
                 int bodyAtomIdx,
                 const std::vector<Literal> &bodyAtoms,
                 const Literal &head,
-                std::pair<int, int> &joinVarPos,
+                std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight);
 
@@ -114,6 +118,13 @@ class TGChase : public Chase {
                 std::pair<int, int> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
+                std::unique_ptr<SegmentInserter> &output);
+
+        void leftjoin(
+                std::shared_ptr<const TGSegment> inputLeft,
+                std::vector<size_t> &bodyNodeIdxs,
+                std::vector<std::pair<int, int>> &joinVarPos,
+                std::vector<int> &copyVarPosLeft,
                 std::unique_ptr<SegmentInserter> &output);
 
         void join(

@@ -30,6 +30,28 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
     }
 }
 
+std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields) const {
+    if (isSorted && (fields.size() == 0 || (fields.size() == 1 && fields[0] == 0))) {
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0));
+    }
+    if (columns.size() == 1) {
+        auto column = columns[0]->sort();
+        std::vector<std::shared_ptr<Column>> columns;
+        columns.push_back(column);
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0));
+    } else {
+        auto nfields = columns.size();
+        auto oldcols(columns);
+        Segment s(nfields, oldcols);
+        auto snew = s.sortBy(&fields);
+        std::vector<std::shared_ptr<Column>> newColumns;
+        for(int i = 0; i < nfields; ++i) {
+            newColumns.push_back(s.getColumn(i));
+        }
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, fields[0]));
+    }
+}
+
 std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
     if (!isSorted || sortedField != 0) {
         LOG(ERRORL) << "unique can only be called on sorted segments";

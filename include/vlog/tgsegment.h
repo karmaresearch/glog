@@ -27,6 +27,8 @@ class TGSegment {
 
         virtual std::shared_ptr<TGSegment> sortBy(uint8_t field) const = 0;
 
+        virtual std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const = 0;
+
         virtual std::shared_ptr<TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
                 std::vector<size_t> &nodes) const = 0;
@@ -127,6 +129,8 @@ class TGSegmentLegacy : public TGSegment {
         std::shared_ptr<TGSegment> sort() const;
 
         std::shared_ptr<TGSegment> sortBy(uint8_t field) const;
+
+        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
         std::shared_ptr<TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
@@ -285,6 +289,11 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<S,K,I> {
             return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, field));
         }
 
+        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
+            assert(fields.size() == 0 || (fields.size() == 1 && fields[0] == 0));
+            return sortBy(0);
+        }
+
         virtual std::string getName() const {
             return "TGUnarySegment";
         }
@@ -324,7 +333,11 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<S,K,I> {
                 std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
             }
             return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, field));
+        }
 
+        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
+            uint8_t field = (fields.size() == 0 || fields[0] == 0) ? 0 : 1;
+            return sortBy(field);
         }
 
         std::shared_ptr<TGSegment> swap() const {
