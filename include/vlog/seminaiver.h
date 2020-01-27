@@ -136,7 +136,7 @@ class SemiNaiver: public Chase {
                 size_t limitView,
                 bool fixpoint, unsigned long *timeout = NULL);
 
-        void prepare(size_t lastExecution, int singleRuleToCheck);
+        void prepare(size_t lastExecution, int singleRuleToCheck, std::vector<RuleExecutionDetails> &allrules);
 
         void setIgnoreDuplicatesElimination() {
             ignoreDuplicatesElimination = true;
