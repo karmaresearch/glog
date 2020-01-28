@@ -12,34 +12,24 @@
 
 #include <chrono>
 
-struct CacheRetainEntry {
-    size_t nnodes;
-    std::shared_ptr<const TGSegment> seg;
-};
-
 class TGChase : public Chase {
     private:
+        bool trackProvenance;
         Program *program;
         std::vector<Rule> rules;
-        EDBLayer &layer;
+        std::vector<int> stratification;
+        int nStratificationClasses;
 
-        GBGraph g;
-
+        EDBLayer &layer; //Stores the input data
+        GBGraph g; //Stores the derivations
+        GBRuleExecutor executor; //Object that executes rules
         size_t currentIteration;
+
         PredId_t currentPredicate;
 #ifdef WEBINTERFACE
         std::string currentRule;
 #endif
 
-        bool trackProvenance;
-        std::vector<int> stratification;
-        int nStratificationClasses;
-
-        const bool cacheRetainEnabled;
-        std::map<PredId_t, CacheRetainEntry> cacheRetain;
-        std::chrono::duration<double, std::milli> durationRetain;
-
-        GBRuleExecutor executor;
 
         bool executeRule(GBRuleInput &node);
 
@@ -47,14 +37,6 @@ class TGChase : public Chase {
                 size_t ruleIdx, size_t step,
                 std::shared_ptr<const TGSegment> seg,
                 std::vector<std::shared_ptr<Column>> &provenance);
-
-        std::shared_ptr<const TGSegment> retainVsNodeFast(
-                std::shared_ptr<const TGSegment> existuples,
-                std::shared_ptr<const TGSegment> newtuples);
-
-        std::shared_ptr<const TGSegment> retain(
-                PredId_t pred,
-                std::shared_ptr<const TGSegment> newtuples);
 
     public:
         VLIBEXP TGChase(EDBLayer &layer, Program *program, bool useCacheRetain = true);
