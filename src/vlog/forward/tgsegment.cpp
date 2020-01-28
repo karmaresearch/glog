@@ -128,7 +128,7 @@ void TGSegmentLegacy::appendTo(uint8_t colPos,
 void TGSegmentLegacy::appendTo(uint8_t colPos1,
         uint8_t colPos2,
         std::vector<std::pair<Term_t,Term_t>> &out) const {
-    assert(columns.size() == 2);
+    assert(!trackProvenance && columns.size() == 2 || trackProvenance && columns.size() == 3);
     auto &c1 = columns[colPos1];
     auto &c2 = columns[colPos2];
     auto &v1 = c1->getVectorRef();

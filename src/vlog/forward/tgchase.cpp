@@ -9,7 +9,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(false),
+    trackProvenance(true),
     cacheRetainEnabled(useCacheRetain)
 {
     if (! program->stratify(stratification, nStratificationClasses)) {
@@ -226,9 +226,7 @@ void TGChase::run() {
                                     const auto &node = nodes[nodeId];
                                     if (node.step < prevstep) {
                                         selection.push_back(nodeId);
-                                    } else if (node.step >= prevstep) {
-                                        // TODO: check this condition, because it could just as well have been just "} else {".
-                                        // Is this a bug? --Ceriel
+                                    } else {
                                         break;
                                     }
                                 }
@@ -265,7 +263,6 @@ void TGChase::run() {
 
             //Execute the rule associated to the node
             auto nnodes = nodes.size();
-
             auto nodesToProcess = newnodes.size();
             LOG(INFOL) << "Nodes to process " << nodesToProcess;
             for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
@@ -1114,7 +1111,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
     //LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
     //    " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
 
-
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
     //Maybe Rearrange the body atoms? Don't forget to also re-arrange the body
@@ -1185,7 +1181,7 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
                         copyVarPosLeft,
                         newIntermediateResults);
             } else {
-                //Perform merge join between the intermediate results and
+                //Perform a join between the intermediate results and
                 //the new collection
                 if (joinVarPos.size() == 0) {
                     LOG(ERRORL) << "Join variables required";
@@ -1228,7 +1224,6 @@ bool TGChase::executeRule(TGChase_SuperNode &node) {
             newVarsIntermediateResults.push_back(
                     currentVars.get(varPos).getId());
         }
-
         varsIntermediate = newVarsIntermediateResults;
     }
 
