@@ -38,7 +38,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields)
         auto column = columns[0]->sort();
         std::vector<std::shared_ptr<Column>> columns;
         columns.push_back(column);
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0, trackProvenance));
     } else {
         auto nfields = columns.size();
         auto oldcols(columns);
@@ -48,7 +48,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields)
         for(int i = 0; i < nfields; ++i) {
             newColumns.push_back(s.getColumn(i));
         }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, fields[0]));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, fields[0], trackProvenance));
     }
 }
 

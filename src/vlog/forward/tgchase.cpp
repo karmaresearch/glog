@@ -9,7 +9,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(false),
+    trackProvenance(true),
     cacheRetainEnabled(useCacheRetain)
 {
     if (! program->stratify(stratification, nStratificationClasses)) {
@@ -550,7 +550,7 @@ void TGChase::leftjoin(
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::unique_ptr<SegmentInserter> &output) {
-/*    std::shared_ptr<const TGSegment> inputRight;
+    std::shared_ptr<const TGSegment> inputRight;
     LOG(DEBUGL) << "bodyNodeIdxs.size() = " << bodyNodeIdxs.size();
     for (int i = 0; i < bodyNodeIdxs.size(); i++) {
         LOG(DEBUGL) << "bodyNodeIdxs[" << i << "] = " << bodyNodeIdxs[i];
@@ -575,8 +575,10 @@ void TGChase::leftjoin(
         fields1.push_back(joinVarPos[i].first);
         fields2.push_back(joinVarPos[i].second);
     }
-    auto itrLeft = inputLeft->sortBy(fields1);
-    auto itrRight = inputRight->sortBy(fields2);
+    auto sortedInputLeft = inputLeft->sortBy(fields1);
+    auto sortedInputRight = inputRight->sortBy(fields2);
+    auto itrLeft = sortedInputLeft->iterator();
+    auto itrRight = sortedInputRight->iterator();
 
     bool leftActive = false;
     bool rightActive = false;
@@ -630,7 +632,7 @@ void TGChase::leftjoin(
         } else {
             leftActive = false;
         }
-    }*/
+    }
 }
 
 
@@ -669,7 +671,7 @@ void TGChase::mergejoin(
         const std::vector<size_t> &nodesLeft,
         std::shared_ptr<const TGSegment> inputRight,
         const std::vector<size_t> &nodesRight,
-        std::vector<std::pair<int, int>> &joinVarPos,
+        std::vector<std::pair<int, int>> &joinVarsPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
         std::unique_ptr<SegmentInserter> &output) {
@@ -677,20 +679,24 @@ void TGChase::mergejoin(
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
-    for (uint32_t i = 0; i < joinVarPos.size(); ++i) {
-        fields1.push_back(joinVarPos[i].first);
-        fields2.push_back(joinVarPos[i].second);
+    for (uint32_t i = 0; i < joinVarsPos.size(); ++i) {
+        fields1.push_back(joinVarsPos[i].first);
+        fields2.push_back(joinVarsPos[i].second);
     }
     std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
 
-    inputLeft = inputLeft->sortBy(fields1);
-    inputRight = inputRight->sortBy(fields2);
-    auto itrLeft = inputLeft->iterator();
-    auto itrRight = inputRight->iterator();
+    /*auto sortedInputLeft = inputLeft->sortBy(fields1);
+      auto sortedInputRight = inputRight->sortBy(fields2);
+      auto itrLeft = sortedInputLeft->iterator();
+      auto itrRight = sortedInputRight->iterator();*/
 
-    /*//Sort the left segment by the join variable
-    std::unique_ptr<TGSegmentItr> itrLeft;
-    std::unique_ptr<TGSegmentItr> itrRight;
+    if (joinVarsPos.size() > 1) {
+        LOG(ERRORL) << "Not supported yet";
+        throw 10;
+    }
+
+    auto joinVarPos = joinVarsPos[0];
+    //Sort the left segment by the join variable
     if (!inputLeft->isSortedBy(joinVarPos.first)) {
         if (nodesLeft.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
@@ -704,7 +710,7 @@ void TGChase::mergejoin(
             inputLeft = inputLeft->sortBy(joinVarPos.first);
         }
     }
-    itrLeft = inputLeft->iterator();
+    std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     if (!inputRight->isSortedBy(joinVarPos.second)) {
         if (nodesRight.size() > 0) {
@@ -719,7 +725,7 @@ void TGChase::mergejoin(
             inputRight = inputRight->sortBy(joinVarPos.second);
         }
     }
-    itrRight = inputRight->iterator();*/
+    std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;
 
     //Do the merge join
@@ -745,12 +751,12 @@ void TGChase::mergejoin(
     auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
     Term_t currentrow[sizerow + 2];
     for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
-    int res = cmp(itrLeft, itrRight, joinVarPos);
+    int res = cmp(itrLeft, itrRight, joinVarsPos);
     while (true) {
         //Are they matching?
         while (res < 0 && itrLeft->hasNext()) {
             itrLeft->next();
-            res = cmp(itrLeft, itrRight, joinVarPos);
+            res = cmp(itrLeft, itrRight, joinVarsPos);
         }
 
         if (res < 0) //The first iterator is finished
@@ -758,7 +764,7 @@ void TGChase::mergejoin(
 
         while (res > 0 && itrRight->hasNext()) {
             itrRight->next();
-            res = cmp(itrLeft, itrRight, joinVarPos);
+            res = cmp(itrLeft, itrRight, joinVarsPos);
         }
 
         if (res > 0) { //The second iterator is finished
@@ -845,7 +851,7 @@ void TGChase::mergejoin(
                 if (!leftActive) {
                     break;
                 }
-                res = cmp(itrLeft, itrRight, joinVarPos);
+                res = cmp(itrLeft, itrRight, joinVarsPos);
             }
         }
     }
