@@ -998,9 +998,9 @@ std::shared_ptr<TriggerSemiNaiver> Reasoner::getTriggeredSemiNaiver(EDBLayer &la
 }
 
 
-std::shared_ptr<TGChase> Reasoner::getTGChase(
+std::shared_ptr<GBChase> Reasoner::getGBChase(
         EDBLayer &layer,
         Program *p) {
-    std::shared_ptr<TGChase> sn(new TGChase(layer, p));
+    std::shared_ptr<GBChase> sn(new GBChase(layer, p));
     return sn;
 }

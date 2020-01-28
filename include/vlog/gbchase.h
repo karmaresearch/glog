@@ -1,5 +1,5 @@
-#ifndef _TG_CHASE_H
-#define _TG_CHASE_H
+#ifndef _GB_CHASE_H
+#define _GB_CHASE_H
 
 #include <vlog/concepts.h>
 #include <vlog/chase.h>
@@ -12,7 +12,7 @@
 
 #include <chrono>
 
-class TGChase : public Chase {
+class GBChase : public Chase {
     private:
         bool trackProvenance;
         Program *program;
@@ -39,7 +39,7 @@ class TGChase : public Chase {
                 std::vector<std::shared_ptr<Column>> &provenance);
 
     public:
-        VLIBEXP TGChase(EDBLayer &layer, Program *program, bool useCacheRetain = true);
+        VLIBEXP GBChase(EDBLayer &layer, Program *program, bool useCacheRetain = true);
 
         VLIBEXP void run();
 

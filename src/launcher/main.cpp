@@ -13,7 +13,7 @@
 #include <vlog/ml/ml.h>
 #include <vlog/trigger/detector.h>
 #include <vlog/trigger/tg.h>
-#include <vlog/tgchase.h>
+#include <vlog/gbchase.h>
 
 #include <vlog/cycles/checker.h>
 
@@ -61,7 +61,7 @@ void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "mat\t\t perform a full materialization." << endl;
     cout << "mat_tg\t\t perform a full materialization guided by a trigger graph." << endl;
     cout << "trigger\t\t create a trigger graph from a given program." << endl;
-    cout << "tgchase\t\t launch online trigger-graph-based chase." << endl;
+    cout << "gbchase\t\t launch the graph-based chase." << endl;
     cout << "query\t\t execute a SPARQL query." << endl;
     cout << "queryLiteral\t\t execute a Literal query." << endl;
     cout << "server\t\t starts in server mode." << endl;
@@ -94,7 +94,7 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
     if (cmd != "help" && cmd != "query" && cmd != "lookup" && cmd != "load" && cmd != "queryLiteral"
             && cmd != "mat" && cmd != "mat_tg" && cmd != "rulesgraph" && cmd != "server" && cmd != "gentq" &&
             cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger"
-            && cmd != "tgchase") {
+            && cmd != "gbchase") {
         printErrorMsg("The command \"" + cmd + "\" is unknown.");
         return false;
     }
@@ -506,7 +506,7 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
     LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
 }
 
-void launchTGChase(int argc,
+void launchGBChase(int argc,
         const char** argv,
         std::string pathExec,
         EDBLayer &db,
@@ -521,7 +521,7 @@ void launchTGChase(int argc,
     }
 
     //Prepare the materialization
-    std::shared_ptr<TGChase> sn = Reasoner::getTGChase(db, &p);
+    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p);
 
 #ifdef WEBINTERFACE
     //Start the web interface if requested
@@ -558,7 +558,7 @@ void launchTGChase(int argc,
     }
 #endif
 
-    LOG(INFOL) << "Starting online tg-based chase";
+    LOG(INFOL) << "Starting graph-based chase";
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
@@ -1418,11 +1418,11 @@ int main(int argc, const char** argv) {
         launchTriggeredMat(argc, argv, full_path, *layer, vm,
                 vm["rules"].as<string>(), vm["trigger_paths"].as<string>());
         delete layer;
-    } else if (cmd == "tgchase") {
+    } else if (cmd == "gbchase") {
         EDBConf conf(edbFile);
         conf.setRootPath(Utils::parentDir(edbFile));
         EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
-        launchTGChase(argc, argv, full_path, *layer, vm, vm["rules"].as<string>());
+        launchGBChase(argc, argv, full_path, *layer, vm, vm["rules"].as<string>());
         delete layer;
     } else if (cmd == "trigger") {
         EDBConf conf(edbFile);

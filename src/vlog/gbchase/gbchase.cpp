@@ -1,7 +1,7 @@
-#include <vlog/tgchase.h>
+#include <vlog/gbchase.h>
 #include <vlog/tgsegmentcache.h>
 
-TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
+GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     layer(layer),
     program(program),
     trackProvenance(true),
@@ -15,11 +15,11 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
 }
 
-Program *TGChase::getProgram() {
+Program *GBChase::getProgram() {
     return program;
 }
 
-EDBLayer &TGChase::getEDBLayer() {
+EDBLayer &GBChase::getEDBLayer() {
     return layer;
 }
 
@@ -53,7 +53,7 @@ bool lowerStrat(Rule &rule, int currentStrat, std::vector<int> &stratification) 
     return true;
 }
 
-void TGChase::run() {
+void GBChase::run() {
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
@@ -127,9 +127,7 @@ void TGChase::run() {
                         LOG(DEBUGL) << "Skipping lowerStrat rule";
                     }
                 } else {
-                    size_t prevstep = 0;
-                    if (step > 1) prevstep = step - 1;
-                    // Why not just prevstep = step - 1;??? step is at least 1 here. --Ceriel
+                    size_t prevstep = step - 1;
                     for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
                         //First consider only combinations where at least one node
                         //is in the previous level
@@ -203,15 +201,15 @@ void TGChase::run() {
     stopRun();
 }
 
-size_t TGChase::getNDerivedFacts() {
+size_t GBChase::getNDerivedFacts() {
     return g.getNDerivedFacts();
 }
 
-size_t TGChase::getNnodes() {
+size_t GBChase::getNnodes() {
     return g.getNNodes();
 }
 
-bool TGChase::executeRule(GBRuleInput &node) {
+bool GBChase::executeRule(GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE
@@ -224,7 +222,7 @@ bool TGChase::executeRule(GBRuleInput &node) {
     auto derivationNodes = outputRule.second;
     auto nonempty = !(derivations == NULL || derivations->isEmpty());
     if (nonempty) {
-        //Compute the head
+        //Keep only the new derivations
         auto retainedTuples = g.retain(currentPredicate, derivations);
         nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
         if (nonempty) {
@@ -240,7 +238,7 @@ bool TGChase::executeRule(GBRuleInput &node) {
     return nonempty;
 }
 
-void TGChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
+void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         std::vector<std::shared_ptr<Column>> &provenance) {
     if (provenance.size() == 0) {
@@ -302,17 +300,17 @@ void TGChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
     }
 }
 
-size_t TGChase::getSizeTable(const PredId_t predid) const {
+size_t GBChase::getSizeTable(const PredId_t predid) const {
     LOG(ERRORL) << "Method not implemented";
     throw 10;
 }
 
-FCIterator TGChase::getTableItr(const PredId_t predid) {
+FCIterator GBChase::getTableItr(const PredId_t predid) {
     LOG(ERRORL) << "Method not implemented";
     throw 10;
 }
 
-FCTable *TGChase::getTable(const PredId_t predid) {
+FCTable *GBChase::getTable(const PredId_t predid) {
     //Create a FCTable obj with the nodes in predid
     uint8_t card = program->getPredicateCard(predid);
     VTuple tuple(card);
@@ -333,16 +331,16 @@ FCTable *TGChase::getTable(const PredId_t predid) {
     return t;
 }
 
-size_t TGChase::getCurrentIteration() {
+size_t GBChase::getCurrentIteration() {
     return currentIteration;
 }
 
 #ifdef WEBINTERFACE
-std::string TGChase::getCurrentRule() {
+std::string GBChase::getCurrentRule() {
     return currentRule;
 }
 
-PredId_t TGChase::getCurrentPredicate() {
+PredId_t GBChase::getCurrentPredicate() {
     return currentPredicate;
 }
 #endif

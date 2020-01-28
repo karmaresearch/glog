@@ -6,7 +6,7 @@
 #include <vlog/fctable.h>
 #include <vlog/seminaiver.h>
 #include <vlog/seminaiver_trigger.h>
-#include <vlog/tgchase.h>
+#include <vlog/gbchase.h>
 #include <vlog/consts.h>
 
 #include <trident/kb/kb.h>
@@ -128,7 +128,7 @@ class Reasoner {
                 Program *p,
                 TypeChase typeChase);
 
-        VLIBEXP static std::shared_ptr<TGChase> getTGChase(
+        VLIBEXP static std::shared_ptr<GBChase> getGBChase(
                 EDBLayer &layer,
                 Program *p);
 
