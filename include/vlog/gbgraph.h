@@ -6,18 +6,20 @@
 
 #include <map>
 
-struct TGChase_Node {
-    size_t ruleIdx;
-    size_t step;
-    std::vector<size_t> incomingEdges;
-    std::shared_ptr<const TGSegment> data;
-    TGChase_Node() : ruleIdx(0), step(0) {}
-};
 
 class GBGraph {
     private:
+
+        struct GBGraph_Node {
+            size_t ruleIdx;
+            size_t step;
+            std::vector<size_t> incomingEdges;
+            std::shared_ptr<const TGSegment> data;
+            GBGraph_Node() : ruleIdx(0), step(0) {}
+        };
+
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
-        std::vector<TGChase_Node> nodes;
+        std::vector<GBGraph_Node> nodes;
 
     public:
 
@@ -25,8 +27,8 @@ class GBGraph {
             return nodes.size();
         }
 
-        const TGChase_Node getNode(size_t nodeId) const {
-            return nodes[nodeId];
+        size_t getNodeStep(size_t nodeId) const {
+            return nodes[nodeId].step;
         }
 
         std::shared_ptr<const TGSegment> getNodeData(size_t nodeId) const {
@@ -37,9 +39,9 @@ class GBGraph {
             return pred2Nodes.count(predid);
         }
 
-        const std::vector<TGChase_Node> &getNodes() const {
+        /*const std::vector<TGChase_Node> &getNodes() const {
             return nodes;
-        }
+        }*/
 
         const std::vector<size_t> &getNodeIDsWithPredicate(PredId_t predid) const {
             return pred2Nodes.at(predid);
@@ -48,7 +50,7 @@ class GBGraph {
         void addNode(PredId_t predid, size_t ruleIdx, size_t step, std::shared_ptr<const TGSegment> data) {
             auto nodeId = getNNodes();
             nodes.emplace_back();
-            TGChase_Node &outputNode = nodes.back();
+            GBGraph_Node &outputNode = nodes.back();
             outputNode.ruleIdx = ruleIdx;
             outputNode.step = step;
             outputNode.data = data;

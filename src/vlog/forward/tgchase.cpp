@@ -140,8 +140,8 @@ void TGChase::run() {
                             std::vector<size_t> selection;
                             if (j < pivot) {
                                 for(auto &nodeId : nodesForRule[j]) {
-                                    const auto &node = g.getNode(nodeId);
-                                    if (node.step < prevstep) {
+                                    auto nodeStep = g.getNodeStep(nodeId);
+                                    if (nodeStep < prevstep) {
                                         selection.push_back(nodeId);
                                     } else {
                                         break;
@@ -149,8 +149,8 @@ void TGChase::run() {
                                 }
                             } else if (j == pivot) {
                                 for(auto &nodeId : nodesForRule[j]) {
-                                    const auto &node = g.getNode(nodeId);
-                                    if (node.step == prevstep) {
+                                    auto nodeStep = g.getNodeStep(nodeId);
+                                    if (nodeStep == prevstep) {
                                         selection.push_back(nodeId);
                                     }
                                 }
@@ -381,8 +381,8 @@ std::shared_ptr<const TGSegment> TGChase::retain(
         }
     } else {
         for(auto &nodeIdx : nodeIdxs) {
-            auto node = g.getNode(nodeIdx);
-            newtuples = retainVsNodeFast(node.data, newtuples);
+            auto nodeData = g.getNodeData(nodeIdx);
+            newtuples = retainVsNodeFast(nodeData, newtuples);
             if (newtuples == NULL || newtuples->isEmpty()) {
                 return std::shared_ptr<const TGSegment>();
             }
@@ -515,8 +515,8 @@ FCTable *TGChase::getTable(const PredId_t predid) {
     if (g.areNodesWithPredicate(predid)) {
         auto &nodeIDs = g.getNodeIDsWithPredicate(predid);
         for (auto &nodeId : nodeIDs) {
-            auto &node = g.getNode(nodeId);
-            auto data = fromTGSeg2Seg(node.data);
+            auto nodeData = g.getNodeData(nodeId);
+            auto data = fromTGSeg2Seg(nodeData);
             std::shared_ptr<const FCInternalTable> table =
                 std::shared_ptr<const FCInternalTable>(
                         new InmemoryFCInternalTable(card, nodeId, true, data));

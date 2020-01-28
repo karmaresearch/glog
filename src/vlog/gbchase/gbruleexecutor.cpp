@@ -646,8 +646,7 @@ void GBRuleExecutor::join(
     std::shared_ptr<const TGSegment> inputRight;
     if (bodyNodeIdxs.size() == 1) {
         size_t idbBodyAtomIdx = bodyNodeIdxs[0];
-        auto bodyNode = g.getNode(idbBodyAtomIdx);
-        inputRight = bodyNode.data;
+        inputRight = g.getNodeData(idbBodyAtomIdx);
     } else {
         auto ncols = g.getNodeData(bodyNodeIdxs[0])->getNColumns();
         std::vector<int> projectedPos;
