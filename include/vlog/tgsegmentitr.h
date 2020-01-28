@@ -32,6 +32,35 @@ class TGSegmentItr {
 
         virtual int getNFields() const = 0;
 
+        static int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+                std::unique_ptr<TGSegmentItr> &inputRight) {
+            auto n = inputLeft->getNFields();
+            for(size_t i = 0; i < n; ++i) {
+                auto vl = inputLeft->get(i);
+                auto vr = inputRight->get(i);
+                if (vl < vr) {
+                    return -1;
+                } else if (vl > vr) {
+                    return 1;
+                }
+            }
+            return 0;
+        }
+
+        static int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
+                std::unique_ptr<TGSegmentItr> &inputRight,
+                std::vector<std::pair<int, int>> &joinVarPos) {
+            for (int i = 0; i < joinVarPos.size(); i++) {
+                const auto valLeft = inputLeft->get(joinVarPos[i].first);
+                const auto valRight = inputRight->get(joinVarPos[i].second);
+                if (valLeft < valRight)
+                    return -1;
+                else if (valLeft > valRight)
+                    return 1;
+            }
+            return 0;
+        }
+
         virtual ~TGSegmentItr() {}
 };
 
@@ -50,19 +79,19 @@ class TGSegmentLegacyItr : public TGSegmentItr {
     public:
         TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
                 const bool trackProvenance) :
-                trackProvenance(trackProvenance),
-                columns(columns) {
-            currentRowIdx = -1;
-            if (columns.size() > 0) {
-                nrows = columns[0]->size();
-            } else {
-                nrows = 1;
+            trackProvenance(trackProvenance),
+            columns(columns) {
+                currentRowIdx = -1;
+                if (columns.size() > 0) {
+                    nrows = columns[0]->size();
+                } else {
+                    nrows = 1;
+                }
+                auto ncols = trackProvenance ? columns.size() - 1 : columns.size();
+                for(int i = 0; i < ncols; ++i) {
+                    vectors.push_back(columns[i]->getVectorRef().data());
+                }
             }
-            auto ncols = trackProvenance ? columns.size() - 1 : columns.size();
-            for(int i = 0; i < ncols; ++i) {
-                vectors.push_back(columns[i]->getVectorRef().data());
-            }
-        }
 
         void mark() {
             m_currentRowIdx = currentRowIdx;
