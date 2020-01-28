@@ -21,11 +21,9 @@ class TGSegment {
 
         virtual std::unique_ptr<TGSegmentItr> iterator() const = 0;
 
-        virtual bool isSortedBy(uint8_t field) const = 0;
+        virtual bool isSortedBy(std::vector<uint8_t> &fields) const = 0;
 
         virtual std::shared_ptr<TGSegment> sort() const = 0;
-
-        virtual std::shared_ptr<TGSegment> sortBy(uint8_t field) const = 0;
 
         virtual std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const = 0;
 
@@ -124,11 +122,11 @@ class TGSegmentLegacy : public TGSegment {
 
         std::unique_ptr<TGSegmentItr> iterator() const;
 
-        bool isSortedBy(uint8_t field) const;
+        bool isSortedBy(std::vector<uint8_t> &fields) const;
 
         std::shared_ptr<TGSegment> sort() const;
 
-        std::shared_ptr<TGSegment> sortBy(uint8_t field) const;
+        //std::shared_ptr<TGSegment> sortBy(uint8_t field) const;
 
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
@@ -246,7 +244,10 @@ class TGSegmentImpl : public TGSegment {
             return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<S,K,I>::getNodeId(), *TGSegmentImpl<S,K,I>::tuples.get()));
         }
 
-        bool isSortedBy(uint8_t field) const {
+        bool isSortedBy(std::vector<uint8_t> &fields) const {
+            if (fields.size() != 1)
+                return false;
+            auto field = fields[0];
             assert(field == 0 || field == 1);
             return TGSegmentImpl<S,K,I>::isSorted && field == TGSegmentImpl<S,K,I>::sortedField;
         }
@@ -282,16 +283,12 @@ class UnaryTGSegmentImpl : public TGSegmentImpl<S,K,I> {
             return 1;
         }
 
-        std::shared_ptr<TGSegment> sortBy(uint8_t field) const {
-            assert(field == 0);
-            std::vector<K> sortedTuples(*TGSegmentImpl<S,K,I>::tuples.get());
-            std::sort(sortedTuples.begin(), sortedTuples.end());
-            return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, field));
-        }
-
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
             assert(fields.size() == 0 || (fields.size() == 1 && fields[0] == 0));
-            return sortBy(0);
+            std::vector<K> sortedTuples(*TGSegmentImpl<S,K,I>::tuples.get());
+            std::sort(sortedTuples.begin(), sortedTuples.end());
+            return std::shared_ptr<TGSegment>(
+                    new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, 0));
         }
 
         virtual std::string getName() const {
@@ -324,7 +321,8 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<S,K,I> {
             return "TGBinarySegment";
         }
 
-        std::shared_ptr<TGSegment> sortBy(uint8_t field) const {
+        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
+            uint8_t field = (fields.size() == 0 || fields[0] == 0) ? 0 : 1;
             std::vector<K> sortedTuples(*TGSegmentImpl<S,K,I>::tuples.get());
             if (field == 0) {
                 std::sort(sortedTuples.begin(), sortedTuples.end());
@@ -332,12 +330,8 @@ class BinaryTGSegmentImpl : public TGSegmentImpl<S,K,I> {
                 assert(field == 1);
                 std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
             }
-            return std::shared_ptr<TGSegment>(new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, field));
-        }
-
-        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
-            uint8_t field = (fields.size() == 0 || fields[0] == 0) ? 0 : 1;
-            return sortBy(field);
+            return std::shared_ptr<TGSegment>(
+                    new S(sortedTuples, TGSegmentImpl<S,K,I>::getNodeId(), true, field));
         }
 
         std::shared_ptr<TGSegment> swap() const {

@@ -41,7 +41,11 @@ class SegmentCache {
             return instance;
         }
 
-        bool contains(const std::vector<size_t> &key, const uint8_t field) const {
+        bool contains(const std::vector<size_t> &key, const std::vector<uint8_t> &fields) const {
+            if (fields.size() != 1)
+                return false;
+
+            auto field = fields[0];
             CacheEntry k(key);
             if (field == 0)
                 return cacheVar0.count(k);
@@ -53,8 +57,10 @@ class SegmentCache {
             }
         }
 
-        void insert(const std::vector<size_t> &key, const uint8_t field,
+        void insert(const std::vector<size_t> &key, const std::vector<uint8_t> &fields,
                 std::shared_ptr<const TGSegment> value) {
+            assert(fields.size() == 1);
+            auto field = fields[0];
             CacheEntry k(key);
             if (field == 0) {
                 cacheVar0[k] = value;
@@ -66,7 +72,9 @@ class SegmentCache {
 
         const std::shared_ptr<const TGSegment> get(
                 const std::vector<size_t> &key,
-                const uint8_t field) {
+                const std::vector<uint8_t> &fields) {
+            assert(fields.size() == 1);
+            auto field = fields[0];
             CacheEntry k(key);
             if (field == 0) {
                 return cacheVar0[k];

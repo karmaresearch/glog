@@ -35,19 +35,18 @@ class TGChase : public Chase {
         Program *program;
         std::vector<Rule> rules;
         EDBLayer &layer;
-        size_t currentIteration;
-
-        bool trackProvenance;
-        std::vector<size_t> noBodyNodes;
-
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
-        std::vector<int> stratification;
-        int nStratificationClasses;
-        PredId_t currentPredicate;
 
+        size_t currentIteration;
+        PredId_t currentPredicate;
 #ifdef WEBINTERFACE
         std::string currentRule;
 #endif
+
+        bool trackProvenance;
+        std::vector<size_t> noBodyNodes;
+        std::vector<int> stratification;
+        int nStratificationClasses;
 
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
         std::vector<TGChase_Node> nodes;

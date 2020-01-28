@@ -6,33 +6,16 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
     return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns, trackProvenance));
 }
 
-bool TGSegmentLegacy::isSortedBy(uint8_t field) const {
+bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
+    if (fields.size() != 1)
+        return false;
+    auto field = fields[0];
     return (isSorted && sortedField == field);
-}
-
-std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(uint8_t field) const {
-    if (columns.size() == 1) {
-        auto column = columns[0]->sort();
-        std::vector<std::shared_ptr<Column>> columns;
-        columns.push_back(column);
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0, trackProvenance));
-    } else {
-        //General case. Might want to optimize it for binary columns
-        auto nfields = columns.size();
-        auto oldcols(columns);
-        Segment s(nfields, oldcols);
-        auto snew = s.sortByField(field);
-        std::vector<std::shared_ptr<Column>> newColumns;
-        for(int i = 0; i < nfields; ++i) {
-            newColumns.push_back(snew->getColumn(i));
-        }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, field, trackProvenance));
-    }
 }
 
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields) const {
     if (isSorted && (fields.size() == 0 || (fields.size() == 1 && fields[0] == 0))) {
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
     if (columns.size() == 1) {
         auto column = columns[0]->sort();
@@ -46,7 +29,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields)
         auto snew = s.sortBy(&fields);
         std::vector<std::shared_ptr<Column>> newColumns;
         for(int i = 0; i < nfields; ++i) {
-            newColumns.push_back(s.getColumn(i));
+            newColumns.push_back(snew->getColumn(i));
         }
         return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, fields[0], trackProvenance));
     }

@@ -9,7 +9,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     durationRetain(0),
     durationCreateHead(0),
     durationFirst(0),
-    trackProvenance(true),
+    trackProvenance(false),
     cacheRetainEnabled(useCacheRetain)
 {
     if (! program->stratify(stratification, nStratificationClasses)) {
@@ -635,7 +635,6 @@ void TGChase::leftjoin(
     }
 }
 
-
 void TGChase::join(
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
@@ -685,44 +684,33 @@ void TGChase::mergejoin(
     }
     std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
 
-    /*auto sortedInputLeft = inputLeft->sortBy(fields1);
-      auto sortedInputRight = inputRight->sortBy(fields2);
-      auto itrLeft = sortedInputLeft->iterator();
-      auto itrRight = sortedInputRight->iterator();*/
-
-    if (joinVarsPos.size() > 1) {
-        LOG(ERRORL) << "Not supported yet";
-        throw 10;
-    }
-
-    auto joinVarPos = joinVarsPos[0];
     //Sort the left segment by the join variable
-    if (!inputLeft->isSortedBy(joinVarPos.first)) {
+    if (!inputLeft->isSortedBy(fields1)) {
         if (nodesLeft.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
-            if (!c.contains(nodesLeft, joinVarPos.first)) {
-                inputLeft = inputLeft->sortBy(joinVarPos.first);
-                c.insert(nodesLeft, joinVarPos.first, inputLeft);
+            if (!c.contains(nodesLeft, fields1)) {
+                inputLeft = inputLeft->sortBy(fields1);
+                c.insert(nodesLeft, fields1, inputLeft);
             } else {
-                inputLeft = c.get(nodesLeft, joinVarPos.first);
+                inputLeft = c.get(nodesLeft, fields1);
             }
         } else {
-            inputLeft = inputLeft->sortBy(joinVarPos.first);
+            inputLeft = inputLeft->sortBy(fields1);
         }
     }
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
-    if (!inputRight->isSortedBy(joinVarPos.second)) {
+    if (!inputRight->isSortedBy(fields2)) {
         if (nodesRight.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
-            if (!c.contains(nodesRight, joinVarPos.second)) {
-                inputRight = inputRight->sortBy(joinVarPos.second);
-                c.insert(nodesRight, joinVarPos.second, inputRight);
+            if (!c.contains(nodesRight, fields2)) {
+                inputRight = inputRight->sortBy(fields2);
+                c.insert(nodesRight, fields2, inputRight);
             } else {
-                inputRight = c.get(nodesRight, joinVarPos.second);
+                inputRight = c.get(nodesRight, fields2);
             }
         } else {
-            inputRight = inputRight->sortBy(joinVarPos.second);
+            inputRight = inputRight->sortBy(fields2);
         }
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
