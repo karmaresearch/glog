@@ -2,12 +2,49 @@
 
     <form id="formQueryLiteral" action="queryliteral">
         <div class="form-group">
-            <label for="predicatename" class="col-form-label">Predicate name</label>
+            <label for="predicatename" class="col-form-label">Query predicate name</label>
             <input type="text" class="form-control" name="predicate" id="predicateName"/>
         </div>
-        <div class="form-group">
-            <label for="" class="col-form-label">Limit results</label>
-            <input type="number" class="form-control" name="limit" id="limitResults"/>
+        <div class="row">
+            <div class="col">
+                <label for="queryLiteralRulebox" class="col-form-label">Rules</label>
+                <textarea class="form-control" id="queryLiteralRulebox" name="rules" rows="10"></textarea>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col">
+                <div class="form-group row">
+                    <label for="queryLiteralFilerule" class="col-sm-6 col-form-label">Load rules from file</label>
+                    <input type="file" class="col-sm-10 form-control-file" id="queryLiteralFilerule" onchange="loadfile(this, 'queryLiteralRulebox')"></input>
+                </div>
+            </div>
+            <div class="col">
+                <div class="row">
+                    <legend class="col-form-label col-sm-2 pt-0"></legend>
+                    <div class="col-sm-10">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="rewriteProgram" id="queryExistingDatabase" value="false" checked>
+                            <label class="form-check-label" for="queryExistingDatabase">
+                                Query database
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="rewriteProgram" id="rewriteProgram" value="true">
+                            <label class="form-check-label" for="rewriteProgram">
+                                Rewrite current ruleset
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-group row">
+                    <label for="" class="col-form-label col-sm-4">Max n. results</label>
+                    <div class="col-sm-4">
+                        <input type="number" class="form-control" name="limit" id="limitResults"/>
+                    </div>
+                </div>
+            </div>
         </div>
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>

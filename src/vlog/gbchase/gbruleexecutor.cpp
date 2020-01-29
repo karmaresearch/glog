@@ -218,20 +218,24 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
     }
     //Get the columns
     auto &table = edbTables[p];
-    if (!table->useSegments()) {
-        LOG(ERRORL) << "EDB table not supported";
-        throw 10;
-    }
+    /*if (!table->useSegments()) {
+      LOG(ERRORL) << "EDB table not supported";
+      throw 10;
+      }*/
     if (copyVarPos.size() != atom.getNVars()) {
-        LOG(ERRORL) << "EDB table not supported";
+        LOG(ERRORL) << "Operation on EDB table not supported";
         throw 10;
     }
-    auto seg = table->getSegment();
     std::vector<std::shared_ptr<Column>> columns;
-    for(int i = 0; i < copyVarPos.size(); ++i) {
-        int pos = copyVarPos[i];
-        auto col = seg->getColumn(pos);
-        columns.push_back(col);
+    if (table->useSegments()) {
+        auto seg = table->getSegment();
+        for(int i = 0; i < copyVarPos.size(); ++i) {
+            int pos = copyVarPos[i];
+            auto col = seg->getColumn(pos);
+            columns.push_back(col);
+        }
+    } else {
+        //TODO
     }
     auto nrows = columns[0]->size();
     if (trackProvenance) {

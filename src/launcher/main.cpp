@@ -52,8 +52,6 @@
 #include <thread>
 #include <cmath>
 
-// #include <valgrind/callgrind.h>
-
 void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "Usage: " << programName << " <command> [options]" << endl << endl;
     cout << "Possible commands:" << endl;

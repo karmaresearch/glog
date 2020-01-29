@@ -124,7 +124,7 @@ std::string WebInterface::lookup(std::string sId, DBLayer &db) {
 }
 
 
-void WebInterface::getResultsQueryLiteral(std::string predicate, long limit, JSON &out) {
+void WebInterface::getResultsQueryLiteral(std::shared_ptr<Chase> sn, std::string predicate, long limit, JSON &out) {
     long nresults = 0;
     long nshownresults = 0;
     JSON data;
@@ -406,13 +406,46 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             string form = req.substr(req.find("application/x-www-form-urlencoded"));
             string predicate = _getValueParam(form, "predicate");
             string slimit = _getValueParam(form, "limit");
+            string srules = _getValueParam(form, "rules");
+            string rewriteProgram = _getValueParam(form, "rewriteProgram");
             JSON pt;
             pt.put("predicate", predicate);
             long limit = -1;
             if (slimit != "") {
                 limit = stoi(slimit);
             }
-            getResultsQueryLiteral(predicate, limit, pt);
+            if (rewriteProgram == "true") {
+                //Load the program
+                srules = HttpClient::unescape(srules);
+                std::regex e1("\\+");
+                std::string replacedString;
+                std::regex_replace(std::back_inserter(replacedString),
+                        srules.begin(), srules.end(),
+                        e1, "$1 ");
+                srules = replacedString;
+                std::regex e2("\\r\\n");
+                replacedString = "";
+                std::regex_replace(std::back_inserter(replacedString),
+                        srules.begin(), srules.end(), e2, "$1\n");
+                srules = replacedString;
+                auto program = std::unique_ptr<Program>(new Program(edb.get()));
+                std::string s = program->readFromString(srules, vm["rewriteMultihead"].as<bool>());
+                if (s != "") {
+                    error = 1;
+                    page = s;
+                } else {
+                    program->sortRulesByIDBPredicates();
+                }
+                if (error == 0) {
+                    //TODO: Rewrite the program using magic sets
+                    //Compute the materialization
+                    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(*edb.get(), program.get());
+                    sn->run();
+                    getResultsQueryLiteral(sn, predicate, limit, pt);
+                }
+            } else {
+                getResultsQueryLiteral(sn, predicate, limit, pt);
+            }
             std::ostringstream buf;
             JSON::write(buf, pt);
             page = buf.str();

@@ -30,7 +30,6 @@ class GBChase : public Chase {
         std::string currentRule;
 #endif
 
-
         bool executeRule(GBRuleInput &node);
 
         void createNewNodesWithProv(

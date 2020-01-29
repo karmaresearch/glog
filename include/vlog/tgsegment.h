@@ -126,8 +126,6 @@ class TGSegmentLegacy : public TGSegment {
 
         std::shared_ptr<TGSegment> sort() const;
 
-        //std::shared_ptr<TGSegment> sortBy(uint8_t field) const;
-
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
         std::shared_ptr<TGSegment> sortByProv(size_t ncols,
