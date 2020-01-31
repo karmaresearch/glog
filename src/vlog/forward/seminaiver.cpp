@@ -534,7 +534,7 @@ bool SemiNaiver::executeUntilSaturation(
             LOG(DEBUGL) << "--Time round " << sec.count() * 1000 << " " << iteration;
             round_start = std::chrono::system_clock::now();
             //CODE FOR Statistics
-            LOG(INFOL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
+            LOG(DEBUGL) << "Finish pass over the rules. Step=" << iteration << ". IDB RulesWithDerivation=" <<
                 nRulesOnePass << " out of " << ruleset.size() << " Derivations so far " << countAllIDBs();
 #ifdef DEBUG
             printCountAllIDBs("After step " + to_string(iteration) + ": ");
@@ -1562,7 +1562,7 @@ void SemiNaiver::printCountAllIDBs(std::string prefix) {
         }
     }
     LOG(DEBUGL) << prefix << "Predicates without derivation: " << emptyRel;
-    LOG(INFOL) << prefix << "Total # derivations: " << c;
+    LOG(DEBUGL) << prefix << "Total # derivations: " << c;
 }
 
 std::pair<uint8_t, uint8_t> SemiNaiver::removePosConstants(
