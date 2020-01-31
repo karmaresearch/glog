@@ -408,6 +408,7 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             string slimit = _getValueParam(form, "limit");
             string srules = _getValueParam(form, "rules");
             string rewriteProgram = _getValueParam(form, "rewriteProgram");
+            string sgbchase = _getValueParam(form, "gbchase");
             JSON pt;
             pt.put("predicate", predicate);
             long limit = -1;
@@ -430,6 +431,7 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
                 srules = replacedString;
                 auto program = std::unique_ptr<Program>(new Program(edb.get()));
                 std::string s = program->readFromString(srules, vm["rewriteMultihead"].as<bool>());
+                bool gbchase = sgbchase == "true";
                 if (s != "") {
                     error = 1;
                     page = s;
@@ -439,7 +441,20 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
                 if (error == 0) {
                     //TODO: Rewrite the program using magic sets
                     //Compute the materialization
-                    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(*edb.get(), program.get());
+                    std::shared_ptr<Chase> sn;
+                    if (gbchase) {
+                        sn = Reasoner::getGBChase(*edb.get(), program.get());
+                    } else {
+                        sn = Reasoner::getSemiNaiver(*edb.get(),
+                                program.get(), vm["no-intersect"].empty(),
+                                vm["no-filtering"].empty(),
+                                false,
+                                vm["restrictedChase"].as<bool>()
+                                ? TypeChase::RESTRICTED_CHASE : TypeChase::SKOLEM_CHASE,
+                                false ? vm["nthreads"].as<int>() : -1,
+                                false ? vm["interRuleThreads"].as<int>() : 0,
+                                !vm["shufflerules"].empty());
+                    }
                     sn->run();
                     getResultsQueryLiteral(sn, predicate, limit, pt);
                 }

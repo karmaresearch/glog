@@ -14,8 +14,26 @@
         <div class="row">
             <div class="col">
                 <div class="form-group row">
-                    <label for="queryLiteralFilerule" class="col-sm-6 col-form-label">Load rules from file</label>
                     <input type="file" class="col-sm-10 form-control-file" id="queryLiteralFilerule" onchange="loadfile(this, 'queryLiteralRulebox')"></input>
+                </div>
+            </div>
+            <div class="col">
+                <div class="row">
+                    <legend class="col-form-label col-sm-2 pt-0"></legend>
+                    <div class="col-sm-10">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gbchase" id="gbchaseActive" value="true" checked>
+                            <label class="form-check-label" for="gbchaseActive">
+                               Graph-based Chase 
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="gbchase" id="gbchaseInactive" value="false">
+                            <label class="form-check-label" for="gbchaseInactive">
+                                (Old) Chase
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="col">
@@ -31,7 +49,7 @@
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="rewriteProgram" id="rewriteProgram" value="true">
                             <label class="form-check-label" for="rewriteProgram">
-                                Rewrite current ruleset
+                               Materialize rules 
                             </label>
                         </div>
                     </div>
@@ -39,7 +57,7 @@
             </div>
             <div class="col">
                 <div class="form-group row">
-                    <label for="" class="col-form-label col-sm-4">Max n. results</label>
+                    <label for="" class="col-form-label col-sm-4">N. results</label>
                     <div class="col-sm-4">
                         <input type="number" class="form-control" name="limit" id="limitResults"/>
                     </div>
