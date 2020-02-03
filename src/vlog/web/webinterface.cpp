@@ -124,7 +124,9 @@ std::string WebInterface::lookup(std::string sId, DBLayer &db) {
 }
 
 
-void WebInterface::getResultsQueryLiteral(std::shared_ptr<Chase> sn, std::string predicate, long limit, JSON &out) {
+void WebInterface::getResultsQueryLiteral(std::shared_ptr<Chase> sn,
+        std::unique_ptr<Program> &program,
+        std::string predicate, long limit, JSON &out) {
     long nresults = 0;
     long nshownresults = 0;
     JSON data;
@@ -456,10 +458,10 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
                                 !vm["shufflerules"].empty());
                     }
                     sn->run();
-                    getResultsQueryLiteral(sn, predicate, limit, pt);
+                    getResultsQueryLiteral(sn, program, predicate, limit, pt);
                 }
             } else {
-                getResultsQueryLiteral(sn, predicate, limit, pt);
+                getResultsQueryLiteral(sn, program, predicate, limit, pt);
             }
             std::ostringstream buf;
             JSON::write(buf, pt);

@@ -60,7 +60,10 @@ class WebInterface {
 
         void processRequest(std::string req, std::string &resp);
 
-        void getResultsQueryLiteral(std::shared_ptr<Chase> sn, std::string predicate, long limit, JSON &out);
+        void getResultsQueryLiteral(std::shared_ptr<Chase> sn,
+                std::unique_ptr<Program> &p,
+                std::string predicate,
+                long limit, JSON &out);
 
     public:
         WebInterface(ProgramArgs &vm, std::shared_ptr<Chase> sn, std::string htmlfiles,

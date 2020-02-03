@@ -1062,7 +1062,11 @@ std::string EDBLayer::getDictText(const uint64_t id) const {
     std::string t = "";
     bool resp = false;
     if (dbPredicates.size() > 0) {
-        resp = dbPredicates.begin()->second.manager->getDictText(id, t);
+        for (auto &table : dbPredicates) {
+            resp = table.second.manager->getDictText(id, t);
+            if (resp)
+                break;
+        }
     }
     if (!resp && termsDictionary.get()) {
         t = termsDictionary->getRawValue(id);
