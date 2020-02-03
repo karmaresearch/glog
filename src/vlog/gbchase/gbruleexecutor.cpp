@@ -218,16 +218,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
     }
     //Get the columns
     auto &table = edbTables[p];
-    /*if (!table->useSegments()) {
-      LOG(ERRORL) << "EDB table not supported";
-      throw 10;
-      }*/
-    if (copyVarPos.size() != atom.getNVars()) {
-        LOG(ERRORL) << "Operation on EDB table not supported";
-        throw 10;
-    }
     std::vector<std::shared_ptr<Column>> columns;
     if (table->useSegments()) {
+        if (copyVarPos.size() != atom.getNVars()) {
+            LOG(ERRORL) << "Operation on EDB table not supported";
+            throw 10;
+        }
         auto seg = table->getSegment();
         for(int i = 0; i < copyVarPos.size(); ++i) {
             int pos = copyVarPos[i];
@@ -235,7 +231,25 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             columns.push_back(col);
         }
     } else {
-        //TODO
+        //Create a segment with EDBColumn
+        std::vector<std::shared_ptr<Column>> columns;
+        auto size = table->getCardinality(atom);
+        std::vector<uint8_t> presortPos;
+        for(size_t i = 0; i < copyVarPos.size(); ++i) {
+            auto pos = copyVarPos[i];
+            auto term = atom.getTermAtPos(pos);
+            std::shared_ptr<Column> col;
+            if (term.isVariable()) {
+                col = std::shared_ptr<Column>(
+                        new EDBColumn(layer, atom, pos, presortPos, false));
+            } else {
+                //Add a compressed column with a single value
+                col = std::shared_ptr<Column>(
+                        new CompressedColumn(term.getValue(), size));
+            }
+            columns.push_back(col);
+            presortPos.push_back(i);
+        }
     }
     auto nrows = columns[0]->size();
     if (trackProvenance) {
