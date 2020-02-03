@@ -167,7 +167,7 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         futureOccurrences.insert(v);
 
     auto &rightBodyAtom = bodyAtoms[bodyAtomIdx];
-    auto rightVars = rightBodyAtom.getAllVars();
+    auto rightVars = rightBodyAtom.getAllVarsAndPos();
     std::set<int> addedVars;
     if (bodyAtomIdx > 0) {
         //First check whether variables in the left are used in the next body
@@ -182,7 +182,7 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         bool found = false;
         for(int i = 0; i < rightVars.size(); ++i) {
             for(int j = 0; j < leftVars.size(); ++j) {
-                if (rightVars[i] == leftVars[j]) {
+                if (rightVars[i].first == leftVars[j]) {
                     if (found) {
                         LOG(ERRORL) << "Only one variable can be joined";
                         throw 10;
@@ -201,9 +201,9 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
 
     //Copy variables from the right atom
     for(size_t i = 0; i < rightVars.size(); ++i) {
-        if (futureOccurrences.count(rightVars[i]) && !addedVars.count(rightVars[i])) {
-            copyVarPosRight.push_back(i);
-            addedVars.insert(rightVars[i]);
+        if (futureOccurrences.count(rightVars[i].first) && !addedVars.count(rightVars[i].first)) {
+            copyVarPosRight.push_back(rightVars[i].second);
+            addedVars.insert(rightVars[i].first);
         }
     }
 }
@@ -216,6 +216,17 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         auto edbTable = layer.getEDBTable(p);
         edbTables[p] = edbTable;
     }
+
+    if (atom.getTupleSize() == 0) {
+        LOG(ERRORL) << "Atoms with arity 0 are not supported";
+        throw 10;
+    }
+
+    if (atom.hasRepeatedVars()) {
+        LOG(ERRORL) << "For the moment we do not handle atoms with repeated vars";
+        throw 10;
+    }
+
     //Get the columns
     auto &table = edbTables[p];
     std::vector<std::shared_ptr<Column>> columns;
@@ -232,23 +243,27 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         }
     } else {
         //Create a segment with EDBColumn
-        std::vector<std::shared_ptr<Column>> columns;
         auto size = table->getCardinality(atom);
         std::vector<uint8_t> presortPos;
-        for(size_t i = 0; i < copyVarPos.size(); ++i) {
-            auto pos = copyVarPos[i];
-            auto term = atom.getTermAtPos(pos);
-            std::shared_ptr<Column> col;
-            if (term.isVariable()) {
-                col = std::shared_ptr<Column>(
-                        new EDBColumn(layer, atom, pos, presortPos, false));
-            } else {
-                //Add a compressed column with a single value
-                col = std::shared_ptr<Column>(
-                        new CompressedColumn(term.getValue(), size));
+        int copiedVars = 0;
+        int varIdx = 0;
+        for(size_t i = 0; i < atom.getTupleSize(); ++i) {
+            auto term = atom.getTermAtPos(i);
+            auto pos = copyVarPos[copiedVars];
+            if (i == pos) {
+                assert(term.isVariable());
+                auto col = std::shared_ptr<Column>(
+                        new EDBColumn(layer, atom, varIdx, presortPos, false));
+                columns.push_back(col);
+                copiedVars++;
+                varIdx++;
+                presortPos.push_back(i);
+                if (copiedVars == copyVarPos.size())
+                    break;
+            } else if (term.isVariable()) {
+                presortPos.push_back(varIdx);
+                varIdx++;
             }
-            columns.push_back(col);
-            presortPos.push_back(i);
         }
     }
     auto nrows = columns[0]->size();

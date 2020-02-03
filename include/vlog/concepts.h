@@ -335,6 +335,10 @@ class Literal {
         std::vector<uint8_t> getNewVars(std::vector<uint8_t> &vars) const;
 
         std::vector<uint8_t> getAllVars() const;
+
+        //Return a list of unique variables and related position in the literal
+        std::vector<std::pair<uint8_t, uint8_t>> getAllVarsAndPos() const;
+
         bool containsVariable(uint8_t variableId) const;
 
         std::string tostring(const Program *program, const EDBLayer *db) const;

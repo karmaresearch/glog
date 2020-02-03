@@ -417,6 +417,27 @@ std::vector<uint8_t> Literal::getAllVars() const {
     return output;
 }
 
+std::vector<std::pair<uint8_t,uint8_t>> Literal::getAllVarsAndPos() const {
+    std::vector<std::pair<uint8_t,uint8_t>> output;
+    for (int i = 0; i < getTupleSize(); ++i) {
+        VTerm t = getTermAtPos(i);
+        if (t.isVariable()) {
+            bool found = false;
+            for(auto const &p : output) {
+                if (p.first == t.getId()) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                output.push_back(std::make_pair(t.getId(),i));
+            }
+        }
+    }
+    return output;
+}
+
+
 bool Literal::containsVariable(uint8_t variableId) const {
     auto variables = Literal::getAllVars();
     return std::find(variables.begin(), variables.end(), variableId) != variables.end();
