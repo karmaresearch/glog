@@ -99,7 +99,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(const Literal &head
                 intermediateResults = intermediateResults->swap();
             }
         } else {
-            LOG(ERRORL) << "Not implemented";
+            LOG(ERRORL) << "Did not implement derivations with arity > 2";
             throw 10;
         }
     }
@@ -183,25 +183,18 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         for(int i = 0; i < rightVars.size(); ++i) {
             for(int j = 0; j < leftVars.size(); ++j) {
                 if (rightVars[i].first == leftVars[j]) {
-                    if (found) {
-                        LOG(ERRORL) << "Only one variable can be joined";
-                        throw 10;
-                    }
-                    joinVarPos.push_back(std::pair<int,int>(j, i));
+                    joinVarPos.push_back(std::pair<int,int>(j, rightVars[i].second));
                     found = true;
                     break;
                 }
             }
         }
-        if (!found) {
-            LOG(ERRORL) << "Could not find join variable";
-            throw 10;
-        }
     }
 
     //Copy variables from the right atom
     for(size_t i = 0; i < rightVars.size(); ++i) {
-        if (futureOccurrences.count(rightVars[i].first) && !addedVars.count(rightVars[i].first)) {
+        if (futureOccurrences.count(rightVars[i].first) &&
+                !addedVars.count(rightVars[i].first)) {
             copyVarPosRight.push_back(rightVars[i].second);
             addedVars.insert(rightVars[i].first);
         }
@@ -413,7 +406,7 @@ void GBRuleExecutor::mergejoin(
     std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
 
     //Sort the left segment by the join variable
-    if (!inputLeft->isSortedBy(fields1)) {
+    if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
         if (nodesLeft.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
@@ -428,7 +421,7 @@ void GBRuleExecutor::mergejoin(
     }
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
-    if (!inputRight->isSortedBy(fields2)) {
+    if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (nodesRight.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesRight, fields2)) {
@@ -671,30 +664,58 @@ void GBRuleExecutor::leftjoin(
 void GBRuleExecutor::join(
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
-        std::vector<size_t> &bodyNodeIdxs,
+        std::vector<size_t> &nodesRight,
+        const Literal &literalRight,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
         std::unique_ptr<SegmentInserter> &output) {
     std::shared_ptr<const TGSegment> inputRight;
-    if (bodyNodeIdxs.size() == 1) {
-        size_t idbBodyAtomIdx = bodyNodeIdxs[0];
+    bool mergeJoinPossible = true;
+    if (nodesRight.size() == 1) {
+        size_t idbBodyAtomIdx = nodesRight[0];
         inputRight = g.getNodeData(idbBodyAtomIdx);
-    } else {
-        auto ncols = g.getNodeData(bodyNodeIdxs[0])->getNColumns();
+    } else if (nodesRight.size() > 0) {
+        auto ncols = g.getNodeData(nodesRight[0])->getNColumns();
         std::vector<int> projectedPos;
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
-        inputRight = mergeNodes(bodyNodeIdxs, projectedPos);
+        inputRight = mergeNodes(nodesRight, projectedPos);
+    } else {
+        //It must be an EDB literal because only these do not have nodes
+        assert(literalRight.getPredicate().getType() == EDB);
+
+        //TODO: check if I'm allowed to do a merge join
+
+        std::vector<int> allVars;
+        for(int i = 0; i < literalRight.getTupleSize(); ++i)
+            allVars.push_back(i);
+        inputRight = processFirstAtom_EDB(literalRight, allVars);
     }
-    mergejoin(inputLeft,
-            nodesLeft,
-            inputRight,
-            bodyNodeIdxs,
-            joinVarPos,
-            copyVarPosLeft,
-            copyVarPosRight,
-            output);
+
+    if (literalRight.isNegated()) {
+        // Negated atoms should not introduce new variables.
+        assert(copyVarPosRight.size() == 0);
+        //TODO: left join should not work with trackProvenance=true
+        leftjoin(inputLeft,
+                nodesRight,
+                joinVarPos,
+                copyVarPosLeft,
+                output);
+    } else {
+        if (mergeJoinPossible) {
+            mergejoin(inputLeft,
+                    nodesLeft,
+                    inputRight,
+                    nodesRight,
+                    joinVarPos,
+                    copyVarPosLeft,
+                    copyVarPosRight,
+                    output);
+        } else {
+            //TODO
+        }
+    }
 }
 
 void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
@@ -753,15 +774,14 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
                 joinVarPos, copyVarPosLeft, copyVarPosRight);
 
         //Get the node of the current bodyAtom (if it's IDB)
-        auto &bodyAtom = bodyAtoms[i];
         std::vector<size_t> newVarsIntermediateResults;
 
         if (i == 0) {
             //Process first body atom, no join
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
-            if (bodyAtom.getPredicate().getType() == EDB) {
-                intermediateResults = processFirstAtom_EDB(bodyAtom,
+            if (currentBodyAtom.getPredicate().getType() == EDB) {
+                intermediateResults = processFirstAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
                 firstBodyAtomIsIDB = true;
@@ -787,29 +807,17 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
 
-            if (currentBodyAtom.isNegated()) {
-                // Negated atoms should not introduce new variables.
-                assert(copyVarPosRight.size() == 0);
-                leftjoin(intermediateResults,
-                        bodyNodes[currentBodyNode],
-                        joinVarPos,
-                        copyVarPosLeft,
-                        newIntermediateResults);
-            } else {
-                //Perform a join between the intermediate results and
-                //the new collection
-                if (joinVarPos.size() == 0) {
-                    LOG(ERRORL) << "Join variables required";
-                    throw 10;
-                }
-                join(intermediateResults,
-                        i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
-                        bodyNodes[currentBodyNode],
-                        joinVarPos,
-                        copyVarPosLeft,
-                        copyVarPosRight,
-                        newIntermediateResults);
-            }
+            //Perform a join (or a left join) between the intermediate results and
+            //the new collection
+            join(intermediateResults,
+                    i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
+                    bodyNodes[currentBodyNode],
+                    currentBodyAtom,
+                    joinVarPos,
+                    copyVarPosLeft,
+                    copyVarPosRight,
+                    newIntermediateResults);
+
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             durationJoin += end - start;

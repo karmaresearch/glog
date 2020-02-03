@@ -219,10 +219,6 @@ class Predicate {
             return card;
         }
 
-        /*static bool isEDB(std::string pred) {
-          return pred.at(pred.size() - 1) == 'E';
-          }*/
-
         static uint8_t calculateAdornment(VTuple &t) {
             uint8_t adornment = 0;
             for (size_t i = 0; i < t.getSize(); ++i) {
@@ -346,10 +342,6 @@ class Literal {
         std::string toprettystring(const Program *program, const EDBLayer *db, bool replaceConstants = false) const;
 
         std::string tostring() const;
-
-        /*Literal operator=(const Literal &other) {
-          return Literal(other.pred,other.tuple);
-          }*/
 
         bool operator ==(const Literal &other) const;
 };
