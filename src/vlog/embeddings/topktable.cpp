@@ -52,7 +52,7 @@ size_t TopKTable::getCardinality(const Literal &query) {
             v1.getId() != v2.getId() && v2.getId() != v3.getId()) {
         return nentities * nrels & topk;
     } else if (!v1.isVariable() && !v2.isVariable() && v3.isVariable()) {
-        return topk;
+        return std::min((size_t)topk, (size_t)nentities);
     }
     LOG(ERRORL) << "TopKTable: (getCardinality) Not supported";
     throw 10;
@@ -95,8 +95,8 @@ EDBIterator *TopKTable::getIterator(const Literal &query) {
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,
-                etable->getEntity(v1.getValue()),
-                rtable->getEntity(v2.getValue()), scores, false);
+                /*etable->getEntity(v1.getValue()),
+                rtable->getEntity(v2.getValue()),*/ scores, false);
     }
     LOG(ERRORL) << "TopKTable: (getIterator) Not supported";
     throw 10;
@@ -110,8 +110,8 @@ EDBIterator *TopKTable::getSortedIterator(const Literal &query,
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,
-                etable->getEntity(v1.getValue()),
-                rtable->getEntity(v2.getValue()), scores, true);
+                /*etable->getEntity(v1.getValue()),
+                rtable->getEntity(v2.getValue()),*/ scores, true);
     }
     LOG(ERRORL) << "TopKTable: (sorted iterator) Not supported";
     throw 10;

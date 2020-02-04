@@ -6,13 +6,12 @@
 #include <vlog/edbiterator.h>
 #include <vlog/segment.h>
 
-
 class TopKIterator : public EDBIterator {
     private:
         const PredId_t predid;
         const size_t topk;
-        const Term_t ent;
-        const Term_t rel;
+        //const Term_t ent;
+        //const Term_t rel;
         std::vector<std::pair<double, size_t>> scores;
         uint64_t nextTerm;
 
@@ -24,11 +23,11 @@ class TopKIterator : public EDBIterator {
 
         TopKIterator(PredId_t predid,
                 size_t topk,
-                Term_t ent,
-                Term_t rel,
+                //Term_t ent,
+                //Term_t rel,
                 std::vector<std::pair<double, size_t>> &scores,
                 bool sorted) :
-            predid(predid), topk(topk), ent(ent), rel(rel),
+            predid(predid), topk(topk),// ent(ent), rel(rel),
             nextTerm(0) {
                 assert(scores.size() > 0);
                 auto nelements = std::min(scores.size(), topk);
@@ -41,7 +40,7 @@ class TopKIterator : public EDBIterator {
             }
 
         bool hasNext() {
-            return nextTerm < scores.size() - 1;
+            return nextTerm < scores.size();
         }
 
         void next() {
@@ -49,14 +48,15 @@ class TopKIterator : public EDBIterator {
         }
 
         Term_t getElementAt(const uint8_t p) {
-            if (p == 0) {
+            assert(p == 0);
+            /*if (p == 0) {
                 return ent;
             } else if (p == 1) {
                 return rel;
             } else {
-                assert(p == 2);
+                assert(p == 2);*/
                 return scores[nextTerm-1].second;
-            }
+            //}
         }
 
         PredId_t getPredicateID() {

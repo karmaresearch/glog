@@ -78,8 +78,13 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::fromSeg2TGSeg(
         for(int i = 0; i < ncols; ++i) {
             columns.push_back(seg->getColumn(i));
         }
-        return std::shared_ptr<const TGSegment>(
-                new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField));
+        if (trackProvenance) {
+            return std::shared_ptr<const TGSegment>(
+                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField, true));
+        } else {
+            return std::shared_ptr<const TGSegment>(
+                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField, false));
+        }
     }
 }
 
@@ -91,7 +96,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(const Literal &head
     //Project the columns to instantiate the head
     const auto &tupleHead = head.getTuple();
     assert(tupleHead.getSize() == vars.size());
-    assert(intermediateResults->getNColumns() == vars.size());
+    auto ncolumns = intermediateResults->getNColumns();
+    assert(ncolumns == vars.size());
     if (tupleHead.getSize() > 1) {
         if (tupleHead.getSize() == 2) {
             if (vars[0] != tupleHead.get(0).getId()) {
@@ -99,8 +105,23 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(const Literal &head
                 intermediateResults = intermediateResults->swap();
             }
         } else {
-            LOG(ERRORL) << "Did not implement derivations with arity > 2";
-            throw 10;
+            std::vector<int> neworder;
+            for(int i = 0; i < tupleHead.getSize(); ++i) {
+                auto varId = tupleHead.get(i).getId();
+                bool found = false;
+                for(int j = 0; j < vars.size(); ++j) {
+                    if (vars[j] == varId) {
+                        found = true;
+                        neworder.push_back(j);
+                        break;
+                    }
+                }
+                if (!found) {
+                    LOG(ERRORL) << "I could not find a head variable in the body";
+                    throw 10;
+                }
+            }
+            intermediateResults = intermediateResults->reorderColumns(neworder);
         }
     }
     if (shouldSort) {
@@ -474,7 +495,8 @@ void GBRuleExecutor::nestedloopjoin(
             }
             for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                 auto rightPos = copyVarPosRight[idx];
-                currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
+                auto value = itrRight->get(rightPos);
+                currentrow[copyVarPosLeft.size() + idx] = value;
             }
             if (trackProvenance) {
                 currentrow[sizerow] = itrLeft->getNodeId();

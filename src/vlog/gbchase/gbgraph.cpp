@@ -182,7 +182,7 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 entry.seg = seg;
                 cacheRetain[p] = entry;
             } else {
-                LOG(ERRORL) << "Not supported";
+                LOG(ERRORL) << "Retain with arity > 2 is not supported";
                 throw 10;
             }
         }

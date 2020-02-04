@@ -74,8 +74,26 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sort() const {
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
         std::vector<size_t> &idxs,
         std::vector<size_t> &nodes) const {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    assert(trackProvenance == true);
+    assert(columns.size() > 1);
+    if (!columns.back()->isConstant()) {
+        std::vector<uint8_t> sortedFields;
+        sortedFields.push_back(columns.size() - 1);
+        for(int i = 0; i < columns.size() - 1; ++i) {
+            sortedFields.push_back(i);
+        }
+        auto nfields = columns.size();
+        auto oldcols(columns);
+        Segment s(nfields, oldcols);
+        auto news = s.sortBy(&sortedFields);
+        std::vector<std::shared_ptr<Column>> newcols;
+        for(int i = 0; i < news->getNColumns(); ++i) {
+            newcols.push_back(news->getColumn(i));
+        }
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
+    } else {
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, isSorted, sortedField, trackProvenance));
+    }
 }
 
 std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
@@ -187,4 +205,23 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::swap() const {
         c.push_back(columns[0]);
         return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
     }
+}
+
+std::shared_ptr<TGSegment> TGSegmentLegacy::reorderColumns(std::vector<int> &neworder) const {
+    if (trackProvenance) {
+        assert(columns.size() == neworder.size() + 1);
+    } else {
+        assert(columns.size() == neworder.size());
+    }
+    std::vector<std::shared_ptr<Column>> c;
+    for(const auto idx : neworder) {
+        c.push_back(columns[idx]);
+    }
+    if (trackProvenance) {
+        c.push_back(columns.back());
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+    } else {
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+    }
+
 }

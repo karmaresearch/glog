@@ -57,6 +57,11 @@ class TGSegment {
             throw 10;
         }
 
+        virtual std::shared_ptr<TGSegment> reorderColumns(std::vector<int> &neworder) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
         virtual void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
             LOG(ERRORL) << "Not implemented";
             throw 10;
@@ -152,6 +157,8 @@ class TGSegmentLegacy : public TGSegment {
                 std::vector<BinWithProv> &out) const;
 
         std::shared_ptr<TGSegment> swap() const;
+
+        std::shared_ptr<TGSegment> reorderColumns(std::vector<int> &neworder) const;
 };
 
 struct ProvSorter {

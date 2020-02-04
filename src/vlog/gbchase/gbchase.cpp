@@ -190,7 +190,6 @@ void GBChase::run() {
                 }
                 LOG(INFOL) << "Derived Tuples: " << derivedTuples;
             }
-
         } while (nnodes != g.getNNodes());
     }
 
