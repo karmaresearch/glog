@@ -268,15 +268,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
                 std::shared_ptr<Column> col;
                 if (term.isVariable()) {
                     col = std::shared_ptr<Column>(
-                            new EDBColumn(layer, atom, varIdx, presortPos, false));
+                            new EDBColumn(layer, atom, varIdx++, presortPos, false));
+                    presortPos.push_back(i);
                 } else {
                     col = std::shared_ptr<Column>(
                             new CompressedColumn(term.getValue(), size));
                 }
                 columns.push_back(col);
                 copiedVars++;
-                varIdx++;
-                presortPos.push_back(i);
                 if (copiedVars == copyVarPos.size())
                     break;
             } else if (term.isVariable()) {

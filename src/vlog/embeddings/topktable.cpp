@@ -95,8 +95,8 @@ EDBIterator *TopKTable::getIterator(const Literal &query) {
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,
-                /*etable->getEntity(v1.getValue()),
-                rtable->getEntity(v2.getValue()),*/ scores, false);
+                etable->getEntity(v1.getValue()),
+                rtable->getEntity(v2.getValue()), scores, false);
     }
     LOG(ERRORL) << "TopKTable: (getIterator) Not supported";
     throw 10;
@@ -110,8 +110,8 @@ EDBIterator *TopKTable::getSortedIterator(const Literal &query,
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,
-                /*etable->getEntity(v1.getValue()),
-                rtable->getEntity(v2.getValue()),*/ scores, true);
+                etable->getEntity(v1.getValue()),
+                rtable->getEntity(v2.getValue()), scores, true);
     }
     LOG(ERRORL) << "TopKTable: (sorted iterator) Not supported";
     throw 10;
