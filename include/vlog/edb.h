@@ -418,6 +418,8 @@ class EDBLayer {
             return name;
         }
 
+        bool isQueryAllowed(const Literal &query);
+
         ~EDBLayer() {
             for (int i = 0; i < tmpRelations.size(); ++i) {
                 if (tmpRelations[i] != NULL) {

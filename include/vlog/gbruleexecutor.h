@@ -75,6 +75,17 @@ class GBRuleExecutor {
                 std::vector<int> &copyVarPosRight,
                 std::unique_ptr<SegmentInserter> &output);
 
+        void nestedloopjoin(
+                std::shared_ptr<const TGSegment> inputLeft,
+                const std::vector<size_t> &nodesLeft,
+                std::shared_ptr<const TGSegment> inputRight,
+                const std::vector<size_t> &nodesRight,
+                const Literal &literalRight,
+                std::vector<std::pair<int, int>> &joinVarPos,
+                std::vector<int> &copyVarPosLeft,
+                std::vector<int> &copyVarPosRight,
+                std::unique_ptr<SegmentInserter> &output);
+
         void leftjoin(
                 std::shared_ptr<const TGSegment> inputLeft,
                 std::vector<size_t> &bodyNodeIdxs,

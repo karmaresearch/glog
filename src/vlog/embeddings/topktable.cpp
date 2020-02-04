@@ -132,5 +132,11 @@ uint64_t TopKTable::getSize() {
     return maxnterms;
 }
 
+bool TopKTable::isQueryAllowed(const Literal &query) {
+    auto t1 = query.getTermAtPos(0);
+    auto t2 = query.getTermAtPos(1);
+    return !t1.isVariable() && !t2.isVariable();
+}
+
 TopKTable::~TopKTable() {
 }

@@ -74,6 +74,10 @@ class EDBTable {
         virtual std::shared_ptr<const Segment> getSegment() {
             return std::shared_ptr<const Segment>();
         }
+
+        virtual bool isQueryAllowed(const Literal &query) {
+            return true;
+        }
 };
 
 

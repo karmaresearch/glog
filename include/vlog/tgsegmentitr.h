@@ -18,10 +18,6 @@ struct BinWithProv {
 
 class TGSegmentItr {
     public:
-        virtual void mark() = 0;
-
-        virtual void reset() = 0;
-
         virtual bool hasNext() = 0;
 
         virtual void next() = 0;
@@ -32,8 +28,8 @@ class TGSegmentItr {
 
         virtual int getNFields() const = 0;
 
-        static int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
-                std::unique_ptr<TGSegmentItr> &inputRight) {
+        static int cmp(TGSegmentItr* inputLeft,
+                TGSegmentItr* inputRight) {
             auto n = inputLeft->getNFields();
             for(size_t i = 0; i < n; ++i) {
                 auto vl = inputLeft->get(i);
@@ -47,8 +43,8 @@ class TGSegmentItr {
             return 0;
         }
 
-        static int cmp(std::unique_ptr<TGSegmentItr> &inputLeft,
-                std::unique_ptr<TGSegmentItr> &inputRight,
+        static int cmp(TGSegmentItr *inputLeft,
+                TGSegmentItr *inputRight,
                 std::vector<std::pair<int, int>> &joinVarPos) {
             for (int i = 0; i < joinVarPos.size(); i++) {
                 const auto valLeft = inputLeft->get(joinVarPos[i].first);
@@ -64,20 +60,72 @@ class TGSegmentItr {
         virtual ~TGSegmentItr() {}
 };
 
+class TGSegmentDirectItr : public TGSegmentItr {
+    public:
+        virtual void mark() = 0;
+
+        virtual void reset() = 0;
+};
+
 class TGSegmentLegacyItr : public TGSegmentItr {
+    private:
+        const bool trackProvenance;
+        const std::vector<std::shared_ptr<Column>> &columns;
+        std::vector<std::shared_ptr<ColumnReader>> readers;
+        std::vector<Term_t> values;
+
+    public:
+        TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
+                const bool trackProvenance) :
+            trackProvenance(trackProvenance),
+            columns(columns) {
+                for (const auto &c : columns)
+                    readers.push_back(c->getReader());
+                values.resize(columns.size());
+            }
+
+        bool hasNext() {
+            bool o = true;
+            for(const auto &r : readers) {
+                o = r->hasNext();
+                if (!o)
+                    break;
+            }
+            return o;
+        }
+
+        void next() {
+            for(size_t i = 0; i < readers.size(); ++i) {
+                values[i] = readers[i]->next();
+            }
+        }
+
+        Term_t get(const int colIdx) {
+            return values[colIdx];
+        }
+
+        size_t getNodeId() const {
+            return values.back();
+        }
+
+        int getNFields() const {
+            return trackProvenance ? columns.size() - 1 : columns.size();
+        }
+};
+
+class TGSegmentLegacyDirectItr : public TGSegmentDirectItr {
     private:
         const bool trackProvenance;
         const std::vector<std::shared_ptr<Column>> &columns;
 
         int64_t nrows;
         std::vector<const Term_t*> vectors;
+        std::vector<Term_t> constValues;
         int64_t currentRowIdx;
-
         int64_t m_currentRowIdx;
 
-
     public:
-        TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
+        TGSegmentLegacyDirectItr(const std::vector<std::shared_ptr<Column>> &columns,
                 const bool trackProvenance) :
             trackProvenance(trackProvenance),
             columns(columns) {
@@ -89,17 +137,16 @@ class TGSegmentLegacyItr : public TGSegmentItr {
                 }
                 auto ncols = trackProvenance ? columns.size() - 1 : columns.size();
                 for(int i = 0; i < ncols; ++i) {
-                    vectors.push_back(columns[i]->getVectorRef().data());
+                    auto c = columns[i];
+                    if (c->isConstant()) {
+                        vectors.push_back(NULL);
+                        constValues.push_back(c->first());
+                    } else {
+                        vectors.push_back(c->getVectorRef().data());
+                        constValues.push_back(0);
+                    }
                 }
             }
-
-        void mark() {
-            m_currentRowIdx = currentRowIdx;
-        }
-
-        void reset() {
-            currentRowIdx = m_currentRowIdx;
-        }
 
         bool hasNext() {
             return currentRowIdx < (nrows - 1);
@@ -109,8 +156,20 @@ class TGSegmentLegacyItr : public TGSegmentItr {
             currentRowIdx++;
         }
 
+        void mark() {
+            m_currentRowIdx = currentRowIdx;
+        }
+
+        void reset() {
+            currentRowIdx = m_currentRowIdx;
+        }
+
         Term_t get(const int colIdx) {
-            return vectors[colIdx][currentRowIdx];
+            if (!vectors[colIdx]) {
+                return constValues[colIdx];
+            } else {
+                return vectors[colIdx][currentRowIdx];
+            }
         }
 
         size_t getNodeId() const {
@@ -123,7 +182,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
 };
 
 template<typename K>
-class TGSegmentImplItr : public TGSegmentItr {
+class TGSegmentImplItr : public TGSegmentDirectItr {
     private:
         const size_t nodeId;
         const int64_t nrows;

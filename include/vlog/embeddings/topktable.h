@@ -72,6 +72,8 @@ class TopKTable : public EDBTable{
             return true;
         }
 
+        bool isQueryAllowed(const Literal &query);
+
         uint64_t getNTerms();
 
         void releaseIterator(EDBIterator *itr);

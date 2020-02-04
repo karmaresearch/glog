@@ -1144,6 +1144,15 @@ PredId_t EDBLayer::getPredID(const std::string &name) const {
     return -1;
 }
 
+bool EDBLayer::isQueryAllowed(const Literal &query) {
+    auto predid = query.getPredicate().getId();
+    if (dbPredicates.count(predid)) {
+        auto &table = dbPredicates[predid];
+        return table.manager->isQueryAllowed(query);
+    }
+    return true;
+}
+
 void EDBMemIterator::init1(PredId_t id, std::vector<Term_t>* v, const bool c1, const Term_t vc1) {
     predid = id;
     nfields = 1;

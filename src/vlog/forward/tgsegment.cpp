@@ -6,6 +6,10 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
     return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns, trackProvenance));
 }
 
+std::unique_ptr<TGSegmentDirectItr> TGSegmentLegacy::directIterator() const {
+    return std::unique_ptr<TGSegmentDirectItr>(new TGSegmentLegacyDirectItr(columns, trackProvenance));
+}
+
 bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
     if (fields.size() != 1)
         return false;
@@ -101,7 +105,6 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
     return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length, isSorted, sortedField, trackProvenance));
 
 }
-
 
 void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
     assert(colPos < columns.size());

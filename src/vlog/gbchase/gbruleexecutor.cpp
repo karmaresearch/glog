@@ -244,9 +244,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             auto term = atom.getTermAtPos(i);
             auto pos = copyVarPos[copiedVars];
             if (i == pos) {
-                assert(term.isVariable());
-                auto col = std::shared_ptr<Column>(
-                        new EDBColumn(layer, atom, varIdx, presortPos, false));
+                std::shared_ptr<Column> col;
+                if (term.isVariable()) {
+                    col = std::shared_ptr<Column>(
+                            new EDBColumn(layer, atom, varIdx, presortPos, false));
+                } else {
+                    col = std::shared_ptr<Column>(
+                            new CompressedColumn(term.getValue(), size));
+                }
                 columns.push_back(col);
                 copiedVars++;
                 varIdx++;
@@ -384,7 +389,101 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::mergeNodes(
     }
 }
 
+void GBRuleExecutor::nestedloopjoin(
+        std::shared_ptr<const TGSegment> inputLeft,
+        const std::vector<size_t> &nodesLeft,
+        std::shared_ptr<const TGSegment> inputRight,
+        const std::vector<size_t> &nodesRight,
+        const Literal &literalRight,
+        std::vector<std::pair<int, int>> &joinVarsPos,
+        std::vector<int> &copyVarPosLeft,
+        std::vector<int> &copyVarPosRight,
+        std::unique_ptr<SegmentInserter> &output) {
 
+    std::vector<uint8_t> fields1;
+    std::vector<uint8_t> fields2;
+    for (uint32_t i = 0; i < joinVarsPos.size(); ++i) {
+        fields1.push_back(joinVarsPos[i].first);
+        fields2.push_back(joinVarsPos[i].second);
+    }
+
+    //Sort the left segment by the join variable
+    if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
+        if (nodesLeft.size() > 0) {
+            SegmentCache &c = SegmentCache::getInstance();
+            if (!c.contains(nodesLeft, fields1)) {
+                inputLeft = inputLeft->sortBy(fields1);
+                c.insert(nodesLeft, fields1, inputLeft);
+            } else {
+                inputLeft = c.get(nodesLeft, fields1);
+            }
+        } else {
+            inputLeft = inputLeft->sortBy(fields1);
+        }
+    }
+    std::unique_ptr<TGSegmentDirectItr> itrLeft = inputLeft->directIterator();
+
+    int64_t countLeft = 0;
+    std::vector<Term_t> currentKey;
+    VTuple t = literalRight.getTuple();
+    std::vector<int> positions;
+    for(int i = 0; i < t.getSize(); ++i) {
+        positions.push_back(i);
+    }
+    auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
+    Term_t currentrow[sizerow + 2];
+
+    while (itrLeft->hasNext()) {
+        itrLeft->next();
+        currentKey.clear();
+        itrLeft->mark();
+        countLeft = 1;
+        for (int i = 0; i < fields1.size(); i++) {
+            currentKey.push_back(itrLeft->get(fields1[i]));
+        }
+        while (itrLeft->hasNext()) {
+            itrLeft->next();
+            bool equal = true;
+            for (int i = 0; i < fields1.size(); i++) {
+                auto k = itrLeft->get(fields1[i]);
+                if (k != currentKey[i]) {
+                    equal = false;
+                    break;
+                }
+            }
+            if (!equal) {
+                break;
+            }
+            countLeft++;
+        }
+
+        //Do a lookup on the right-side
+        for (int i = 0; i < fields2.size(); i++) {
+            t.set(VTerm(0,currentKey[i]),fields2[i]);
+        }
+        Literal l(literalRight.getPredicate(), t);
+        auto segRight = processFirstAtom_EDB(l, positions);
+        auto itrRight = segRight->iterator();
+        while (itrRight->hasNext()) {
+            itrRight->next();
+            //Materialize the join
+            for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+                auto leftPos = copyVarPosLeft[idx];
+                auto el = itrLeft->get(leftPos);
+                currentrow[idx] = el;
+            }
+            for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
+                auto rightPos = copyVarPosRight[idx];
+                currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
+            }
+            if (trackProvenance) {
+                currentrow[sizerow] = itrLeft->getNodeId();
+                currentrow[sizerow + 1] = itrRight->getNodeId();
+            }
+            output->addRow(currentrow);
+        }
+    }
+}
 
 void GBRuleExecutor::mergejoin(
         std::shared_ptr<const TGSegment> inputLeft,
@@ -419,7 +518,7 @@ void GBRuleExecutor::mergejoin(
             inputLeft = inputLeft->sortBy(fields1);
         }
     }
-    std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
+    std::unique_ptr<TGSegmentDirectItr> itrLeft = inputLeft->directIterator();
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (nodesRight.size() > 0) {
@@ -460,12 +559,12 @@ void GBRuleExecutor::mergejoin(
     auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
     Term_t currentrow[sizerow + 2];
     for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
-    int res = TGSegmentItr::cmp(itrLeft, itrRight, joinVarsPos);
+    int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
     while (true) {
         //Are they matching?
         while (res < 0 && itrLeft->hasNext()) {
             itrLeft->next();
-            res = TGSegmentItr::cmp(itrLeft, itrRight, joinVarsPos);
+            res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
         if (res < 0) //The first iterator is finished
@@ -473,7 +572,7 @@ void GBRuleExecutor::mergejoin(
 
         while (res > 0 && itrRight->hasNext()) {
             itrRight->next();
-            res = TGSegmentItr::cmp(itrLeft, itrRight, joinVarsPos);
+            res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
         if (res > 0) { //The second iterator is finished
@@ -560,7 +659,7 @@ void GBRuleExecutor::mergejoin(
                 if (!leftActive) {
                     break;
                 }
-                res = TGSegmentItr::cmp(itrLeft, itrRight, joinVarsPos);
+                res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
             }
         }
     }
@@ -623,7 +722,7 @@ void GBRuleExecutor::leftjoin(
     Term_t currentrow[sizerow + 2];
 
     while (leftActive && rightActive) {
-        int res = TGSegmentItr::cmp(itrLeft, itrRight, joinVarPos);
+        int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarPos);
         if (res <= 0) {
             if (res < 0) {
                 for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
@@ -685,12 +784,15 @@ void GBRuleExecutor::join(
         //It must be an EDB literal because only these do not have nodes
         assert(literalRight.getPredicate().getType() == EDB);
 
-        //TODO: check if I'm allowed to do a merge join
-
-        std::vector<int> allVars;
-        for(int i = 0; i < literalRight.getTupleSize(); ++i)
-            allVars.push_back(i);
-        inputRight = processFirstAtom_EDB(literalRight, allVars);
+        //check if I'm allowed to do a merge join
+        if (!layer.isQueryAllowed(literalRight)) {
+            mergeJoinPossible = false;
+        } else {
+            std::vector<int> allVars;
+            for(int i = 0; i < literalRight.getTupleSize(); ++i)
+                allVars.push_back(i);
+            inputRight = processFirstAtom_EDB(literalRight, allVars);
+        }
     }
 
     if (literalRight.isNegated()) {
@@ -713,7 +815,15 @@ void GBRuleExecutor::join(
                     copyVarPosRight,
                     output);
         } else {
-            //TODO
+            nestedloopjoin(inputLeft,
+                    nodesLeft,
+                    inputRight,
+                    nodesRight,
+                    literalRight,
+                    joinVarPos,
+                    copyVarPosLeft,
+                    copyVarPosRight,
+                    output);
         }
     }
 }
@@ -775,12 +885,13 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
 
         //Get the node of the current bodyAtom (if it's IDB)
         std::vector<size_t> newVarsIntermediateResults;
+        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
 
         if (i == 0) {
             //Process first body atom, no join
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
-            if (currentBodyAtom.getPredicate().getType() == EDB) {
+            if (isEDB) {
                 intermediateResults = processFirstAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
@@ -811,7 +922,7 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
             //the new collection
             join(intermediateResults,
                     i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
-                    bodyNodes[currentBodyNode],
+                    !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes,
                     currentBodyAtom,
                     joinVarPos,
                     copyVarPosLeft,

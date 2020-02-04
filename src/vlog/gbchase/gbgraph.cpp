@@ -50,7 +50,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         }
 
         //Compare the iterators
-        int res = TGSegmentItr::cmp(leftItr, rightItr);
+        int res = TGSegmentItr::cmp(leftItr.get(), rightItr.get());
         if (res < 0) {
             moveLeftItr = true;
         } else if (res > 0) {
