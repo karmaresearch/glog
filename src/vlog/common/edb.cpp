@@ -1042,31 +1042,31 @@ bool EDBLayer::getOrAddDictNumber(const char *text, const size_t sizeText,
     return resp;
 }
 
-bool EDBLayer::getDictText(const uint64_t id, char *text) const {
-    if (IS_NUMBER(id)) {
-        if (IS_UINT(id)) {
-            uint64_t value = GET_UINT(id);
+bool EDBLayer::getDictText(const uint64_t idterm, char *text) const {
+    if (IS_NUMBER(idterm)) {
+        if (IS_UINT(idterm)) {
+            uint64_t value = GET_UINT(idterm);
             sprintf(text,"%llu",value);
             return true;
-        } else if (IS_FLOAT32(id)) {
-            float value = GET_FLOAT32(id);
+        } else if (IS_FLOAT32(idterm)) {
+            float value = GET_FLOAT32(idterm);
             sprintf(text,"%f",value);
             return true;
         } else {
-            LOG(ERRORL) << "Datatype for " << id << " was not found";
+            LOG(ERRORL) << "Datatype for " << idterm << " was not found";
             return false;
         }
     }
     bool resp = false;
     if (dbPredicates.size() > 0) {
         for (auto &table : dbPredicates) {
-            resp = table.second.manager->getDictText(id, text);
+            resp = table.second.manager->getDictText(idterm, text);
             if (resp)
                 break;
         }
     }
     if (!resp && termsDictionary.get()) {
-        std::string t = termsDictionary->getRawValue(id);
+        std::string t = termsDictionary->getRawValue(idterm);
         if (t != "") {
             memcpy(text, t.c_str(), t.size());
             text[t.size()] = '\0';
