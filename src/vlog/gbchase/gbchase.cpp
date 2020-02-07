@@ -7,12 +7,18 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     trackProvenance(true),
     g(trackProvenance, useCacheRetain),
     executor(trackProvenance, g, layer) {
-    if (! program->stratify(stratification, nStratificationClasses)) {
-        LOG(ERRORL) << "Program could not be stratified";
-        throw std::runtime_error("Program could not be stratified");
+        if (!program->stratify(stratification, nStratificationClasses)) {
+            LOG(ERRORL) << "Program could not be stratified";
+            throw std::runtime_error("Program could not be stratified");
+        }
+        LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+        for (auto &r : program->getAllRules()) {
+            if (r.getHeads().size() > 1) {
+                LOG(ERRORL) << "GBChase does not support the execution of rules with more atoms in the head. set --rerwriteMultihead to true to rewrite these rulese";
+                throw std::runtime_error("Program could not be stratified");
+            }
+        }
     }
-    LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
-}
 
 Program *GBChase::getProgram() {
     return program;
