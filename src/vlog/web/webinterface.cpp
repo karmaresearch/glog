@@ -158,7 +158,72 @@ void WebInterface::getResultsQueryLiteral(std::shared_ptr<Chase> sn,
     out.put("nshownresults", nshownresults);
 }
 
-
+void WebInterface::processQueryLiteralRequest(
+        std::string &req,
+        std::string &out,
+        int &error) {
+    string form = req.substr(req.find("application/x-www-form-urlencoded"));
+    string predicate = _getValueParam(form, "predicate");
+    string slimit = _getValueParam(form, "limit");
+    string srules = _getValueParam(form, "rules");
+    string rewriteProgram = _getValueParam(form, "rewriteProgram");
+    string sgbchase = _getValueParam(form, "gbchase");
+    JSON pt;
+    pt.put("predicate", predicate);
+    long limit = -1;
+    if (slimit != "") {
+        limit = stoi(slimit);
+    }
+    if (rewriteProgram == "true") {
+        //Load the program
+        srules = HttpClient::unescape(srules);
+        std::regex e1("\\+");
+        std::string replacedString;
+        std::regex_replace(std::back_inserter(replacedString),
+                srules.begin(), srules.end(),
+                e1, "$1 ");
+        srules = replacedString;
+        std::regex e2("\\r\\n");
+        replacedString = "";
+        std::regex_replace(std::back_inserter(replacedString),
+                srules.begin(), srules.end(), e2, "$1\n");
+        srules = replacedString;
+        auto program = std::unique_ptr<Program>(new Program(edb.get()));
+        std::string s = program->readFromString(srules, vm["rewriteMultihead"].as<bool>());
+        bool gbchase = sgbchase == "true";
+        if (s != "") {
+            error = 1;
+            out = s;
+        } else {
+            program->sortRulesByIDBPredicates();
+        }
+        if (error == 0) {
+            //TODO: Rewrite the program using magic sets
+            //Compute the materialization
+            std::shared_ptr<Chase> sn;
+            if (gbchase) {
+                sn = Reasoner::getGBChase(*edb.get(), program.get());
+            } else {
+                sn = Reasoner::getSemiNaiver(*edb.get(),
+                        program.get(), vm["no-intersect"].empty(),
+                        vm["no-filtering"].empty(),
+                        false,
+                        vm["restrictedChase"].as<bool>()
+                        ? TypeChase::RESTRICTED_CHASE : TypeChase::SKOLEM_CHASE,
+                        false ? vm["nthreads"].as<int>() : -1,
+                        false ? vm["interRuleThreads"].as<int>() : 0,
+                        !vm["shufflerules"].empty());
+            }
+            sn->run();
+            getResultsQueryLiteral(sn, program, predicate, limit, pt);
+        }
+    } else {
+        getResultsQueryLiteral(sn, program, predicate, limit, pt);
+    }
+    std::ostringstream buf;
+    JSON::write(buf, pt);
+    out = buf.str();
+}
 
 void WebInterface::processRequest(std::string req, std::string &resp) {
     setActive();
@@ -276,20 +341,6 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             if (nGenericQueries > 100) {
                 nGenericQueries = 100;
             }
-            //LOG(INFOL) << "# of generic queries that will be added = "<< nGenericQueries;
-            // We know that generic queries are all at the end of trainingQueries vector
-            // because generateNewTrainingQueries() adds them to the end
-            //int cntAdded = 0;
-            //for (int i = trainingQueries.size()-1; i >= 0; --i) {
-            //    // add the generic query only if it is not already present
-            //    if (std::find(trainingQueriesVector.begin(), trainingQueriesVector.end(), trainingQueries[i].first) ==
-            //        trainingQueriesVector.end()) {
-            //        trainingQueriesVector.push_back(trainingQueries[i].first);
-            //    }
-            //    if(++cntAdded > nGenericQueries) {
-            //        break;
-            //    }
-            //}
             LOG(INFOL) << "training queries ready";
             // 2. test the model against test queries
 
@@ -405,69 +456,8 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
             page = buf.str();
             isjson = true;
         } else if (path == "/queryliteral") {
-            string form = req.substr(req.find("application/x-www-form-urlencoded"));
-            string predicate = _getValueParam(form, "predicate");
-            string slimit = _getValueParam(form, "limit");
-            string srules = _getValueParam(form, "rules");
-            string rewriteProgram = _getValueParam(form, "rewriteProgram");
-            string sgbchase = _getValueParam(form, "gbchase");
-            JSON pt;
-            pt.put("predicate", predicate);
-            long limit = -1;
-            if (slimit != "") {
-                limit = stoi(slimit);
-            }
-            if (rewriteProgram == "true") {
-                //Load the program
-                srules = HttpClient::unescape(srules);
-                std::regex e1("\\+");
-                std::string replacedString;
-                std::regex_replace(std::back_inserter(replacedString),
-                        srules.begin(), srules.end(),
-                        e1, "$1 ");
-                srules = replacedString;
-                std::regex e2("\\r\\n");
-                replacedString = "";
-                std::regex_replace(std::back_inserter(replacedString),
-                        srules.begin(), srules.end(), e2, "$1\n");
-                srules = replacedString;
-                auto program = std::unique_ptr<Program>(new Program(edb.get()));
-                std::string s = program->readFromString(srules, vm["rewriteMultihead"].as<bool>());
-                bool gbchase = sgbchase == "true";
-                if (s != "") {
-                    error = 1;
-                    page = s;
-                } else {
-                    program->sortRulesByIDBPredicates();
-                }
-                if (error == 0) {
-                    //TODO: Rewrite the program using magic sets
-                    //Compute the materialization
-                    std::shared_ptr<Chase> sn;
-                    if (gbchase) {
-                        sn = Reasoner::getGBChase(*edb.get(), program.get());
-                    } else {
-                        sn = Reasoner::getSemiNaiver(*edb.get(),
-                                program.get(), vm["no-intersect"].empty(),
-                                vm["no-filtering"].empty(),
-                                false,
-                                vm["restrictedChase"].as<bool>()
-                                ? TypeChase::RESTRICTED_CHASE : TypeChase::SKOLEM_CHASE,
-                                false ? vm["nthreads"].as<int>() : -1,
-                                false ? vm["interRuleThreads"].as<int>() : 0,
-                                !vm["shufflerules"].empty());
-                    }
-                    sn->run();
-                    getResultsQueryLiteral(sn, program, predicate, limit, pt);
-                }
-            } else {
-                getResultsQueryLiteral(sn, program, predicate, limit, pt);
-            }
-            std::ostringstream buf;
-            JSON::write(buf, pt);
-            page = buf.str();
+            processQueryLiteralRequest(req, page, error);
             isjson = true;
-
         } else if (path == "/setup") {
             std::string form = req.substr(req.find("application/x-www-form-urlencoded"));
             std::string srules = _getValueParam(form, "rules");

@@ -58,6 +58,9 @@ class WebInterface {
 
         void processMaterialization();
 
+        void processQueryLiteralRequest(std::string &req, std::string &out,
+                int &error);
+
         void processRequest(std::string req, std::string &resp);
 
         void getResultsQueryLiteral(std::shared_ptr<Chase> sn,
