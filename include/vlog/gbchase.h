@@ -29,6 +29,7 @@ class GBChase : public Chase {
 #ifdef WEBINTERFACE
         std::string currentRule;
 #endif
+        std::map<PredId_t, std::shared_ptr<FCTable>> cacheFCTables;
 
         bool executeRule(GBRuleInput &node);
 

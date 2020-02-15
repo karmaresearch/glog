@@ -319,8 +319,9 @@ size_t GBChase::getSizeTable(const PredId_t predid) const {
 }
 
 FCIterator GBChase::getTableItr(const PredId_t predid) {
-    LOG(ERRORL) << "Method not implemented";
-    throw 10;
+    FCTable *t = getTable(predid);
+    cacheFCTables.insert(std::make_pair(predid, std::shared_ptr<FCTable>(t)));
+    return t->read(0);
 }
 
 FCTable *GBChase::getTable(const PredId_t predid) {
