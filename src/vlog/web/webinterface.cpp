@@ -226,10 +226,10 @@ void WebInterface::processQueryLiteralRequest(
         out = buf.str();
     } catch (const std::exception &e) {
         error = 1;
-        out = e.what();
+        out = "Exception: " + std::string(e.what());
     } catch (...) {
         error = 1;
-        out = "Unknown exception";
+        out = "Exception: Unknown";
     }
 }
 
