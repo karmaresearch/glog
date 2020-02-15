@@ -305,8 +305,17 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
 }
 
 size_t GBChase::getSizeTable(const PredId_t predid) const {
-    LOG(ERRORL) << "Method not implemented";
-    throw 10;
+    if (g.areNodesWithPredicate(predid)) {
+        const auto &nodeIDs = g.getNodeIDsWithPredicate(predid);
+        size_t size = 0;
+        for(auto nodeID : nodeIDs) {
+            auto data = g.getNodeData(nodeID);
+            size += data->getNRows();
+
+        }
+        return size;
+    }
+    return 0;
 }
 
 FCIterator GBChase::getTableItr(const PredId_t predid) {
