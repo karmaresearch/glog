@@ -224,7 +224,7 @@ void WebInterface::processQueryLiteralRequest(
         }
         std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
         pt.put("runtime", std::to_string(sec.count()));
-
+        std::ostringstream buf;
         JSON::write(buf, pt);
         out = buf.str();
     } catch (const std::exception &e) {
