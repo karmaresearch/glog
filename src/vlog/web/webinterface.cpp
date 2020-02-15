@@ -163,6 +163,7 @@ void WebInterface::processQueryLiteralRequest(
         std::string &out,
         int &error) {
     try {
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
         string form = req.substr(req.find("application/x-www-form-urlencoded"));
         string predicate = _getValueParam(form, "predicate");
         string slimit = _getValueParam(form, "limit");
@@ -221,7 +222,9 @@ void WebInterface::processQueryLiteralRequest(
         } else {
             getResultsQueryLiteral(sn, program, predicate, limit, pt);
         }
-        std::ostringstream buf;
+        std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+        pt.put("runtime", std::to_string(sec.count()));
+
         JSON::write(buf, pt);
         out = buf.str();
     } catch (const std::exception &e) {
