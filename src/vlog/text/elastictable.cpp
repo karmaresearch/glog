@@ -12,7 +12,7 @@ ElasticTable::ElasticTable(PredId_t predid,
         std::string basepath,
         std::string startRange) : predid(predid), layer(layer), baserel(baserel),
     basehost(basehost), baseport(stoi(baseport)),
-    basepath(basepath), startRange(stoi(startRange)) {
+    basepath(basepath), startRange(stol(startRange)) {
         //get nterms from the baserel
         auto dictPredId = layer->getPredID(baserel);
         dictTable = layer->getEDBTable(dictPredId);
@@ -80,19 +80,19 @@ bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
     auto resp = dictTable->getDictText(origid, text);
     if (resp && id >= startRange && id < startRange + nterms) {
         //Prepare the elasticsearch request
-        std::map<std::string, std::string> params;
-        std::string querytext = "{ \"match\": { \"_id\": \"" + text + "\"}}";
-        params.insert(std::make_pair("query", querytext));
-
+        std::string params = "{ \"query\": { \"match\": { \"_id\": \"" + text + "\"}}}";
         std::string headers = "";
         std::string contenttype = "application/json";
         std::string response;
         HttpClient client(basehost, baseport);
+	client.connect();
         resp = client.post(basepath, params, headers, response, contenttype);
         if (resp) {
             std::cout << response << std::endl;
             //TODO
-        }
+        } else {
+		text = "LABEL_NOT_FOUND";
+	}
     }
     return resp;
 }
