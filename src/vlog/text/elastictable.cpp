@@ -3,6 +3,7 @@
 
 #include <kognac/logs.h>
 #include <trident/utils/httpclient.h>
+#include <trident/utils/json.h>
 
 ElasticTable::ElasticTable(PredId_t predid,
         EDBLayer *layer,
@@ -85,14 +86,28 @@ bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
         std::string contenttype = "application/json";
         std::string response;
         HttpClient client(basehost, baseport);
-	client.connect();
+        client.connect();
         resp = client.post(basepath, params, headers, response, contenttype);
+        bool ok = false;
         if (resp) {
             std::cout << response << std::endl;
-            //TODO
-        } else {
-		text = "LABEL_NOT_FOUND";
-	}
+            JSON r;
+            JSON::read(response, r);
+            if (r.containsChild("hits")) {
+                const auto &h = r.getChild("hits");
+                const auto &hits = h.getListChildren();
+                if (hits.size() > 0) {
+                    const JSON &hit = hits[0];
+                    if (hit.contains("rdfs_label")) {
+                        text = hit.get("rdfs_label");
+                        ok = true;
+                    }
+                }
+            }
+        }
+        if (!ok) {
+            text = "LABEL_NOT_FOUND";
+        }
     }
     return resp;
 }
