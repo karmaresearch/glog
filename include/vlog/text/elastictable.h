@@ -15,6 +15,7 @@ class ElasticTable: public EDBTable {
         const std::string field;
         const int64_t startRange;
         size_t nterms;
+        std::shared_ptr<EDBTable> dictTable;
 
     public:
         ElasticTable(PredId_t predid,

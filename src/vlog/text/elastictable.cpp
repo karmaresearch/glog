@@ -12,7 +12,7 @@ ElasticTable::ElasticTable(PredId_t predid,
     baseurl(baseurl), field(field), startRange(stoi(startRange)) {
         //get nterms from the baserel
         auto dictPredId = layer->getPredID(baserel);
-        auto dictTable = layer->getEDBTable(dictPredId);
+        dictTable = layer->getEDBTable(dictPredId);
         nterms = dictTable->getNTerms();
     }
 
