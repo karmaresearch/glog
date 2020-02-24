@@ -10,13 +10,16 @@ class ElasticTable: public EDBTable {
     private:
         const PredId_t predid;
         EDBLayer *layer;
+        const std::string baserel;
         const std::string baseurl;
         const std::string field;
         const int64_t startRange;
+        size_t nterms;
 
     public:
         ElasticTable(PredId_t predid,
                 EDBLayer *layer,
+                std::string baserel,
                 std::string baseurl,
                 std::string field,
                 std::string startRange);

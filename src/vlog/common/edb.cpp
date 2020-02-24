@@ -246,7 +246,8 @@ void EDBLayer::addElasticTable(const EDBConf::Table &tableConf) {
             this,
             tableConf.params[0],
             tableConf.params[1],
-            tableConf.params[2]);
+            tableConf.params[2],
+            tableConf.params[3]);
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));

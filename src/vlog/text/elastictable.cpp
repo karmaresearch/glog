@@ -5,10 +5,15 @@
 
 ElasticTable::ElasticTable(PredId_t predid,
         EDBLayer *layer,
+        std::string baserel,
         std::string baseurl,
         std::string field,
-        std::string startRange) : predid(predid), layer(layer),
+        std::string startRange) : predid(predid), layer(layer), baserel(baserel),
     baseurl(baseurl), field(field), startRange(stoi(startRange)) {
+        //get nterms from the baserel
+        auto dictPredId = layer->getPredID(baserel);
+        auto dictTable = layer->getEDBTable(dictPredId);
+        nterms = dictTable->getNTerms();
     }
 
 void ElasticTable::query(QSQQuery *query, TupleTable *outputTable,
@@ -19,21 +24,18 @@ void ElasticTable::query(QSQQuery *query, TupleTable *outputTable,
 }
 
 size_t ElasticTable::getCardinality(const Literal &query) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return 1;
 }
 
 size_t ElasticTable::getCardinalityColumn(const Literal &query,
         uint8_t posColumn) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return 1;
 }
 
 bool ElasticTable::isQueryAllowed(const Literal &query) {
     auto t1 = query.getTermAtPos(0);
     return !t1.isVariable();
 }
-
 
 size_t ElasticTable::estimateCardinality(const Literal &query) {
     return getCardinality(query);
@@ -46,21 +48,20 @@ bool ElasticTable::isEmpty(const Literal &query,
     throw 10;
 }
 
-EDBIterator *ElasticTable::getIterator(const Literal &query){
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+EDBIterator *ElasticTable::getIterator(const Literal &query) {
+    auto t1 = query.getTermAtPos(0);
+    assert(!t1.isVariable());
+    return new ElasticIterator(predid, t1.getValue(), t1.getValue() + startRange);
 }
 
 EDBIterator *ElasticTable::getSortedIterator(const Literal &query,
         const std::vector<uint8_t> &fields) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return getIterator(query);
 }
 
 bool ElasticTable::getDictNumber(const char *text, const size_t sizeText,
         uint64_t &id) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return false;
 }
 
 bool ElasticTable::getDictText(const uint64_t id, char *text) {
@@ -74,13 +75,11 @@ bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
 }
 
 uint64_t ElasticTable::getNTerms() {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return nterms;
 }
 
 uint64_t ElasticTable::getSize() {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    return nterms;
 }
 
 void ElasticTable::releaseIterator(EDBIterator *itr) {
