@@ -73,16 +73,26 @@ bool ElasticTable::getDictText(const uint64_t id, char *text) {
 }
 
 bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
-    //TODO: Prepare the elasticsearch request
-    std::map<std::string, std::string> params;
+    auto origid = id;
+    if (id >= startRange && id < startRange + nterms) {
+        origid -= startRange;
+    }
+    auto resp = dictTable->getDictText(origid, text);
+    if (resp && id >= startRange && id < startRange + nterms) {
+        //Prepare the elasticsearch request
+        std::map<std::string, std::string> params;
+        std::string querytext = "{ \"match\": { \"_id\": \"" + text + "\"}}";
+        params.insert(std::make_pair("query", querytext));
 
-    std::string headers = "";
-    std::string contenttype = "application/json";
-    std::string response;
-    HttpClient client(basehost, baseport);
-    bool resp = client.post(basepath, params, headers, response, contenttype);
-    if (resp) {
-        std::cout << response << std::endl;
+        std::string headers = "";
+        std::string contenttype = "application/json";
+        std::string response;
+        HttpClient client(basehost, baseport);
+        resp = client.post(basepath, params, headers, response, contenttype);
+        if (resp) {
+            std::cout << response << std::endl;
+            //TODO
+        }
     }
     return resp;
 }
