@@ -7,37 +7,70 @@
 #include <vector>
 
 class ElasticTable: public EDBTable {
-private:
+    private:
+        const PredId_t predid;
+        EDBLayer *layer;
+        const std::string baseurl;
+        const std::string field;
+        const int64_t startRange;
 
-public:
-    ElasticTable();
+    public:
+        ElasticTable(PredId_t predid,
+                EDBLayer *layer,
+                std::string baseurl,
+                std::string field,
+                std::string startRange);
 
-    void query(QSQQuery *query, TupleTable *outputTable,
-               std::vector<uint8_t> *posToFilter,
-               std::vector<Term_t> *valuesToFilter);
+        uint8_t getArity() const {
+            return 2;
+        }
 
-    size_t getCardinality(const Literal &query);
+        bool areTermsEncoded() {
+            return true;
+        }
 
-    size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
+        bool expensiveLayer() {
+            return true;
+        }
 
-    bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
-                 std::vector<Term_t> *valuesToFilter);
+        void query(QSQQuery *query, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    EDBIterator *getIterator(const Literal &query);
+        bool isQueryAllowed(const Literal &query);
 
-    EDBIterator *getSortedIterator(const Literal &query,
-                                   const std::vector<uint8_t> &fields);
+        size_t estimateCardinality(const Literal &query);
 
-    bool getDictNumber(const char *text, const size_t sizeText,
-                       uint64_t &id);
+        size_t getCardinality(const Literal &query);
 
-    bool getDictText(const uint64_t id, char *text);
+        size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
 
-    uint64_t getNTerms();
+        bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    uint64_t getSize();
+        EDBIterator *getIterator(const Literal &query);
 
-    ~ElasticTable();
+        EDBIterator *getSortedIterator(const Literal &query,
+                const std::vector<uint8_t> &fields);
+
+        bool getDictNumber(const char *text, const size_t sizeText,
+                uint64_t &id);
+
+        bool getDictText(const uint64_t id, char *text);
+
+        bool getDictText(const uint64_t id, std::string &text);
+
+        uint64_t getStartOffset() {
+            return startRange;
+        }
+
+        uint64_t getNTerms();
+
+        void releaseIterator(EDBIterator *itr);
+
+        uint64_t getSize();
+
+        ~ElasticTable();
 };
 
 #endif

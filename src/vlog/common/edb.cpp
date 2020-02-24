@@ -22,11 +22,11 @@
 #include <vlog/inmemory/inmemorytable.h>
 #include <vlog/embeddings/embtable.h>
 #include <vlog/embeddings/topktable.h>
+#include <vlog/text/elastictable.h>
 #include <vlog/incremental/edb-table-from-idb.h>
 #include <vlog/incremental/edb-table-importer.h>
 
 #include <climits>
-
 
 EDBLayer::EDBLayer(EDBLayer &db, bool copyTables) : conf(db.conf) {
     this->predDictionary = db.predDictionary;
@@ -231,6 +231,27 @@ void EDBLayer::addTopKTable(const EDBConf::Table &tableConf) {
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));
 }
+
+void EDBLayer::addElasticTable(const EDBConf::Table &tableConf) {
+    EDBInfoTable infot;
+    const std::string predicate = tableConf.predname;
+    infot.id = (PredId_t) predDictionary->getOrAdd(predicate);
+    if (doesPredExists(infot.id)) {
+        LOG(WARNL) << "Rewriting table for predicate " << predicate;
+        dbPredicates.erase(infot.id);
+    }
+    infot.type = "Elastic";
+    ElasticTable *table = new ElasticTable(
+            infot.id,
+            this,
+            tableConf.params[0],
+            tableConf.params[1],
+            tableConf.params[2]);
+    infot.arity = table->getArity();
+    infot.manager = std::shared_ptr<EDBTable>(table);
+    dbPredicates.insert(make_pair(infot.id, infot));
+}
+
 void EDBLayer::addEDBonIDBTable(const EDBConf::Table &tableConf) {
     EDBInfoTable infot;
     const string pn = tableConf.predname;
@@ -1077,7 +1098,7 @@ bool EDBLayer::getDictText(const uint64_t idterm, char *text) const {
 }
 
 std::string EDBLayer::getDictText(const uint64_t id) const {
-   if (IS_NUMBER(id)) {
+    if (IS_NUMBER(id)) {
         if (IS_UINT(id)) {
             uint64_t value = GET_UINT(id);
             return std::to_string(value);
