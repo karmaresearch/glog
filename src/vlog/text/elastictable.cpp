@@ -2,14 +2,17 @@
 #include <vlog/text/elasticitr.h>
 
 #include <kognac/logs.h>
+#include <trident/utils/httpclient.h>
 
 ElasticTable::ElasticTable(PredId_t predid,
         EDBLayer *layer,
         std::string baserel,
-        std::string baseurl,
-        std::string field,
+        std::string basehost,
+        std::string baseport,
+        std::string basepath,
         std::string startRange) : predid(predid), layer(layer), baserel(baserel),
-    baseurl(baseurl), field(field), startRange(stoi(startRange)) {
+    basehost(basehost), baseport(stoi(baseport)),
+    basepath(basepath), startRange(stoi(startRange)) {
         //get nterms from the baserel
         auto dictPredId = layer->getPredID(baserel);
         dictTable = layer->getEDBTable(dictPredId);
@@ -70,8 +73,18 @@ bool ElasticTable::getDictText(const uint64_t id, char *text) {
 }
 
 bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    //TODO: Prepare the elasticsearch request
+    std::map<std::string, std::string> params;
+
+    std::string headers = "";
+    std::string contenttype = "application/json";
+    std::string response;
+    HttpClient client(basehost, baseport);
+    bool resp = client.post(basepath, params, headers, response, contenttype);
+    if (resp) {
+        std::cout << response << std::endl;
+    }
+    return resp;
 }
 
 uint64_t ElasticTable::getNTerms() {

@@ -11,8 +11,9 @@ class ElasticTable: public EDBTable {
         const PredId_t predid;
         EDBLayer *layer;
         const std::string baserel;
-        const std::string baseurl;
-        const std::string field;
+        const std::string basehost;
+        const uint32_t baseport;
+        const std::string basepath;
         const int64_t startRange;
         size_t nterms;
         std::shared_ptr<EDBTable> dictTable;
@@ -21,8 +22,9 @@ class ElasticTable: public EDBTable {
         ElasticTable(PredId_t predid,
                 EDBLayer *layer,
                 std::string baserel,
-                std::string baseurl,
-                std::string field,
+                std::string basehost,
+                std::string baseport,
+                std::string basepath,
                 std::string startRange);
 
         uint8_t getArity() const {
