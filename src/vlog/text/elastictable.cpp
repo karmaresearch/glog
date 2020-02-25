@@ -94,15 +94,21 @@ bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
             JSON r;
             JSON::read(response, r);
             if (r.containsChild("hits")) {
-                const auto &h = r.getChild("hits");
-                const auto &hits = h.getListChildren();
+                auto h = r.getChild("hits");
+		if (h.containsChild("hits")) {
+		auto h2 = h.getChild("hits");
+                auto &hits = h2.getListChildren();
                 if (hits.size() > 0) {
-                    const JSON &hit = hits[0];
-                    if (hit.contains("rdfs_label")) {
+                    JSON hit = hits[0];
+                    if (hit.containsChild("_source")) {
+			    auto fields = hit.getChild("_source");
+			    if (fields.contains("rdfs_label")) {
                         text = hit.get("rdfs_label");
                         ok = true;
                     }
+		}
                 }
+		}
             }
         }
         if (!ok) {
