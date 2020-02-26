@@ -6,7 +6,6 @@
 
 #include <map>
 
-
 class GBGraph {
     private:
         struct GBGraph_Node {

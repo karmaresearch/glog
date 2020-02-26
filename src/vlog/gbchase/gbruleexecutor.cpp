@@ -486,22 +486,29 @@ void GBRuleExecutor::nestedloopjoin(
         auto itrRight = segRight->iterator();
         while (itrRight->hasNext()) {
             itrRight->next();
-            //Materialize the join
-            for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
-                auto leftPos = copyVarPosLeft[idx];
-                auto el = itrLeft->get(leftPos);
-                currentrow[idx] = el;
+
+            size_t i = 0;
+            itrleft->reset();
+            while (i < countLeft) {
+                //Materialize the join
+                for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+                    auto leftPos = copyVarPosLeft[idx];
+                    auto el = itrLeft->get(leftPos);
+                    currentrow[idx] = el;
+                }
+                for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
+                    auto rightPos = copyVarPosRight[idx];
+                    auto value = itrRight->get(rightPos);
+                    currentrow[copyVarPosLeft.size() + idx] = value;
+                }
+                if (trackProvenance) {
+                    currentrow[sizerow] = itrLeft->getNodeId();
+                    currentrow[sizerow + 1] = itrRight->getNodeId();
+                }
+                output->addRow(currentrow);
+                itrLeft->next();
+                i++;
             }
-            for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
-                auto rightPos = copyVarPosRight[idx];
-                auto value = itrRight->get(rightPos);
-                currentrow[copyVarPosLeft.size() + idx] = value;
-            }
-            if (trackProvenance) {
-                currentrow[sizerow] = itrLeft->getNodeId();
-                currentrow[sizerow + 1] = itrRight->getNodeId();
-            }
-            output->addRow(currentrow);
         }
     }
 }

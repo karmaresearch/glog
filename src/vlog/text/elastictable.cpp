@@ -90,7 +90,6 @@ bool ElasticTable::getDictText(const uint64_t id, std::string &text) {
         resp = client.post(basepath, params, headers, response, contenttype);
         bool ok = false;
         if (resp) {
-            std::cout << response << std::endl;
             JSON r;
             JSON::read(response, r);
             if (r.containsChild("hits")) {
