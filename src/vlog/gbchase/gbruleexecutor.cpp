@@ -488,7 +488,7 @@ void GBRuleExecutor::nestedloopjoin(
             itrRight->next();
 
             size_t i = 0;
-            itrleft->reset();
+            itrLeft->reset();
             while (i < countLeft) {
                 //Materialize the join
                 for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
