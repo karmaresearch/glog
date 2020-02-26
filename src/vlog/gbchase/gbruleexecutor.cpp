@@ -268,8 +268,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
                 std::shared_ptr<Column> col;
                 if (term.isVariable()) {
                     col = std::shared_ptr<Column>(
-                            new EDBColumn(layer, atom, varIdx++, presortPos, false));
-                    presortPos.push_back(i);
+                            new EDBColumn(layer, atom, varIdx, presortPos, false));
+                    presortPos.push_back(varIdx);
+                    varIdx++;
                 } else {
                     col = std::shared_ptr<Column>(
                             new CompressedColumn(term.getValue(), size));
