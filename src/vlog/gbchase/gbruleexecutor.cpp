@@ -506,7 +506,8 @@ void GBRuleExecutor::nestedloopjoin(
                     currentrow[sizerow + 1] = itrRight->getNodeId();
                 }
                 output->addRow(currentrow);
-                itrLeft->next();
+                if (i < (countLeft - 1))
+                    itrLeft->next();
                 i++;
             }
         }
