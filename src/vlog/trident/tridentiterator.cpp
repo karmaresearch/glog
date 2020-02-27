@@ -6,8 +6,8 @@ void TridentIterator::init(PredId_t id, Querier * q, const Literal & literal, st
     predid = id;
     VTuple tuple = literal.getTuple();
     kbItr.init(q, &tuple, NULL
-               , mutex
-              );
+            , mutex
+            );
     duplicatedFirstColumn = false;
 }
 
@@ -52,8 +52,9 @@ const char* TridentIterator::getUnderlyingArray(uint8_t column) {
     return kbItr.getUnderlyingArray(column);
 }
 
-std::pair<uint8_t, std::pair<uint8_t, uint8_t>> TridentIterator::getSizeElemUnderlyingArray(uint8_t column) {
-     return kbItr.getSizeElemUnderlyingArray(column);
+std::pair<uint8_t, std::pair<uint8_t, uint8_t>>
+TridentIterator::getSizeElemUnderlyingArray(uint8_t column) {
+    return kbItr.getSizeElemUnderlyingArray(column);
 }
 
 bool TridentIterator::hasNext() {
@@ -66,6 +67,14 @@ void TridentIterator::next() {
 
 void TridentIterator::clear() {
     kbItr.clear();
+}
+
+void TridentIterator::mark() {
+    kbItr.mark();
+}
+
+void TridentIterator::reset() {
+    kbItr.reset();
 }
 
 Term_t TridentIterator::getElementAt(const uint8_t p) {

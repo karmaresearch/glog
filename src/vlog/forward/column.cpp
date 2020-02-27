@@ -370,6 +370,7 @@ EDBColumnReader::EDBColumnReader(const Literal &l, const uint8_t posColumn,
     unq(unq),
     itr(NULL), firstCached((Term_t) - 1),
     lastCached((Term_t) - 1) {
+        setupItr();
     }
 
 const char *EDBColumnReader::getUnderlyingArray() {
@@ -377,6 +378,14 @@ const char *EDBColumnReader::getUnderlyingArray() {
         return itr->getUnderlyingArray(posInItr);
     }
     return NULL;
+}
+
+void EDBColumnReader::mark() {
+    itr->mark();
+}
+
+void EDBColumnReader::reset() {
+    itr->reset();
 }
 
 std::pair<uint8_t, std::pair<uint8_t, uint8_t>> EDBColumnReader::getSizeElemUnderlyingArray() {
@@ -554,7 +563,7 @@ Term_t EDBColumnReader::first() {
 }
 
 bool EDBColumnReader::hasNext() {
-    if (itr == NULL) {
+/*    if (itr == NULL) {
         setupItr();
     }
     bool resp = itr->hasNext();
@@ -563,7 +572,8 @@ bool EDBColumnReader::hasNext() {
         layer.releaseIterator(itr);
         itr = NULL;
     }
-    return resp;
+    return resp;*/
+    return itr->hasNext();
 }
 
 Term_t EDBColumnReader::next() {

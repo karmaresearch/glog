@@ -711,6 +711,10 @@ class EDBColumnReader final : public ColumnReader {
 
         size_t size();
 
+        void mark();
+
+        void reset();
+
         void clear() {
             //Release the iterator
             if (itr != NULL) {

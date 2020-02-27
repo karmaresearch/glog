@@ -6,9 +6,9 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
     return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns, trackProvenance));
 }
 
-std::unique_ptr<TGSegmentDirectItr> TGSegmentLegacy::directIterator() const {
+/*std::unique_ptr<TGSegmentDirectItr> TGSegmentLegacy::directIterator() const {
     return std::unique_ptr<TGSegmentDirectItr>(new TGSegmentLegacyDirectItr(columns, trackProvenance));
-}
+}*/
 
 bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
     if (fields.size() != 1)

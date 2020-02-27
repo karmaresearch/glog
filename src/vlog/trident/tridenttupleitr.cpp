@@ -141,6 +141,20 @@ void TridentTupleItr::next() {
     }
 }
 
+void TridentTupleItr::mark() {
+    m_nextProcessed = nextProcessed;
+    m_nextOutcome = nextOutcome;
+    m_processedValues = processedValues;
+    physIterator->mark();
+}
+
+void TridentTupleItr::reset() {
+    nextProcessed = m_nextProcessed;
+    nextOutcome = m_nextOutcome;
+    processedValues = m_processedValues;
+    physIterator->reset(0);
+}
+
 size_t TridentTupleItr::getTupleSize() {
     return sizeTuple;
 }

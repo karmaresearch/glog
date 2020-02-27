@@ -28,6 +28,10 @@ class TGSegmentItr {
 
         virtual int getNFields() const = 0;
 
+        virtual void mark() = 0;
+
+        virtual void reset() = 0;
+
         static int cmp(TGSegmentItr* inputLeft,
                 TGSegmentItr* inputRight) {
             auto n = inputLeft->getNFields();
@@ -60,12 +64,12 @@ class TGSegmentItr {
         virtual ~TGSegmentItr() {}
 };
 
-class TGSegmentDirectItr : public TGSegmentItr {
+/*class TGSegmentDirectItr : public TGSegmentItr {
     public:
         virtual void mark() = 0;
 
         virtual void reset() = 0;
-};
+};*/
 
 class TGSegmentLegacyItr : public TGSegmentItr {
     private:
@@ -73,6 +77,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         const std::vector<std::shared_ptr<Column>> &columns;
         std::vector<std::shared_ptr<ColumnReader>> readers;
         std::vector<Term_t> values;
+        std::vector<Term_t> m_values;
 
     public:
         TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
@@ -82,6 +87,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
                 for (const auto &c : columns)
                     readers.push_back(c->getReader());
                 values.resize(columns.size());
+                m_values.resize(columns.size());
             }
 
         bool hasNext() {
@@ -100,6 +106,20 @@ class TGSegmentLegacyItr : public TGSegmentItr {
             }
         }
 
+        void mark() {
+            for(size_t i = 0; i < readers.size(); ++i) {
+                readers[i]->mark();
+                m_values[i] = values[i];
+            }
+        }
+
+        void reset() {
+            for(size_t i = 0; i < readers.size(); ++i) {
+                readers[i]->reset();
+                values[i] = m_values[i];
+            }
+        }
+
         Term_t get(const int colIdx) {
             return values[colIdx];
         }
@@ -113,7 +133,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 };
 
-class TGSegmentLegacyDirectItr : public TGSegmentDirectItr {
+/*class TGSegmentLegacyDirectItr : public TGSegmentDirectItr {
     private:
         const bool trackProvenance;
         const std::vector<std::shared_ptr<Column>> &columns;
@@ -179,10 +199,10 @@ class TGSegmentLegacyDirectItr : public TGSegmentDirectItr {
         int getNFields() const {
             return trackProvenance ? columns.size() - 1 : columns.size();
         }
-};
+};*/
 
 template<typename K>
-class TGSegmentImplItr : public TGSegmentDirectItr {
+class TGSegmentImplItr : public TGSegmentItr {
     private:
         const size_t nodeId;
         const int64_t nrows;

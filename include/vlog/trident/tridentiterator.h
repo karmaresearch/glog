@@ -34,6 +34,10 @@ class TridentIterator : public EDBIterator {
 
         void clear();
 
+        void mark();
+
+        void reset();
+
         void skipDuplicatedFirstColumn();
 
         void moveTo(const uint8_t field, const Term_t t);

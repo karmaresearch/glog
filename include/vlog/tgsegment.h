@@ -21,7 +21,7 @@ class TGSegment {
 
         virtual std::unique_ptr<TGSegmentItr> iterator() const = 0;
 
-        virtual std::unique_ptr<TGSegmentDirectItr> directIterator() const = 0;
+        //virtual std::unique_ptr<TGSegmentDirectItr> directIterator() const = 0;
 
         virtual bool isSortedBy(std::vector<uint8_t> &fields) const = 0;
 
@@ -129,7 +129,7 @@ class TGSegmentLegacy : public TGSegment {
 
         std::unique_ptr<TGSegmentItr> iterator() const;
 
-        std::unique_ptr<TGSegmentDirectItr> directIterator() const;
+        //std::unique_ptr<TGSegmentDirectItr> directIterator() const;
 
         bool isSortedBy(std::vector<uint8_t> &fields) const;
 
@@ -253,9 +253,9 @@ class TGSegmentImpl : public TGSegment {
             return std::unique_ptr<TGSegmentItr>(new I(TGSegmentImpl<S,K,I>::getNodeId(), *TGSegmentImpl<S,K,I>::tuples.get()));
         }
 
-        std::unique_ptr<TGSegmentDirectItr> directIterator() const {
+        /*std::unique_ptr<TGSegmentDirectItr> directIterator() const {
             return std::unique_ptr<TGSegmentDirectItr>(new I(TGSegmentImpl<S,K,I>::getNodeId(), *TGSegmentImpl<S,K,I>::tuples.get()));
-        }
+        }*/
 
         bool isSortedBy(std::vector<uint8_t> &fields) const {
             if (fields.size() != 1)

@@ -14,9 +14,7 @@ private:
     Querier *querier;
     PairItr *physIterator;
     int idx;
-    // int *invPerm;
 
-    // bool onlyVars;
     uint8_t varsPos[3];
     uint8_t sizeTuple;
     int nvars;
@@ -26,6 +24,9 @@ private:
     bool nextProcessed;
     bool nextOutcome;
     size_t processedValues;
+
+    bool m_nextProcessed, m_nextOutcome;
+    size_t m_processedValues;
 
     bool checkFields();
 
@@ -62,6 +63,10 @@ public:
     uint64_t getElementAt(const int pos);   // No Term_t: overrides method in trident
 
     const char* getUnderlyingArray(uint8_t column);
+
+    void mark();
+
+    void reset();
 
     size_t getCardinality();
 

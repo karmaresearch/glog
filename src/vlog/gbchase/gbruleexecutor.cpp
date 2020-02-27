@@ -442,7 +442,7 @@ void GBRuleExecutor::nestedloopjoin(
             inputLeft = inputLeft->sortBy(fields1);
         }
     }
-    std::unique_ptr<TGSegmentDirectItr> itrLeft = inputLeft->directIterator();
+    std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
 
     int64_t countLeft = 0;
     std::vector<Term_t> currentKey;
@@ -548,7 +548,7 @@ void GBRuleExecutor::mergejoin(
             inputLeft = inputLeft->sortBy(fields1);
         }
     }
-    std::unique_ptr<TGSegmentDirectItr> itrLeft = inputLeft->directIterator();
+    std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (nodesRight.size() > 0) {
