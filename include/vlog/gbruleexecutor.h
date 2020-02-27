@@ -88,7 +88,8 @@ class GBRuleExecutor {
 
         void leftjoin(
                 std::shared_ptr<const TGSegment> inputLeft,
-                std::vector<size_t> &bodyNodeIdxs,
+                const std::vector<size_t> &nodesLeft,
+                std::shared_ptr<const TGSegment> inputRight,
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::unique_ptr<SegmentInserter> &output);

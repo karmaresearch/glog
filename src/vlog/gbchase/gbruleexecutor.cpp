@@ -702,37 +702,37 @@ void GBRuleExecutor::mergejoin(
 
 void GBRuleExecutor::leftjoin(
         std::shared_ptr<const TGSegment> inputLeft,
-        std::vector<size_t> &bodyNodeIdxs,
+        const std::vector<size_t> &nodesLeft,
+        std::shared_ptr<const TGSegment> inputRight,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::unique_ptr<SegmentInserter> &output) {
-    std::shared_ptr<const TGSegment> inputRight;
-    LOG(DEBUGL) << "bodyNodeIdxs.size() = " << bodyNodeIdxs.size();
-    for (int i = 0; i < bodyNodeIdxs.size(); i++) {
-        LOG(DEBUGL) << "bodyNodeIdxs[" << i << "] = " << bodyNodeIdxs[i];
-    }
-    if (bodyNodeIdxs.size() == 1) {
-        size_t idbBodyAtomIdx = bodyNodeIdxs[0];
-        inputRight = g.getNodeData(idbBodyAtomIdx);
-    } else {
-        auto ncols = g.getNodeData(bodyNodeIdxs[0])->getNColumns();
-        std::vector<int> projectedPos;
-        for(int i = 0; i < ncols; ++i)
-            projectedPos.push_back(i);
-        inputRight = mergeNodes(bodyNodeIdxs, projectedPos);
-    }
-    LOG(DEBUGL) << "inputRight cols = " << inputRight->getNColumns() << ", size = " << inputRight->getNRows();
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
-
     for (uint32_t i = 0; i < joinVarPos.size(); ++i) {
         fields1.push_back(joinVarPos[i].first);
         fields2.push_back(joinVarPos[i].second);
     }
-    auto sortedInputLeft = inputLeft->sortBy(fields1);
+
+    //Sort the left segment by the join variable
+    if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
+        if (nodesLeft.size() > 0) {
+            SegmentCache &c = SegmentCache::getInstance();
+            if (!c.contains(nodesLeft, fields1)) {
+                inputLeft = inputLeft->sortBy(fields1);
+                c.insert(nodesLeft, fields1, inputLeft);
+            } else {
+                inputLeft = c.get(nodesLeft, fields1);
+            }
+        } else {
+            inputLeft = inputLeft->sortBy(fields1);
+        }
+    }
+    auto itrLeft = inputLeft->iterator();
+
+    //Get all the triples in the right relation
     auto sortedInputRight = inputRight->sortBy(fields2);
-    auto itrLeft = sortedInputLeft->iterator();
     auto itrRight = sortedInputRight->iterator();
 
     bool leftActive = false;
@@ -781,6 +781,10 @@ void GBRuleExecutor::leftjoin(
             auto el = itrLeft->get(leftPos);
             currentrow[idx] = el;
         }
+        if (trackProvenance) {
+            currentrow[sizerow] = itrLeft->getNodeId();
+            currentrow[sizerow + 1] = 0;
+        }
         output->addRow(currentrow);
         if (itrLeft->hasNext()) {
             itrLeft->next();
@@ -799,6 +803,7 @@ void GBRuleExecutor::join(
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
         std::unique_ptr<SegmentInserter> &output) {
+
     std::shared_ptr<const TGSegment> inputRight;
     bool mergeJoinPossible = true;
     if (nodesRight.size() == 1) {
@@ -830,11 +835,13 @@ void GBRuleExecutor::join(
         assert(copyVarPosRight.size() == 0);
         //TODO: left join should not work with trackProvenance=true
         leftjoin(inputLeft,
-                nodesRight,
+                nodesLeft,
+                inputRight,
                 joinVarPos,
                 copyVarPosLeft,
                 output);
     } else {
+
         if (mergeJoinPossible) {
             mergejoin(inputLeft,
                     nodesLeft,
