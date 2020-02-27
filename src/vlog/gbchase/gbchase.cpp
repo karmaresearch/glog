@@ -82,16 +82,21 @@ void GBChase::run() {
                     continue;
                 }
                 LOG(DEBUGL) << "Considering rule " << rule.tostring();
-                std::vector<std::vector<size_t>> nodesForRule;
+                //The first parameter in the pair records whether the associated
+                //atom is negated. In this case, we do not apply semi-naive
+                //evaluation
+                std::vector<std::pair<bool,std::vector<size_t>>> nodesForRule;
                 bool empty = false;
                 for (auto &bodyAtom : rule.getBody()) {
                     Predicate pred = bodyAtom.getPredicate();
                     if (pred.getType() != EDB) {
-                        if (!g.areNodesWithPredicate(pred.getId())) {
+                        bool negated = bodyAtom.isNegated();
+                        if (!g.areNodesWithPredicate(pred.getId()) && !negated) {
                             empty = true;
                             break;
                         }
-                        nodesForRule.push_back(g.getNodeIDsWithPredicate(pred.getId()));
+                        nodesForRule.push_back(std::make_pair(negated,
+                                    g.getNodeIDsWithPredicate(pred.getId())));
                     }
                 }
                 if (empty) {
@@ -117,8 +122,8 @@ void GBChase::run() {
                     // All IDBs of the body are of a lower strat, so we only execute
                     // this rule in the first iteration of the current strat.
                     if (step == saved_step + 1) {
-                        for(int j = 0; j < nodesForRule.size(); ++j) {
-                            if (! nodesForRule[j].empty()) {
+                        /*for(int j = 0; j < nodesForRule.size(); ++j) {
+                            if (!nodesForRule[j].second.empty()) {
                                 LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
                                 newnodes.emplace_back();
                                 GBRuleInput &newnode = newnodes.back();
@@ -127,21 +132,30 @@ void GBChase::run() {
                                 newnode.incomingEdges = std::vector<std::vector<size_t>>();
                                 newnode.incomingEdges.push_back(nodesForRule[j]);
                             }
-                        }
+                        }*/
+                        //Jacopo: I think the code above is wrong... put a message
+                        //to make sure we check it
+                        LOG(ERRORL) << "This case is not implemented. FIXME";
+                        throw 10;
                     } else {
                         LOG(DEBUGL) << "Skipping lowerStrat rule";
                     }
                 } else {
                     size_t prevstep = step - 1;
                     for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
+                        if (nodesForRule[pivot].first) { //Is negated, skip
+                            continue;
+                        }
                         //First consider only combinations where at least one node
-                        //is in the previous level
+                        //is derived in the previous step
                         std::vector<std::vector<size_t>> acceptableNodes;
                         bool acceptableNodesEmpty = false;
                         for(int j = 0; j < nodesForRule.size(); ++j) {
                             std::vector<size_t> selection;
-                            if (j < pivot) {
-                                for(auto &nodeId : nodesForRule[j]) {
+                            bool isNegated = nodesForRule[j].first;
+                            auto &nodes = nodesForRule[j].second;
+                            if (j < pivot && !isNegated) {
+                                for(auto &nodeId : nodes) {
                                     auto nodeStep = g.getNodeStep(nodeId);
                                     if (nodeStep < prevstep) {
                                         selection.push_back(nodeId);
@@ -149,15 +163,15 @@ void GBChase::run() {
                                         break;
                                     }
                                 }
-                            } else if (j == pivot) {
-                                for(auto &nodeId : nodesForRule[j]) {
+                            } else if (j == pivot && !isNegated) {
+                                for(auto &nodeId : nodes) {
                                     auto nodeStep = g.getNodeStep(nodeId);
                                     if (nodeStep == prevstep) {
                                         selection.push_back(nodeId);
                                     }
                                 }
                             } else {
-                                selection = nodesForRule[j];
+                                selection = nodes;
                             }
                             if (selection.empty()) {
                                 acceptableNodesEmpty = true;
