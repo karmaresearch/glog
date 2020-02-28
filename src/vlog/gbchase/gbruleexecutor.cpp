@@ -183,9 +183,11 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         for(auto v : vars)
             futureOccurrences.insert(v);
     }
-    auto headVars = head.getAllVars();
-    for(auto v : headVars)
-        futureOccurrences.insert(v);
+    for(const auto &head : heads) {
+        auto headVars = head.getAllVars();
+        for(auto v : headVars)
+            futureOccurrences.insert(v);
+    }
 
     auto &rightBodyAtom = bodyAtoms[bodyAtomIdx];
     auto rightVars = rightBodyAtom.getAllVarsAndPos();
@@ -999,13 +1001,14 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
     }
 
     //Filter out the derivations produced by the rule
-    auto nonempty = !(intermediateResults == NULL || intermediateResults->isEmpty());
+    auto nonempty = !(intermediateResults == NULL ||
+            intermediateResults->isEmpty());
     std::vector<OutputRule> output;
     if (nonempty) {
         //Compute the head
         std::chrono::steady_clock::time_point start =
             std::chrono::steady_clock::now();
-        for (auto Literal &head = rule.getHeads()) {
+        for (auto &head : rule.getHeads()) {
             bool shouldSort = true, shouldDelDupl = true;
             shouldSortDelDupls(head, bodyAtoms, bodyNodes,
                     shouldSort, shouldDelDupl);
