@@ -172,7 +172,7 @@ std::shared_ptr<const Segment> GBRuleExecutor::postprocessJoin(
 void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         int bodyAtomIdx,
         const std::vector<Literal> &bodyAtoms,
-        const Literal &head,
+        const std::vector<Literal> &heads,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight) {
@@ -917,7 +917,7 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
         //Which variables should be copied from the new body atom?
         std::vector<int> copyVarPosRight;
         //Compute the value of the vars
-        computeVarPos(varsIntermediate, i, bodyAtoms, rule.getFirstHead(),
+        computeVarPos(varsIntermediate, i, bodyAtoms, rule.getHeads(),
                 joinVarPos, copyVarPosLeft, copyVarPosRight);
 
         //Get the node of the current bodyAtom (if it's IDB)
@@ -1005,21 +1005,23 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
         //Compute the head
         std::chrono::steady_clock::time_point start =
             std::chrono::steady_clock::now();
-        Literal head = rule.getFirstHead();
-        bool shouldSort = true, shouldDelDupl = true;
-        shouldSortDelDupls(head, bodyAtoms, bodyNodes, shouldSort, shouldDelDupl);
-        intermediateResults = projectHead(head,
-                varsIntermediate, intermediateResults,
-                shouldSort,
-                shouldDelDupl);
-        std::chrono::steady_clock::time_point end =
-            std::chrono::steady_clock::now();
-        auto dur = end - start;
-        durationCreateHead += dur;
-        OutputRule o;
-        o.first = intermediateResults;
-        o.second = intermediateResultsNodes;
-        output.push_back(o);
+        for (auto Literal &head = rule.getHeads()) {
+            bool shouldSort = true, shouldDelDupl = true;
+            shouldSortDelDupls(head, bodyAtoms, bodyNodes,
+                    shouldSort, shouldDelDupl);
+            intermediateResults = projectHead(head,
+                    varsIntermediate, intermediateResults,
+                    shouldSort,
+                    shouldDelDupl);
+            std::chrono::steady_clock::time_point end =
+                std::chrono::steady_clock::now();
+            auto dur = end - start;
+            durationCreateHead += dur;
+            OutputRule o;
+            o.first = intermediateResults;
+            o.second = intermediateResultsNodes;
+            output.push_back(o);
+        }
     }
     return output;
 }

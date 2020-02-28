@@ -47,7 +47,7 @@ class GBRuleExecutor {
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,
                 const std::vector<Literal> &bodyAtoms,
-                const Literal &head,
+                const std::vector<Literal> &heads,
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight);
