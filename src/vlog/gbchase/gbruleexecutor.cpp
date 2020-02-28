@@ -888,7 +888,7 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
     }
 }
 
-OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
+std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
     //LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
@@ -1000,6 +1000,7 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
 
     //Filter out the derivations produced by the rule
     auto nonempty = !(intermediateResults == NULL || intermediateResults->isEmpty());
+    std::vector<OutputRule> output;
     if (nonempty) {
         //Compute the head
         std::chrono::steady_clock::time_point start =
@@ -1018,10 +1019,9 @@ OutputRule GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
         OutputRule o;
         o.first = intermediateResults;
         o.second = intermediateResultsNodes;
-        return o;
-    } else {
-        return OutputRule();
+        output.push_back(o);
     }
+    return output;
 }
 
 void GBRuleExecutor::printStats() {

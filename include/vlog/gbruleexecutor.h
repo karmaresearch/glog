@@ -125,7 +125,7 @@ class GBRuleExecutor {
                 size_t nodeId, bool isSorted, uint8_t sortedField,
                 bool trackProvenance);
 
-        OutputRule executeRule(Rule &rule, GBRuleInput &node);
+        std::vector<OutputRule> executeRule(Rule &rule, GBRuleInput &node);
 
         void printStats();
 };

@@ -123,16 +123,16 @@ void GBChase::run() {
                     // this rule in the first iteration of the current strat.
                     if (step == saved_step + 1) {
                         /*for(int j = 0; j < nodesForRule.size(); ++j) {
-                            if (!nodesForRule[j].second.empty()) {
-                                LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
-                                newnodes.emplace_back();
-                                GBRuleInput &newnode = newnodes.back();
-                                newnode.ruleIdx = ruleIdx;
-                                newnode.step = step;
-                                newnode.incomingEdges = std::vector<std::vector<size_t>>();
-                                newnode.incomingEdges.push_back(nodesForRule[j]);
-                            }
-                        }*/
+                          if (!nodesForRule[j].second.empty()) {
+                          LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
+                          newnodes.emplace_back();
+                          GBRuleInput &newnode = newnodes.back();
+                          newnode.ruleIdx = ruleIdx;
+                          newnode.step = step;
+                          newnode.incomingEdges = std::vector<std::vector<size_t>>();
+                          newnode.incomingEdges.push_back(nodesForRule[j]);
+                          }
+                          }*/
                         //Jacopo: I think the code above is wrong... put a message
                         //to make sure we check it
                         LOG(ERRORL) << "This case is not implemented. FIXME";
@@ -235,21 +235,25 @@ bool GBChase::executeRule(GBRuleInput &node) {
 #endif
     currentPredicate = rule.getFirstHead().getPredicate().getId();
 
-    auto outputRule = executor.executeRule(rule, node);
-    auto derivations = outputRule.first;
-    auto derivationNodes = outputRule.second;
-    auto nonempty = !(derivations == NULL || derivations->isEmpty());
-    if (nonempty) {
-        //Keep only the new derivations
-        auto retainedTuples = g.retain(currentPredicate, derivations);
-        nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
+    auto outputsRule = executor.executeRule(rule, node);
+    bool nonempty = false;
+    for (OutputRule &outputRule : outputsRule) {
+        auto derivations = outputRule.first;
+        auto derivationNodes = outputRule.second;
+        nonempty |= !(derivations == NULL || derivations->isEmpty());
         if (nonempty) {
-            if (trackProvenance) {
-                createNewNodesWithProv(node.ruleIdx, node.step,
-                        retainedTuples, derivationNodes);
-            } else {
-                //Add a single node
-                g.addNode(currentPredicate, node.ruleIdx, node.step, retainedTuples);
+            //Keep only the new derivations
+            auto retainedTuples = g.retain(currentPredicate, derivations);
+            nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
+            if (nonempty) {
+                if (trackProvenance) {
+                    createNewNodesWithProv(node.ruleIdx, node.step,
+                            retainedTuples, derivationNodes);
+                } else {
+                    //Add a single node
+                    g.addNode(currentPredicate, node.ruleIdx,
+                            node.step, retainedTuples);
+                }
             }
         }
     }
