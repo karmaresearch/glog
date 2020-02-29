@@ -80,63 +80,145 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::fromSeg2TGSeg(
         }
         if (trackProvenance) {
             return std::shared_ptr<const TGSegment>(
-                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField, true));
+                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted,
+                        sortedField, true));
         } else {
             return std::shared_ptr<const TGSegment>(
-                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted, sortedField, false));
+                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted,
+                        sortedField, false));
         }
     }
 }
 
-std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(const Literal &head,
+std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
+        std::shared_ptr<const TGSegment> tuples,
+        const std::vector<int> &posKnownVariables) {
+    if (posKnownVariables.size() == 0) {
+        LOG(ERRORL) << "Projections with no columns are not supported";
+        throw 10;
+    } else if (posKnownVariables.size() == 1) {
+        if (trackProvenance) {
+            assert(tuples->getProvenanceType() != 0);
+            if (tuples->getProvenanceType() == 1) {
+                std::vector<Term_t> projection;
+                tuples->projectTo(posKnownVariables[0], projection);
+                return std::shared_ptr<const TGSegment>(
+                        new UnaryWithConstProvTGSegment(
+                            projection, tuples->getNodeId(), false, 0));
+
+            } else {
+                std::vector<std::pair<Term_t, Term_t>> projection;
+                tuples->projectTo(posKnownVariables[0],
+                        projection);
+                return std::shared_ptr<const TGSegment>(
+                        new UnaryWithProvTGSegment(
+                            projection, ~0ul, false, 0));
+            }
+        } else {
+            std::vector<Term_t> projection;
+            tuples->projectTo(posKnownVariables[0], projection);
+            return std::shared_ptr<const TGSegment>(new UnaryTGSegment(
+                        projection, ~0ul, false, 0));
+        }
+    } else if (posKnownVariables.size() == 2) {
+        if (trackProvenance) {
+            assert(tuples->getProvenanceType() != 0);
+            if (tuples->getProvenanceType() == 1) {
+                std::vector<std::pair<Term_t, Term_t>> projection;
+                tuples->projectTo(posKnownVariables[0],
+                        posKnownVariables[1],
+                        projection);
+                return std::shared_ptr<const TGSegment>(
+                        new BinaryWithConstProvTGSegment(
+                            projection, tuples->getNodeId(), false, 0));
+            } else {
+                std::vector<BinWithProv> projection;
+                tuples->projectTo(posKnownVariables[0],
+                        posKnownVariables[1],
+                        projection);
+                return std::shared_ptr<const TGSegment>(
+                        new BinaryWithProvTGSegment(
+                            projection, ~0ul, false, 0));
+            }
+        } else {
+            std::vector<std::pair<Term_t, Term_t>> projection;
+            tuples->projectTo(posKnownVariables[0],
+                    posKnownVariables[1],
+                    projection);
+            return std::shared_ptr<const TGSegment>(new BinaryTGSegment(
+                        projection, ~0ul, false, 0));
+        }
+    } else { //More than 2
+        std::vector<std::shared_ptr<Column>> columns;
+        tuples->projectTo(posKnownVariables, columns);
+        return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
+                    tuples->getNRows(), false, 0, trackProvenance));
+    }
+}
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
+        const Literal &head,
         std::vector<size_t> &vars,
-        std::shared_ptr<const TGSegment> intermediateResults,
+        std::shared_ptr<const TGSegment> tuples,
         bool shouldSort,
         bool shouldDelDupl) {
-    //Project the columns to instantiate the head
     const auto &tupleHead = head.getTuple();
-    assert(tupleHead.getSize() == vars.size());
-    auto ncolumns = intermediateResults->getNColumns();
-    assert(ncolumns == vars.size());
-    if (tupleHead.getSize() > 1) {
-        if (tupleHead.getSize() == 2) {
-            if (vars[0] != tupleHead.get(0).getId()) {
-                //I have to swap the variables
-                intermediateResults = intermediateResults->swap();
+    std::vector<int> posKnownVariables;
+    for(int i = 0; i < tupleHead.getSize(); ++i) {
+        auto varId = tupleHead.get(i).getId();
+        bool found = false;
+        for(int j = 0; j < vars.size(); ++j)
+            if (vars[j] == varId) {
+                found = true;
+                posKnownVariables.push_back(j);
+                break;
             }
-        } else {
-            std::vector<int> neworder;
-            for(int i = 0; i < tupleHead.getSize(); ++i) {
-                auto varId = tupleHead.get(i).getId();
-                bool found = false;
-                for(int j = 0; j < vars.size(); ++j) {
-                    if (vars[j] == varId) {
-                        found = true;
-                        neworder.push_back(j);
-                        break;
-                    }
-                }
-                if (!found) {
-                    LOG(ERRORL) << "I could not find a head variable in the body";
-                    throw 10;
-                }
-            }
-            intermediateResults = intermediateResults->reorderColumns(neworder);
+        if (!found) {
+            LOG(ERRORL) << "Should not happen. At this stage, all variables are known";
+            throw 10;
         }
     }
+
+    //Project the variables in the order specified by the head atom
+    assert(posKnownVariables.size() > 0); //For now, I do not support relations
+    //with arity = 0
+    if (posKnownVariables.size() == 1) {
+        if (tuples->getNColumns() == 1) {
+            //Do nothing
+        } else {
+            //Must do a unary projection
+            tuples = projectTuples(tuples, posKnownVariables);
+        }
+    } else if (posKnownVariables.size() == 2) {
+        if (tuples->getNColumns() == 2) {
+            //I might have to swap the columns
+            if (posKnownVariables[0] == 1 && posKnownVariables[1] == 0) {
+                tuples = tuples->swap();
+            } else {
+                //Do nothing
+                assert(posKnownVariables[0] == 0 && posKnownVariables[1] == 1);
+            }
+        } else {
+            //Must do a binary projection
+            tuples = projectTuples(tuples, posKnownVariables);
+        }
+    } else {
+        tuples = projectTuples(tuples, posKnownVariables);
+    }
+
+    //Clean up the duplicates if necessary
     if (shouldSort) {
         if (shouldDelDupl) {
-            return intermediateResults->sort()->unique();
+            tuples = tuples->sort()->unique();
         } else {
-            return intermediateResults->sort();
+            tuples = tuples->sort();
         }
     } else {
         if (shouldDelDupl) {
-            return intermediateResults->unique();
-        } else {
-            return intermediateResults;
+            tuples = tuples->unique();
         }
     }
+    return tuples;
 }
 
 std::shared_ptr<const Segment> GBRuleExecutor::postprocessJoin(
@@ -1005,7 +1087,10 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
             intermediateResults->isEmpty());
     std::vector<OutputRule> output;
     if (nonempty) {
-        //Compute the head
+        //TODO: Restricted check if there are existential variables
+        //This operation adds values for all the variables
+
+        //Compute the head atoms
         std::chrono::steady_clock::time_point start =
             std::chrono::steady_clock::now();
         for (auto &head : rule.getHeads()) {

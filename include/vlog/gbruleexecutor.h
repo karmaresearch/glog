@@ -34,6 +34,10 @@ class GBRuleExecutor {
         GBGraph &g;
         std::vector<size_t> noBodyNodes;
 
+        std::shared_ptr<const TGSegment> projectTuples(
+                std::shared_ptr<const TGSegment> tuples,
+                const std::vector<int> &posKnownVariables);
+
         std::shared_ptr<const TGSegment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
                 std::shared_ptr<const TGSegment> intermediateResults,

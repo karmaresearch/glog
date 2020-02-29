@@ -64,13 +64,6 @@ class TGSegmentItr {
         virtual ~TGSegmentItr() {}
 };
 
-/*class TGSegmentDirectItr : public TGSegmentItr {
-    public:
-        virtual void mark() = 0;
-
-        virtual void reset() = 0;
-};*/
-
 class TGSegmentLegacyItr : public TGSegmentItr {
     private:
         const bool trackProvenance;

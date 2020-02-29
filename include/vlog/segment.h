@@ -346,8 +346,6 @@ class Segment {
             }
 
             if (count > 1 && nthreads > 1) {
-                //tbb::parallel_for(tbb::blocked_range<int>(0, cols.size(), 1),
-                //        GetVectors(cols, vectors));
                 ParallelTasks::parallel_for(0, cols.size(), 1,
                         GetVectors(cols, vectors));
             } else {

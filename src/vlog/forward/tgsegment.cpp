@@ -6,10 +6,6 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
     return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns, trackProvenance));
 }
 
-/*std::unique_ptr<TGSegmentDirectItr> TGSegmentLegacy::directIterator() const {
-    return std::unique_ptr<TGSegmentDirectItr>(new TGSegmentLegacyDirectItr(columns, trackProvenance));
-}*/
-
 bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
     if (fields.size() != 1)
         return false;
@@ -194,7 +190,8 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::swap() const {
         c.push_back(columns[1]);
         c.push_back(columns[0]);
         c.push_back(columns[2]);
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(
+                    c, nrows, false, 0, trackProvenance));
     } else {
         if (columns.size() != 2) {
             LOG(ERRORL) << "Not supposed to be invoked on non binary predicates";
@@ -203,25 +200,44 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::swap() const {
         std::vector<std::shared_ptr<Column>> c;
         c.push_back(columns[1]);
         c.push_back(columns[0]);
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(
+                    c, nrows, false, 0, trackProvenance));
     }
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::reorderColumns(std::vector<int> &neworder) const {
+void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
+        std::vector<std::shared_ptr<Column>> &out) const {
+    for (auto &field : fields)
+        out.push_back(columns[field]);
     if (trackProvenance) {
-        assert(columns.size() == neworder.size() + 1);
-    } else {
-        assert(columns.size() == neworder.size());
+        out.push_back(columns.back());
     }
-    std::vector<std::shared_ptr<Column>> c;
-    for(const auto idx : neworder) {
-        c.push_back(columns[idx]);
-    }
-    if (trackProvenance) {
-        c.push_back(columns.back());
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
-    } else {
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(c, nrows, false, 0, trackProvenance));
-    }
+}
 
+int TGSegmentLegacy::getProvenanceType() const {
+    if (trackProvenance) {
+        //Check last column
+        assert(columns.size() > 0);
+        if (columns.back()->isConstant()) {
+            return 1;
+        } else {
+            return 2;
+        }
+    } else {
+        return 0;
+    }
+}
+
+size_t TGSegmentLegacy::getNodeId() const {
+    if (trackProvenance) {
+        assert(columns.size() > 0);
+        assert(columns.back()->size() > 0);
+        if (columns.back()->isConstant()) {
+            return columns.back()->first();
+        } else {
+            return ~0ul;
+        }
+    } else {
+        return ~0ul;
+    }
 }
