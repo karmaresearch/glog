@@ -12,12 +12,12 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
             throw std::runtime_error("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
-        for (auto &r : program->getAllRules()) {
-            if (r.getHeads().size() > 1) {
+        /*for (auto &r : program->getAllRules()) {
+           if (r.getHeads().size() > 1) {
                 LOG(ERRORL) << "GBChase does not support the execution of rules with more atoms in the head. set --rerwriteMultihead to true to rewrite these rulese";
                 throw std::runtime_error("Program could not be stratified");
             }
-        }
+        }*/
     }
 
 Program *GBChase::getProgram() {
@@ -233,11 +233,14 @@ bool GBChase::executeRule(GBRuleInput &node) {
 #ifdef WEBINTERFACE
     currentRule = rule.tostring();
 #endif
-    currentPredicate = rule.getFirstHead().getPredicate().getId();
 
+    auto &heads = rule.getHeads();
+    int headIdx = 0;
+    currentPredicate = heads[headIdx].getPredicate().getId();
     auto outputsRule = executor.executeRule(rule, node);
     bool nonempty = false;
     for (OutputRule &outputRule : outputsRule) {
+        currentPredicate = heads[headIdx++].getPredicate().getId();
         auto derivations = outputRule.first;
         auto derivationNodes = outputRule.second;
         nonempty |= !(derivations == NULL || derivations->isEmpty());
