@@ -1510,9 +1510,10 @@ std::shared_ptr<const Segment> SegmentInserter::concatenate(
 }
 
 std::shared_ptr<const Segment> SegmentInserter::unique(
-        std::shared_ptr<const Segment> seg) {
+        std::shared_ptr<const Segment> seg, int nfields) {
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     if (seg->getNColumns() == 1) {
+        assert(nfields == -1);
         std::shared_ptr<Column> c = seg->getColumn(0);
         //I assume c is sorted
         auto c2 = c->unique();
@@ -1522,10 +1523,9 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
         LOG(TRACEL) << "Time SegmentInserter::unique = " << sec.count() * 1000;
         return std::shared_ptr<const Segment>(new Segment(1, fields));
     } else {
-
         bool sameLiteral = seg->areAllColumnsPartOftheSameQuery(NULL, NULL,
                 NULL);
-        if (sameLiteral) {
+        if (sameLiteral && nfields == -1) {
             std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
             LOG(TRACEL) << "Time SegmentInserter::unique = " << sec.count() * 1000;
             return seg;
@@ -1533,6 +1533,7 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
 
         std::unique_ptr<SegmentIterator> itr = seg->iterator();
         const uint8_t ncolumns = seg->getNColumns();
+        const uint8_t ncolumnsToCheck = nfields == -1 ? ncolumns : ncolumns - 1;
         std::unique_ptr<Term_t[]> fields(new Term_t[ncolumns]);
         for (int i = 0; i < ncolumns; ++i)
             fields[i] = (Term_t) - 1;
@@ -1541,7 +1542,7 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
         while (itr->hasNext()) {
             itr->next();
             bool unq = false;
-            for (uint8_t i = 0; i < ncolumns; ++i)
+            for (uint8_t i = 0; i < ncolumnsToCheck; ++i)
                 if (itr->get(i) != fields[i]) {
                     unq = true;
                     break;

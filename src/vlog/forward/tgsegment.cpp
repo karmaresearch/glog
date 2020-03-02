@@ -41,9 +41,10 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
         throw 10;
     }
     auto nfields = columns.size();
+    auto nfieldsTocheck = trackProvenance ? nfields - 1 : nfields;
     auto oldcols(columns);
     std::shared_ptr<Segment> s = std::shared_ptr<Segment>(new Segment(nfields, oldcols));
-    auto retained = SegmentInserter::unique(s);
+    auto retained = SegmentInserter::unique(s, nfieldsTocheck);
     std::vector<std::shared_ptr<Column>> newcols;
     for(int i = 0; i < retained->getNColumns(); ++i) {
         newcols.push_back(retained->getColumn(i));
@@ -145,14 +146,14 @@ void TGSegmentLegacy::appendTo(uint8_t colPos,
 void TGSegmentLegacy::appendTo(uint8_t colPos1,
         uint8_t colPos2,
         std::vector<std::pair<Term_t,Term_t>> &out) const {
-    assert(!trackProvenance && columns.size() == 2 || trackProvenance && columns.size() == 3);
+    //assert(!trackProvenance && columns.size() == 2 || trackProvenance && columns.size() == 3);
     auto &c1 = columns[colPos1];
     auto &c2 = columns[colPos2];
-    auto &v1 = c1->getVectorRef();
-    auto &v2 = c2->getVectorRef();
-    auto nrows = v1.size();
+    auto itr1 = c1->getReader();
+    auto itr2 = c2->getReader();
+    auto nrows = c1->size();
     for(size_t i = 0; i < nrows; ++i) {
-        out.push_back(std::make_pair(v1[i], v2[i]));
+        out.push_back(std::make_pair(itr1->next(), itr2->next()));
     }
 }
 

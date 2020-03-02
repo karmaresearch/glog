@@ -209,7 +209,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
     //Clean up the duplicates if necessary
     if (shouldSort) {
         if (shouldDelDupl) {
-            tuples = tuples->sort()->unique();
+            tuples = tuples->sort();
+            tuples = tuples->unique();
         } else {
             tuples = tuples->sort();
         }

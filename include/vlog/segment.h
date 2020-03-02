@@ -507,7 +507,7 @@ class SegmentInserter {
         std::shared_ptr<const Segment> getSortedAndUniqueSegment(const int nthreads);
 
         static std::shared_ptr<const Segment> unique(
-                std::shared_ptr<const Segment> seg);
+                std::shared_ptr<const Segment> seg, int nfields = -1);
 
         static std::shared_ptr<const Segment> retain(
                 std::shared_ptr<const Segment> &segment,
