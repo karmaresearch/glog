@@ -1098,7 +1098,7 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
             bool shouldSort = true, shouldDelDupl = true;
             shouldSortDelDupls(head, bodyAtoms, bodyNodes,
                     shouldSort, shouldDelDupl);
-            intermediateResults = projectHead(head,
+            auto results = projectHead(head,
                     varsIntermediate, intermediateResults,
                     shouldSort,
                     shouldDelDupl);
@@ -1107,7 +1107,7 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
             auto dur = end - start;
             durationCreateHead += dur;
             OutputRule o;
-            o.first = intermediateResults;
+            o.first = results;
             o.second = intermediateResultsNodes;
             output.push_back(o);
         }

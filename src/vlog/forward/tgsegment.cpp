@@ -124,8 +124,12 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
 void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
     assert(colPos < columns.size());
     auto &col = columns[colPos];
-    const auto vector = col->getVectorRef();
-    std::copy(vector.begin(), vector.end(), std::back_inserter(out));
+    auto itr = col->getReader();
+    while (itr->hasNext()) {
+        out.push_back(itr->next());
+    }
+    //const auto vector = col->getVectorRef();
+    //std::copy(vector.begin(), vector.end(), std::back_inserter(out));
 }
 
 void TGSegmentLegacy::appendTo(uint8_t colPos,
