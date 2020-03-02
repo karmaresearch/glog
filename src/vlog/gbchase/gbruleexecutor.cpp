@@ -424,7 +424,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_IDB(
 }
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::mergeNodes(
-        std::vector<size_t> &nodeIdxs,
+        const std::vector<size_t> &nodeIdxs,
         std::vector<int> &copyVarPos) {
     if (nodeIdxs.size() == 1) {
         size_t idbBodyAtomIdx = nodeIdxs[0];
@@ -791,7 +791,8 @@ void GBRuleExecutor::leftjoin(
         std::shared_ptr<const TGSegment> inputRight,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::unique_ptr<SegmentInserter> &output,
+        const bool copyOnlyLeftNode) {
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
@@ -868,7 +869,8 @@ void GBRuleExecutor::leftjoin(
         }
         if (trackProvenance) {
             currentrow[sizerow] = itrLeft->getNodeId();
-            currentrow[sizerow + 1] = 0;
+            if (!copyOnlyLeftNode)
+                currentrow[sizerow + 1] = 0;
         }
         output->addRow(currentrow);
         if (itrLeft->hasNext()) {
@@ -918,7 +920,6 @@ void GBRuleExecutor::join(
     if (literalRight.isNegated()) {
         // Negated atoms should not introduce new variables.
         assert(copyVarPosRight.size() == 0);
-        //TODO: left join should not work with trackProvenance=true
         leftjoin(inputLeft,
                 nodesLeft,
                 inputRight,
@@ -973,11 +974,80 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
     }
 }
 
-std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
-    auto &bodyNodes = node.incomingEdges;
+std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &rule,
+        std::shared_ptr<const TGSegment> tuples,
+        const std::vector<size_t> &varTuples) {
+    for(auto &headAtom : rule.getHeads()) {
+        if (tuples->isEmpty())
+            break;
 
-    //LOG(INFOL) << "Executing rule " << rule.tostring(program, &layer) <<
-    //    " " << rule.getFirstHead().getPredicate().getId() << " " << node.ruleIdx;
+        std::vector<size_t> nodes; //Not needed (no caching)
+        //Find join variables
+        std::vector<std::pair<int, int>> joinVarPos;
+        std::vector<int> varsToCopyRight;
+        for(int  i = 0; i < headAtom.getTupleSize(); ++i) {
+            auto t = headAtom.getTermAtPos(i);
+            if (t.isVariable()) {
+                for(int j = 0; j < varTuples.size(); ++j) {
+                    if (t.getId() == varTuples[j]) {
+                        varsToCopyRight.push_back(i);
+                        joinVarPos.push_back(std::make_pair(j,joinVarPos.size()));
+                        break;
+                    }
+                }
+            } else {
+                LOG(ERRORL) << "Not sure what will happen if there are"
+                    " constants in the head during the restriction check"
+                    ". Throw an exception ...";
+                throw 10;
+
+            }
+        }
+
+        //Any other variables that is not a join variable must be copied
+        std::vector<int> copyVarPosLeft;
+        for(int j = 0; j < varTuples.size(); ++j) {
+            bool found = false;
+            for(auto &p : joinVarPos) {
+                if (p.first == j) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found)
+                copyVarPosLeft.push_back(j);
+        }
+
+        const auto &nodesRight = g.getNodeIDsWithPredicate(
+                headAtom.getPredicate().getId());
+        std::shared_ptr<const TGSegment> inputRight = mergeNodes(nodesRight,
+                varsToCopyRight);
+
+        //Prepare the container that will store the retained tuples
+        const int nfields = trackProvenance ? tuples->getNColumns() + 1 :
+            tuples->getNColumns();
+        std::unique_ptr<SegmentInserter> outputJoin(new SegmentInserter(
+                    nfields));
+
+        //Perform a left join
+        leftjoin(tuples,
+                nodes,
+                inputRight,
+                joinVarPos,
+                copyVarPosLeft,
+                outputJoin,
+                true);
+
+        //Create a TGSegment from SegmentInserter
+        std::shared_ptr<const Segment> seg = outputJoin->getSegment();
+        tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+
+    }
+    return tuples;
+}
+
+std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
+    auto &bodyNodes = node.incomingEdges;
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -1086,10 +1156,15 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
     //Filter out the derivations produced by the rule
     auto nonempty = !(intermediateResults == NULL ||
             intermediateResults->isEmpty());
-    std::vector<OutputRule> output;
+    std::vector<GBRuleOutput> output;
     if (nonempty) {
-        //TODO: Restricted check if there are existential variables
-        //This operation adds values for all the variables
+        //Perform restricted check
+        if (rule.isExistential()) {
+            intermediateResults = performRestrictedCheck(rule,
+                    intermediateResults, varsIntermediate);
+        }
+
+        //TODO: if there are existential variables, add values for them
 
         //Compute the head atoms
         std::chrono::steady_clock::time_point start =
@@ -1106,9 +1181,10 @@ std::vector<OutputRule> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &nod
                 std::chrono::steady_clock::now();
             auto dur = end - start;
             durationCreateHead += dur;
-            OutputRule o;
-            o.first = results;
-            o.second = intermediateResultsNodes;
+            GBRuleOutput o;
+            o.segment = results;
+            o.nodes = intermediateResultsNodes;
+            o.uniqueTuples = false;
             output.push_back(o);
         }
     }

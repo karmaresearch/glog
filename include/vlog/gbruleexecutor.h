@@ -17,8 +17,14 @@ struct GBRuleInput {
     GBRuleInput() : ruleIdx(0), step(0) {}
 };
 
-typedef std::pair<std::shared_ptr<const TGSegment>,
-        std::vector<std::shared_ptr<Column>>> OutputRule;
+struct GBRuleOutput {
+    std::shared_ptr<const TGSegment> segment;
+    std::vector<std::shared_ptr<Column>> nodes;
+    bool uniqueTuples;
+
+    GBRuleOutput() : uniqueTuples(false) {}
+};
+
 
 class GBRuleExecutor {
     private:
@@ -66,7 +72,7 @@ class GBRuleExecutor {
                 size_t nodeId);
 
         std::shared_ptr<const TGSegment> mergeNodes(
-                std::vector<size_t> &nodeIdxs,
+                const std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos);
 
         void mergejoin(
@@ -96,7 +102,8 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> inputRight,
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
-                std::unique_ptr<SegmentInserter> &output);
+                std::unique_ptr<SegmentInserter> &output,
+                const bool copyOnlyLeftNode = false);
 
         void join(
                 std::shared_ptr<const TGSegment> inputLeft,
@@ -114,6 +121,10 @@ class GBRuleExecutor {
                 bool &shouldSort,
                 bool &shouldDelDupl);
 
+        std::shared_ptr<const TGSegment> performRestrictedCheck(Rule &rule,
+                std::shared_ptr<const TGSegment> tuples,
+                const std::vector<size_t> &varTuples);
+
     public:
         GBRuleExecutor(bool trackProvenance, GBGraph &g, EDBLayer &layer) :
             durationMergeSort(0),
@@ -129,7 +140,7 @@ class GBRuleExecutor {
                 size_t nodeId, bool isSorted, uint8_t sortedField,
                 bool trackProvenance);
 
-        std::vector<OutputRule> executeRule(Rule &rule, GBRuleInput &node);
+        std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
 
         void printStats();
 };

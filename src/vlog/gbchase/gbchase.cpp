@@ -227,7 +227,7 @@ size_t GBChase::getNnodes() {
     return g.getNNodes();
 }
 
-bool GBChase::executeRule(GBRuleInput &node) {
+bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE
@@ -239,14 +239,20 @@ bool GBChase::executeRule(GBRuleInput &node) {
     currentPredicate = heads[headIdx].getPredicate().getId();
     auto outputsRule = executor.executeRule(rule, node);
     bool nonempty = false;
-    for (OutputRule &outputRule : outputsRule) {
+    for (GBRuleOutput &outputRule : outputsRule) {
         currentPredicate = heads[headIdx++].getPredicate().getId();
-        auto derivations = outputRule.first;
-        auto derivationNodes = outputRule.second;
+        auto derivations = outputRule.segment;
+        auto derivationNodes = outputRule.nodes;
+        const bool shouldCleanDuplicates = cleanDuplicates && !outputRule.uniqueTuples;
         nonempty |= !(derivations == NULL || derivations->isEmpty());
         if (nonempty) {
             //Keep only the new derivations
-            auto retainedTuples = g.retain(currentPredicate, derivations);
+            std::shared_ptr<const TGSegment> retainedTuples;
+            if (shouldCleanDuplicates) {
+                retainedTuples = g.retain(currentPredicate, derivations);
+            } else {
+                retainedTuples = derivations;
+            }
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
                 if (trackProvenance) {

@@ -31,7 +31,7 @@ class GBChase : public Chase {
 #endif
         std::map<PredId_t, std::shared_ptr<FCTable>> cacheFCTables;
 
-        bool executeRule(GBRuleInput &node);
+        bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
 
         void createNewNodesWithProv(
                 size_t ruleIdx, size_t step,

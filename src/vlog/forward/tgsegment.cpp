@@ -128,8 +128,6 @@ void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
     while (itr->hasNext()) {
         out.push_back(itr->next());
     }
-    //const auto vector = col->getVectorRef();
-    //std::copy(vector.begin(), vector.end(), std::back_inserter(out));
 }
 
 void TGSegmentLegacy::appendTo(uint8_t colPos,
@@ -150,7 +148,6 @@ void TGSegmentLegacy::appendTo(uint8_t colPos,
 void TGSegmentLegacy::appendTo(uint8_t colPos1,
         uint8_t colPos2,
         std::vector<std::pair<Term_t,Term_t>> &out) const {
-    //assert(!trackProvenance && columns.size() == 2 || trackProvenance && columns.size() == 3);
     auto &c1 = columns[colPos1];
     auto &c2 = columns[colPos2];
     auto itr1 = c1->getReader();
@@ -221,7 +218,6 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
 
 int TGSegmentLegacy::getProvenanceType() const {
     if (trackProvenance) {
-        //Check last column
         assert(columns.size() > 0);
         if (columns.back()->isConstant()) {
             return 1;
