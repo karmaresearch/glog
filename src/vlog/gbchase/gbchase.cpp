@@ -12,12 +12,6 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
             throw std::runtime_error("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
-        /*for (auto &r : program->getAllRules()) {
-           if (r.getHeads().size() > 1) {
-                LOG(ERRORL) << "GBChase does not support the execution of rules with more atoms in the head. set --rerwriteMultihead to true to rewrite these rulese";
-                throw std::runtime_error("Program could not be stratified");
-            }
-        }*/
     }
 
 Program *GBChase::getProgram() {

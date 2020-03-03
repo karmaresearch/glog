@@ -1008,15 +1008,29 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
     std::set<size_t> extvars;
     for(auto &v :rule.getExistentialVariables())
         extvars.insert(v);
-    std::set<size_t> bodyVars;
-    for(auto &v : vars)
-        bodyVars.insert(v);
 
     //Assign null values to each variable
     assert(extvars.size() > 0);
     //First compute the frontier variables for each existential variable
-    std::map<uint8_t, std::vector<uint8_t>> depVars = rule.
-        calculateDependencies();
+    std::map<uint8_t, std::vector<uint8_t>> depVars;
+    for(auto &headAtom : rule.getHeads()) {
+        std::set<uint8_t> frontierAtomVars;
+        std::set<uint8_t> extAtomVars;
+        for (auto var : headAtom.getAllVars()) {
+            if (extvars.count(var)) {
+                extAtomVars.insert(var);
+            } else {
+                frontierAtomVars.insert(var);
+            }
+            for(auto var : extAtomVars) {
+                if (!depVars.count(var)) {
+                    depVars.insert(std::make_pair(var, std::vector<uint8_t>()));
+                }
+                std::copy(frontierAtomVars.begin(), frontierAtomVars.end(),
+                        std::back_inserter(depVars[var]));
+            }
+        }
+    }
     std::vector<std::pair<uint8_t, std::vector<uint8_t>>> newDepVars;
     for (auto &entry : depVars) {
         std::sort(entry.second.begin(), entry.second.end());
@@ -1026,6 +1040,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
     }
     //Sort the dependencies to optimize the sorting
     std::sort(newDepVars.begin(), newDepVars.end(), __sorter_extvar_dep);
+    const auto nrows = tuples->getNRows();
 
     //For each existential variable, assign null values.
     //The other values are copied
@@ -1052,7 +1067,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         std::vector<BinWithProv> terms3;
         std::unique_ptr<SegmentInserter> terms4;
         std::unique_ptr<Term_t> terms4_row;
-        const int nfields = tuples->getNColumns() + newDepVars.size();
+        const int nfields = tuples->getNColumns() + 1;
         int mode;
         if (nfields == 1) {
             mode = !trackProvenance ? 0 : tuples->getProvenanceType() == 1 ? 1 : 2;
@@ -1072,9 +1087,22 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             }
         }
 
+        switch(mode) {
+            case 1:
+            case 2:
+                terms1.resize(nrows);
+                break;
+            case 3:
+            case 4:
+                terms2.resize(nrows);
+                break;
+            case 5:
+                terms3.resize(nrows);
+                break;
+        }
+
         const auto nvars = depVarPos.size();
-        std::vector<Term_t> prevTerms;
-        prevTerms.resize(nvars);
+        std::vector<Term_t> prevTerms(nvars, ~0ul);
         auto itr = tuples->iterator();
         size_t currentRow = 0;
         while (itr->hasNext()) {
@@ -1082,7 +1110,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             //Compute a suitable null value for the existentially quantified variable
             bool equalPrev = true;
             for(int j = 0; j < depVarPos.size(); ++j) {
-                if (itr->get(j) != prevTerms[j]) {
+                const auto varPos = depVarPos[j];
+                if (itr->get(varPos) != prevTerms[j]) {
                     equalPrev = false;
                     break;
                 }
@@ -1090,7 +1119,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             if (!equalPrev) {
                 counter++;
                 for(int j = 0; j < depVarPos.size(); ++j) {
-                    prevTerms[j] = itr->get(j);
+                const auto varPos = depVarPos[j];
+                    prevTerms[j] = itr->get(varPos);
                 }
             }
             //Copy the previous values (and provenance) and the existential value
@@ -1158,12 +1188,13 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             case 7:
                 auto seg = terms4->getSegment();
                 std::vector<std::shared_ptr<Column>> columns;
-                for(int i = 0; i < nfields; ++i) {
+                auto nfieldsToCopy = (trackProvenance) ? nfields + 1 : nfields;
+                for(int i = 0; i < nfieldsToCopy; ++i) {
                     columns.push_back(seg->getColumn(i));
                 }
                 tuples = std::shared_ptr<const TGSegment>(
                         new TGSegmentLegacy(columns, seg->getNRows(), false,
-                            0, mode == 5));
+                            0, mode == 7));
                 break;
         }
     }
@@ -1215,30 +1246,31 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
                 copyVarPosLeft.push_back(j);
         }
 
-        const auto &nodesRight = g.getNodeIDsWithPredicate(
-                headAtom.getPredicate().getId());
-        std::shared_ptr<const TGSegment> inputRight = mergeNodes(nodesRight,
-                varsToCopyRight);
+        if (g.areNodesWithPredicate(headAtom.getPredicate().getId())) {
+            const auto &nodesRight = g.getNodeIDsWithPredicate(
+                    headAtom.getPredicate().getId());
+            std::shared_ptr<const TGSegment> inputRight = mergeNodes(nodesRight,
+                    varsToCopyRight);
 
-        //Prepare the container that will store the retained tuples
-        const int nfields = trackProvenance ? tuples->getNColumns() + 1 :
-            tuples->getNColumns();
-        std::unique_ptr<SegmentInserter> outputJoin(new SegmentInserter(
-                    nfields));
+            //Prepare the container that will store the retained tuples
+            const int nfields = trackProvenance ? tuples->getNColumns() + 1 :
+                tuples->getNColumns();
+            std::unique_ptr<SegmentInserter> outputJoin(new SegmentInserter(
+                        nfields));
 
-        //Perform a left join
-        leftjoin(tuples,
-                nodes,
-                inputRight,
-                joinVarPos,
-                copyVarPosLeft,
-                outputJoin,
-                true);
+            //Perform a left join
+            leftjoin(tuples,
+                    nodes,
+                    inputRight,
+                    joinVarPos,
+                    copyVarPosLeft,
+                    outputJoin,
+                    true);
 
-        //Create a TGSegment from SegmentInserter
-        std::shared_ptr<const Segment> seg = outputJoin->getSegment();
-        tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
-
+            //Create a TGSegment from SegmentInserter
+            std::shared_ptr<const Segment> seg = outputJoin->getSegment();
+            tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+        }
     }
     return tuples;
 }
