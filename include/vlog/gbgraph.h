@@ -3,6 +3,7 @@
 
 #include <vlog/concepts.h>
 #include <vlog/tgsegment.h>
+#include <vlog/chasemgmt.h>
 
 #include <map>
 
@@ -27,6 +28,7 @@ class GBGraph {
         const bool cacheRetainEnabled;
         std::map<PredId_t, CacheRetainEntry> cacheRetain;
         std::chrono::duration<double, std::milli> durationRetain;
+        uint64_t counterNullValues;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -37,6 +39,7 @@ class GBGraph {
             trackProvenance(trackProvenance),
             cacheRetainEnabled(cacheRetainEnabled),
             durationRetain(0) {
+                counterNullValues = RULE_SHIFT(1);
             }
 
         size_t getNNodes() const {
@@ -68,6 +71,14 @@ class GBGraph {
                 nderived += node.data->getNRows();
             }
             return nderived;
+        }
+
+        uint64_t getCounterNullValues() const {
+            return counterNullValues;
+        }
+
+        void setCounterNullValues(uint64_t c) {
+            counterNullValues = c;
         }
 
         std::shared_ptr<const TGSegment> retain(

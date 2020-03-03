@@ -967,11 +967,208 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
             }
             sortedFields++;
         }
-        shouldSort = !(sortedFields == th.getSize()) || (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
+        shouldSort = !(sortedFields == th.getSize()) ||
+            (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
         shouldDelDupl = th.getSize() < tb.getSize();
     } else {
         shouldSort = shouldDelDupl = true;
     }
+}
+
+bool __sorter_extvar_dep(
+        const std::pair<uint8_t, std::vector<uint8_t>> &a,
+        const std::pair<uint8_t, std::vector<uint8_t>> &b) {
+    auto minLen = std::min(a.second.size(), b.second.size());
+    for(int i = 0; i < minLen; ++i) {
+        if (a.second[i] < b.second[i])
+            return true;
+        else if (a.second[i] > b.second[i]) {
+            return false;
+        }
+    }
+    return a.second.size() > b.second.size();
+}
+
+bool isprefix(const std::vector<uint8_t> &a,
+        const std::vector<uint8_t> &b) {
+    if (a.size() > b.size())
+        return false;
+    for(int i = 0; i < a.size(); ++i) {
+        if (a[i] != b[i])
+            return false;
+    }
+    return true;
+}
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
+        Rule &rule,
+        std::shared_ptr<const TGSegment> tuples,
+        std::vector<size_t> &vars) {
+    //Get list existential variables
+    std::set<size_t> extvars;
+    for(auto &v :rule.getExistentialVariables())
+        extvars.insert(v);
+    std::set<size_t> bodyVars;
+    for(auto &v : vars)
+        bodyVars.insert(v);
+
+    //Assign null values to each variable
+    assert(extvars.size() > 0);
+    //First compute the frontier variables for each existential variable
+    std::map<uint8_t, std::vector<uint8_t>> depVars = rule.
+        calculateDependencies();
+    std::vector<std::pair<uint8_t, std::vector<uint8_t>>> newDepVars;
+    for (auto &entry : depVars) {
+        std::sort(entry.second.begin(), entry.second.end());
+        auto last = std::unique(entry.second.begin(), entry.second.end());
+        entry.second.erase(last, entry.second.end());
+        newDepVars.push_back(std::make_pair(entry.first, entry.second));
+    }
+    //Sort the dependencies to optimize the sorting
+    std::sort(newDepVars.begin(), newDepVars.end(), __sorter_extvar_dep);
+
+    //For each existential variable, assign null values.
+    //The other values are copied
+    auto counter = g.getCounterNullValues() + 1;
+    for(int i = 0; i < newDepVars.size(); ++i) {
+        vars.push_back(newDepVars[i].first);
+        std::vector<uint8_t> depVarPos;
+        for(int j = 0; j < newDepVars[i].second.size(); ++j) {
+            for(int m = 0; m < vars.size(); ++m) {
+                if (vars[m] == newDepVars[i].second[j]) {
+                    depVarPos.push_back(m);
+                    break;
+                }
+            }
+        }
+        if (i == 0 || !isprefix(newDepVars[i].second, newDepVars[i - 1].second)) {
+            tuples = tuples->sortBy(depVarPos);
+        }
+
+        //These are three possible containers for the final result. They will
+        //contain the list of known variables and the existentially quantified ones
+        std::vector<Term_t> terms1;
+        std::vector<std::pair<Term_t, Term_t>> terms2;
+        std::vector<BinWithProv> terms3;
+        std::unique_ptr<SegmentInserter> terms4;
+        std::unique_ptr<Term_t> terms4_row;
+        const int nfields = tuples->getNColumns() + newDepVars.size();
+        int mode;
+        if (nfields == 1) {
+            mode = !trackProvenance ? 0 : tuples->getProvenanceType() == 1 ? 1 : 2;
+        } else if (nfields == 2) {
+            mode = !trackProvenance ? 3 : tuples->getProvenanceType() == 1 ? 4 : 5;
+        } else {
+            if (!trackProvenance) {
+                mode = 6;
+                terms4 = std::unique_ptr<SegmentInserter>(new
+                        SegmentInserter(nfields));
+                terms4_row = std::unique_ptr<Term_t>(new Term_t[nfields]);
+            } else {
+                mode = 7;
+                terms4 = std::unique_ptr<SegmentInserter>(new
+                        SegmentInserter(nfields + 1));
+                terms4_row = std::unique_ptr<Term_t>(new Term_t[nfields + 1]);
+            }
+        }
+
+        const auto nvars = depVarPos.size();
+        std::vector<Term_t> prevTerms;
+        prevTerms.resize(nvars);
+        auto itr = tuples->iterator();
+        size_t currentRow = 0;
+        while (itr->hasNext()) {
+            itr->next();
+            //Compute a suitable null value for the existentially quantified variable
+            bool equalPrev = true;
+            for(int j = 0; j < depVarPos.size(); ++j) {
+                if (itr->get(j) != prevTerms[j]) {
+                    equalPrev = false;
+                    break;
+                }
+            }
+            if (!equalPrev) {
+                counter++;
+                for(int j = 0; j < depVarPos.size(); ++j) {
+                    prevTerms[j] = itr->get(j);
+                }
+            }
+            //Copy the previous values (and provenance) and the existential value
+            switch (mode) {
+                case 0:
+                case 1:
+                    terms1[currentRow] = counter; break;
+                case 2:
+                    terms2[currentRow].second = itr->getNodeId();
+                case 3:
+                case 4:
+                    if (tuples->getNColumns() == 0) {
+                        terms2[currentRow].first = counter;
+                    } else {
+                        terms2[currentRow].first = itr->get(0);
+                        terms2[currentRow].second = counter;
+                    }
+                    break;
+                case 5:
+                    terms3[currentRow].first = itr->get(0);
+                    terms3[currentRow].second = counter;
+                    terms3[currentRow].node = itr->getNodeId();
+                case 6:
+                case 7:
+                    for(int i = 0; i < tuples->getNColumns(); ++i) {
+                        terms4_row.get()[i] = itr->get(i);
+                    }
+                    terms4_row.get()[nfields - 1] = counter;
+                    if (mode == 7) {
+                        terms4_row.get()[nfields] = itr->getNodeId();
+                    }
+                    terms4->addRow(terms4_row.get());
+                    break;
+            }
+            currentRow++;
+        }
+        //Create new tuples object
+        switch (mode) {
+            case 0:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new UnaryTGSegment(terms1, ~0ul, false, 0));
+                break;
+            case 1:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new UnaryWithConstProvTGSegment(terms1, ~0ul, false, 0));
+                break;
+            case 2:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new UnaryWithProvTGSegment(terms2, ~0ul, false, 0));
+                break;
+
+            case 3:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new BinaryTGSegment(terms2, ~0ul, false, 0));
+                break;
+            case 4:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new BinaryWithConstProvTGSegment(terms2, ~0ul, false, 0));
+                break;
+            case 5:
+                tuples = std::shared_ptr<const TGSegment>(
+                        new BinaryWithProvTGSegment(terms3, ~0ul, false, 0));
+                break;
+            case 6:
+            case 7:
+                auto seg = terms4->getSegment();
+                std::vector<std::shared_ptr<Column>> columns;
+                for(int i = 0; i < nfields; ++i) {
+                    columns.push_back(seg->getColumn(i));
+                }
+                tuples = std::shared_ptr<const TGSegment>(
+                        new TGSegmentLegacy(columns, seg->getNRows(), false,
+                            0, mode == 5));
+                break;
+        }
+    }
+    g.setCounterNullValues(counter);
+    return tuples;
 }
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &rule,
@@ -1158,13 +1355,16 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
             intermediateResults->isEmpty());
     std::vector<GBRuleOutput> output;
     if (nonempty) {
-        //Perform restricted check
+        bool uniqueTuples = false;
         if (rule.isExistential()) {
+            //Perform restricted check
             intermediateResults = performRestrictedCheck(rule,
                     intermediateResults, varsIntermediate);
+            //If there are existential variables, add values for them
+            intermediateResults = addExistentialVariables(rule,
+                    intermediateResults, varsIntermediate);
+            uniqueTuples = true;
         }
-
-        //TODO: if there are existential variables, add values for them
 
         //Compute the head atoms
         std::chrono::steady_clock::time_point start =
@@ -1184,7 +1384,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
             GBRuleOutput o;
             o.segment = results;
             o.nodes = intermediateResultsNodes;
-            o.uniqueTuples = false;
+            o.uniqueTuples = uniqueTuples;
             output.push_back(o);
         }
     }

@@ -125,6 +125,11 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> tuples,
                 const std::vector<size_t> &varTuples);
 
+        std::shared_ptr<const TGSegment> addExistentialVariables(
+                Rule &rule,
+                std::shared_ptr<const TGSegment> tuples,
+                std::vector<size_t> &vars);
+
     public:
         GBRuleExecutor(bool trackProvenance, GBGraph &g, EDBLayer &layer) :
             durationMergeSort(0),
