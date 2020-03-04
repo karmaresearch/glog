@@ -58,9 +58,12 @@ void GBChase::run() {
     size_t step = 0;
     rules = program->getAllRules();
 
-    for (int currentStrat = 0; currentStrat < nStratificationClasses; currentStrat++) {
+    for (int currentStrat = 0;
+            currentStrat < nStratificationClasses;
+            currentStrat++) {
+
         LOG(INFOL) << "Strat: " << currentStrat;
-        size_t saved_step = step;
+        size_t stepStratum = step;
         do {
             step++;
             LOG(INFOL) << "Step " << step;
@@ -71,8 +74,9 @@ void GBChase::run() {
             for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
                 auto &rule = rules[ruleIdx];
                 PredId_t id = rule.getFirstHead().getPredicate().getId();
-                if (nStratificationClasses > 1 && stratification[id] != currentStrat) {
-                    LOG(DEBUGL) << "Skipping rule, wrong strat: " << rule.tostring();
+                if (nStratificationClasses > 1 &&
+                        stratification[id] != currentStrat) {
+                    LOG(DEBUGL) << "Skip rule, wrong strat: " << rule.tostring();
                     continue;
                 }
                 LOG(DEBUGL) << "Considering rule " << rule.tostring();
@@ -102,7 +106,7 @@ void GBChase::run() {
                     //It's a rule with only EDB body atoms.
                     //Create a single node. I only execute these rules in the first iteration
                     //of the current strat (which should be the first strat, I think).
-                    if (step == saved_step + 1) {
+                    if (step == stepStratum + 1) {
                         newnodes.emplace_back();
                         GBRuleInput &newnode = newnodes.back();
                         newnode.ruleIdx = ruleIdx;
@@ -115,24 +119,17 @@ void GBChase::run() {
                 } else if (currentStrat > 0 && lowerStrat(rule, currentStrat, stratification)) {
                     // All IDBs of the body are of a lower strat, so we only execute
                     // this rule in the first iteration of the current strat.
-                    if (step == saved_step + 1) {
-                        /*for(int j = 0; j < nodesForRule.size(); ++j) {
-                          if (!nodesForRule[j].second.empty()) {
-                          LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
-                          newnodes.emplace_back();
-                          GBRuleInput &newnode = newnodes.back();
-                          newnode.ruleIdx = ruleIdx;
-                          newnode.step = step;
-                          newnode.incomingEdges = std::vector<std::vector<size_t>>();
-                          newnode.incomingEdges.push_back(nodesForRule[j]);
-                          }
-                          }*/
-                        //Jacopo: I think the code above is wrong... put a message
-                        //to make sure we check it
-                        LOG(ERRORL) << "This case is not implemented. FIXME";
-                        throw 10;
-                    } else {
-                        LOG(DEBUGL) << "Skipping lowerStrat rule";
+                    if (step == stepStratum + 1) {
+                        for(int j = 0; j < nodesForRule.size(); ++j) {
+                            if (!nodesForRule[j].second.empty()) {
+                                LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
+                                newnodes.emplace_back();
+                                GBRuleInput &newnode = newnodes.back();
+                                newnode.ruleIdx = ruleIdx;
+                                newnode.step = step;
+                                newnode.incomingEdges.push_back(nodesForRule[j]);
+                            }
+                        }
                     }
                 } else {
                     size_t prevstep = step - 1;
