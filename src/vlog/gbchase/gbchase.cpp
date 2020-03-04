@@ -127,7 +127,7 @@ void GBChase::run() {
                                 GBRuleInput &newnode = newnodes.back();
                                 newnode.ruleIdx = ruleIdx;
                                 newnode.step = step;
-                                newnode.incomingEdges.push_back(nodesForRule[j]);
+                                newnode.incomingEdges.push_back(nodesForRule[j].second);
                             }
                         }
                     }
