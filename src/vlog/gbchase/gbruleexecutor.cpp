@@ -1,6 +1,6 @@
-#include <vlog/gbruleexecutor.h>
-#include <vlog/tgsegmentcache.h>
-#include <vlog/tgsegment.h>
+#include <vlog/gbchase/gbruleexecutor.h>
+#include <vlog/gbchase/gbsegmentcache.h>
+#include <vlog/gbchase/gbsegment.h>
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::fromSeg2TGSeg(
         std::shared_ptr<const Segment> seg,

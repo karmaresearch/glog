@@ -13,7 +13,8 @@
 #include <vlog/ml/ml.h>
 #include <vlog/trigger/detector.h>
 #include <vlog/trigger/tg.h>
-#include <vlog/gbchase.h>
+
+#include <vlog/gbchase/gbchase.h>
 
 #include <vlog/cycles/checker.h>
 

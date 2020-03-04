@@ -1,5 +1,5 @@
-#include <vlog/gbgraph.h>
-#include <vlog/gbruleexecutor.h>
+#include <vlog/gbchase/gbgraph.h>
+#include <vlog/gbchase/gbruleexecutor.h>
 
 void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step, std::shared_ptr<const TGSegment> data) {
     auto nodeId = getNNodes();

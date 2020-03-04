@@ -37,6 +37,7 @@ class Chase {
         }
 
         void initRun();
+
         void stopRun();
 
     public:
@@ -45,6 +46,7 @@ class Chase {
 #endif
 
         virtual Program *getProgram() = 0;
+
         virtual EDBLayer &getEDBLayer() = 0;
 
         virtual size_t getSizeTable(const PredId_t predid) const = 0;

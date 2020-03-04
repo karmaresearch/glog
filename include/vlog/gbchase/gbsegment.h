@@ -3,8 +3,9 @@
 
 #include <vlog/concepts.h>
 #include <vlog/column.h>
-#include <vlog/tgsegmentitr.h>
 #include <vlog/segment.h>
+
+#include <vlog/gbchase/gbsegmentitr.h>
 
 #include <vector>
 #include <map>

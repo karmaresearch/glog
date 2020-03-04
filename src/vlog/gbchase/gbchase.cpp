@@ -1,5 +1,5 @@
-#include <vlog/gbchase.h>
-#include <vlog/tgsegmentcache.h>
+#include <vlog/gbchase/gbchase.h>
+#include <vlog/gbchase/gbsegmentcache.h>
 
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     layer(layer),

@@ -2,7 +2,8 @@
 #define _TGSEGMENTCACHE_H
 
 #include <vlog/concepts.h>
-#include <vlog/tgsegmentitr.h>
+
+#include <vlog/gbchase/gbsegmentitr.h>
 
 #include <map>
 #include <vector>

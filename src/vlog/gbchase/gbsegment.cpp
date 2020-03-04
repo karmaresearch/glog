@@ -1,5 +1,6 @@
-#include <vlog/tgsegment.h>
-#include <vlog/tgsegmentitr.h>
+#include <vlog/gbchase/gbsegment.h>
+#include <vlog/gbchase/gbsegmentitr.h>
+
 #include <vlog/segment.h>
 
 std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {

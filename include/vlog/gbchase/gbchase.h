@@ -5,10 +5,10 @@
 #include <vlog/chase.h>
 #include <vlog/edb.h>
 #include <vlog/fcinttable.h>
-#include <vlog/tgsegment.h>
 
-#include <vlog/gbgraph.h>
-#include <vlog/gbruleexecutor.h>
+#include <vlog/gbchase/gbsegment.h>
+#include <vlog/gbchase/gbgraph.h>
+#include <vlog/gbchase/gbruleexecutor.h>
 
 #include <chrono>
 
@@ -39,7 +39,8 @@ class GBChase : public Chase {
                 std::vector<std::shared_ptr<Column>> &provenance);
 
     public:
-        VLIBEXP GBChase(EDBLayer &layer, Program *program, bool useCacheRetain = true);
+        VLIBEXP GBChase(EDBLayer &layer, Program *program,
+                bool useCacheRetain = true);
 
         VLIBEXP void run();
 

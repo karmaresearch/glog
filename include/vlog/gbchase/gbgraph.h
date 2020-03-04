@@ -2,8 +2,9 @@
 #define _GB_GRAPH_H
 
 #include <vlog/concepts.h>
-#include <vlog/tgsegment.h>
 #include <vlog/chasemgmt.h>
+
+#include <vlog/gbchase/gbsegment.h>
 
 #include <map>
 
