@@ -13,15 +13,16 @@
 #include <chrono>
 
 class GBChase : public Chase {
-    private:
-        bool trackProvenance;
+    protected:
+        const bool trackProvenance;
         Program *program;
-        std::vector<Rule> rules;
-        std::vector<int> stratification;
-        int nStratificationClasses;
-
         EDBLayer &layer; //Stores the input data
         GBGraph g; //Stores the derivations
+        std::vector<Rule> rules;
+
+    private:
+        std::vector<int> stratification;
+        int nStratificationClasses;
         GBRuleExecutor executor; //Object that executes rules
         size_t currentIteration;
 
@@ -31,12 +32,38 @@ class GBChase : public Chase {
 #endif
         std::map<PredId_t, std::shared_ptr<FCTable>> cacheFCTables;
 
-        bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
-
         void createNewNodesWithProv(
                 size_t ruleIdx, size_t step,
                 std::shared_ptr<const TGSegment> seg,
                 std::vector<std::shared_ptr<Column>> &provenance);
+
+    protected:
+        std::pair<bool, size_t> determineAdmissibleRule(
+                const size_t &ruleIdx,
+                const size_t stratumLevel,
+                const size_t stepStratum,
+                const size_t step) const;
+
+        void determineAdmissibleRules(
+                const std::vector<size_t> &ruleIdxs,
+                const size_t stratumLevel,
+                const size_t stepStratum,
+                const size_t step,
+                std::vector<std::pair<size_t,size_t>> &admissibleRules) const;
+
+        void prepareRuleExecutionPlans(
+                const Rule &rule,
+                const size_t prevstep,
+                const size_t step,
+                std::vector<GBRuleInput> &newnodes);
+
+        bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
+
+        virtual size_t executeRulesInStratum(
+                const std::vector<size_t> &ruleIdxs,
+                const size_t stratumLevel,
+                const size_t stepStratum,
+                size_t &step);
 
     public:
         VLIBEXP GBChase(EDBLayer &layer, Program *program,

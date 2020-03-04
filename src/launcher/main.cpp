@@ -15,6 +15,7 @@
 #include <vlog/trigger/tg.h>
 
 #include <vlog/gbchase/gbchase.h>
+#include <vlog/gbchase/dfstandardchase.h>
 
 #include <vlog/cycles/checker.h>
 

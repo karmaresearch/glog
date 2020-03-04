@@ -42,7 +42,8 @@ std::shared_ptr<const Segment> fromTGSeg2Seg(std::shared_ptr<const TGSegment> se
             Segment(columns.size(), columns));
 }
 
-bool lowerStrat(Rule &rule, int currentStrat, std::vector<int> &stratification) {
+bool lowerStrat(const Rule &rule, int currentStrat,
+        const std::vector<int> &stratification) {
     for (auto &bodyAtom : rule.getBody()) {
         Predicate pred = bodyAtom.getPredicate();
         if (pred.getType() != EDB && stratification[pred.getId()] >= currentStrat) {
@@ -50,6 +51,168 @@ bool lowerStrat(Rule &rule, int currentStrat, std::vector<int> &stratification) 
         }
     }
     return true;
+}
+
+void GBChase::prepareRuleExecutionPlans(
+        const Rule &rule,
+        const size_t prevstep,
+        const size_t step,
+        std::vector<GBRuleInput> &newnodes) {
+    //The first parameter in the pair records whether the associated
+    //atom is negated. In this case, we do not apply semi-naive
+    //evaluation
+    std::vector<std::pair<bool,std::vector<size_t>>> nodesForRule;
+    for (auto &bodyAtom : rule.getBody()) {
+        Predicate pred = bodyAtom.getPredicate();
+        if (pred.getType() != EDB) {
+            bool negated = bodyAtom.isNegated();
+            nodesForRule.push_back(std::make_pair(negated,
+                        g.getNodeIDsWithPredicate(pred.getId())));
+        }
+    }
+
+    for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
+        if (nodesForRule[pivot].first) { //Is negated, skip
+            continue;
+        }
+        //First consider only combinations where at least one node
+        //is derived in the previous step
+        std::vector<std::vector<size_t>> acceptableNodes;
+        bool acceptableNodesEmpty = false;
+        for(int j = 0; j < nodesForRule.size(); ++j) {
+            std::vector<size_t> selection;
+            bool isNegated = nodesForRule[j].first;
+            auto &nodes = nodesForRule[j].second;
+            if (j < pivot && !isNegated) {
+                for(auto &nodeId : nodes) {
+                    auto nodeStep = g.getNodeStep(nodeId);
+                    if (nodeStep < prevstep) {
+                        selection.push_back(nodeId);
+                    } else {
+                        break;
+                    }
+                }
+            } else if (j == pivot && !isNegated) {
+                for(auto &nodeId : nodes) {
+                    auto nodeStep = g.getNodeStep(nodeId);
+                    if (nodeStep == prevstep) {
+                        selection.push_back(nodeId);
+                    }
+                }
+            } else {
+                selection = nodes;
+            }
+            if (selection.empty()) {
+                acceptableNodesEmpty = true;
+                break;
+            }
+            acceptableNodes.push_back(selection);
+        }
+    }
+}
+
+std::pair<bool, size_t> GBChase::determineAdmissibleRule(
+        const size_t &ruleIdx,
+        const size_t stratumLevel,
+        const size_t stepStratum,
+        const size_t step) const {
+    auto &rule = rules[ruleIdx];
+    bool empty = false;
+    for (auto &bodyAtom : rule.getBody()) {
+        Predicate pred = bodyAtom.getPredicate();
+        if (pred.getType() != EDB) {
+            bool negated = bodyAtom.isNegated();
+            if (!g.areNodesWithPredicate(pred.getId()) && !negated) {
+                empty = true;
+                break;
+            }
+        }
+    }
+    if (empty) {
+        return std::make_pair(false, 0);
+    }
+
+    size_t prevstep = step - 1;
+    if (rule.getNIDBPredicates() == 0) {
+        //It's a rule with only EDB body atoms.
+        //I only execute these rules in the first iteration
+        //of the current strat (which should be the first strat,
+        //I think).
+        if (step != stepStratum + 1 || stratumLevel != 0) {
+            return std::make_pair(false, 0);
+        }
+        prevstep = 0;
+    } else if (stratumLevel > 0 &&
+            lowerStrat(rule, stratumLevel, stratification)) {
+        // All IDBs of the body are of a lower strat, so we only execute
+        // this rule in the first iteration of the current strat.
+        if (step != stepStratum + 1) {
+            return std::make_pair(false, 0);
+        }
+        prevstep = 0;
+    }
+    return std::make_pair(true, prevstep);
+}
+
+void GBChase::determineAdmissibleRules(
+        const std::vector<size_t> &ruleIdxs,
+        const size_t stratumLevel,
+        const size_t stepStratum,
+        const size_t step,
+        std::vector<std::pair<size_t,size_t>> &admissibleRules) const {
+    for (size_t ruleIdx : ruleIdxs) {
+        auto response = determineAdmissibleRule(ruleIdx, stratumLevel,
+                stepStratum, step);
+        if (response.first) {
+            size_t prevstep = response.second;
+            admissibleRules.push_back(std::make_pair(ruleIdx, prevstep));
+        }
+    }
+}
+
+size_t GBChase::executeRulesInStratum(
+        const std::vector<size_t> &ruleIdxs,
+        const size_t stratumLevel,
+        const size_t stepStratum,
+        size_t &step) {
+
+    //Identify the rules that can be executed
+    std::vector<std::pair<size_t,size_t>> admissibleRules;
+    determineAdmissibleRules(
+            ruleIdxs,
+            stratumLevel,
+            stepStratum,
+            step,
+            admissibleRules);
+
+    //Create different execution plans using semi-naive evaluation
+    std::vector<GBRuleInput> newnodes;
+    for(auto p : admissibleRules) {
+        auto ruleIdx = p.first;
+        size_t prevstep = p.second;
+        auto &rule = rules[ruleIdx];
+        prepareRuleExecutionPlans(rule, prevstep, step, newnodes);
+    }
+
+    //Execute the rule associated to the node
+    auto nnodes = g.getNNodes();
+    auto nodesToProcess = newnodes.size();
+    LOG(INFOL) << "Nodes to process " << nodesToProcess;
+    for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
+        executeRule(newnodes[idxNode]);
+    }
+
+    if (nnodes != g.getNNodes()) {
+        auto derivedTuples = 0;
+        for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
+            auto nrows = g.getNodeData(idx)->getNRows();
+            derivedTuples += nrows;
+        }
+        LOG(INFOL) << "Derived Tuples: " << derivedTuples;
+        return derivedTuples;
+    } else {
+        return 0;
+    }
 }
 
 void GBChase::run() {
@@ -61,147 +224,27 @@ void GBChase::run() {
     for (int currentStrat = 0;
             currentStrat < nStratificationClasses;
             currentStrat++) {
-
         LOG(INFOL) << "Strat: " << currentStrat;
         size_t stepStratum = step;
+        std::vector<size_t> rulesInStratum;
+        for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
+            auto &rule = rules[ruleIdx];
+            PredId_t id = rule.getFirstHead().getPredicate().getId();
+            if (nStratificationClasses > 1 &&
+                    stratification[id] != currentStrat) {
+                continue;
+            }
+            rulesInStratum.push_back(ruleIdx);
+        }
+
         do {
             step++;
             LOG(INFOL) << "Step " << step;
             currentIteration = step;
             nnodes = g.getNNodes();
-
-            std::vector<GBRuleInput> newnodes;
-            for (size_t ruleIdx = 0; ruleIdx < rules.size(); ++ruleIdx) {
-                auto &rule = rules[ruleIdx];
-                PredId_t id = rule.getFirstHead().getPredicate().getId();
-                if (nStratificationClasses > 1 &&
-                        stratification[id] != currentStrat) {
-                    LOG(DEBUGL) << "Skip rule, wrong strat: " << rule.tostring();
-                    continue;
-                }
-                LOG(DEBUGL) << "Considering rule " << rule.tostring();
-                //The first parameter in the pair records whether the associated
-                //atom is negated. In this case, we do not apply semi-naive
-                //evaluation
-                std::vector<std::pair<bool,std::vector<size_t>>> nodesForRule;
-                bool empty = false;
-                for (auto &bodyAtom : rule.getBody()) {
-                    Predicate pred = bodyAtom.getPredicate();
-                    if (pred.getType() != EDB) {
-                        bool negated = bodyAtom.isNegated();
-                        if (!g.areNodesWithPredicate(pred.getId()) && !negated) {
-                            empty = true;
-                            break;
-                        }
-                        nodesForRule.push_back(std::make_pair(negated,
-                                    g.getNodeIDsWithPredicate(pred.getId())));
-                    }
-                }
-                if (empty) {
-                    LOG(DEBUGL) << "Empty; continuing";
-                    continue;
-                }
-
-                if (rule.getNIDBPredicates() == 0) {
-                    //It's a rule with only EDB body atoms.
-                    //Create a single node. I only execute these rules in the first iteration
-                    //of the current strat (which should be the first strat, I think).
-                    if (step == stepStratum + 1) {
-                        newnodes.emplace_back();
-                        GBRuleInput &newnode = newnodes.back();
-                        newnode.ruleIdx = ruleIdx;
-                        newnode.step = step;
-                        newnode.incomingEdges = std::vector<std::vector<size_t>>();
-                        LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
-                    } else {
-                        LOG(DEBUGL) << "Skipping EDB rule";
-                    }
-                } else if (currentStrat > 0 && lowerStrat(rule, currentStrat, stratification)) {
-                    // All IDBs of the body are of a lower strat, so we only execute
-                    // this rule in the first iteration of the current strat.
-                    if (step == stepStratum + 1) {
-                        for(int j = 0; j < nodesForRule.size(); ++j) {
-                            if (!nodesForRule[j].second.empty()) {
-                                LOG(DEBUGL) << "Pushing node for lowerStrat rule " << rule.tostring();
-                                newnodes.emplace_back();
-                                GBRuleInput &newnode = newnodes.back();
-                                newnode.ruleIdx = ruleIdx;
-                                newnode.step = step;
-                                newnode.incomingEdges.push_back(nodesForRule[j].second);
-                            }
-                        }
-                    }
-                } else {
-                    size_t prevstep = step - 1;
-                    for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
-                        if (nodesForRule[pivot].first) { //Is negated, skip
-                            continue;
-                        }
-                        //First consider only combinations where at least one node
-                        //is derived in the previous step
-                        std::vector<std::vector<size_t>> acceptableNodes;
-                        bool acceptableNodesEmpty = false;
-                        for(int j = 0; j < nodesForRule.size(); ++j) {
-                            std::vector<size_t> selection;
-                            bool isNegated = nodesForRule[j].first;
-                            auto &nodes = nodesForRule[j].second;
-                            if (j < pivot && !isNegated) {
-                                for(auto &nodeId : nodes) {
-                                    auto nodeStep = g.getNodeStep(nodeId);
-                                    if (nodeStep < prevstep) {
-                                        selection.push_back(nodeId);
-                                    } else {
-                                        break;
-                                    }
-                                }
-                            } else if (j == pivot && !isNegated) {
-                                for(auto &nodeId : nodes) {
-                                    auto nodeStep = g.getNodeStep(nodeId);
-                                    if (nodeStep == prevstep) {
-                                        selection.push_back(nodeId);
-                                    }
-                                }
-                            } else {
-                                selection = nodes;
-                            }
-                            if (selection.empty()) {
-                                acceptableNodesEmpty = true;
-                                break;
-                            }
-                            acceptableNodes.push_back(selection);
-                        }
-
-                        if (acceptableNodesEmpty) {
-                            continue;
-                        }
-
-                        LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
-                        newnodes.emplace_back();
-                        GBRuleInput &newnode = newnodes.back();
-                        newnode.ruleIdx = ruleIdx;
-                        newnode.step = step;
-                        newnode.incomingEdges = acceptableNodes;
-                    }
-                }
-            }
-
-            //Execute the rule associated to the node
-            auto nnodes = g.getNNodes();
-            auto nodesToProcess = newnodes.size();
-            LOG(INFOL) << "Nodes to process " << nodesToProcess;
-            for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
-                executeRule(newnodes[idxNode]);
-            }
-
-            if (nnodes != g.getNNodes()) {
-                auto derivedTuples = 0;
-                for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
-                    auto nrows = g.getNodeData(idx)->getNRows();
-                    derivedTuples += nrows;
-                }
-                LOG(INFOL) << "Derived Tuples: " << derivedTuples;
-            }
-        } while (nnodes != g.getNNodes());
+            size_t derivedTuples = executeRulesInStratum(rulesInStratum,
+                    currentStrat, stepStratum, step);
+        } while (g.getNNodes() == nnodes);
     }
 
     SegmentCache::getInstance().clear();
