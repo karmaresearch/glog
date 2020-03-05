@@ -1278,6 +1278,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
 std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
+#ifdef DEBUG
+    if (rule.getFrontierVariables().empty()) {
+        LOG(ERRORL) << "The system does not yet support the execution of rules"
+            " with empty frontier variables set";
+        throw 10;
+    }
+#endif
+
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
     //Maybe Rearrange the body atoms? Don't forget to also re-arrange the body

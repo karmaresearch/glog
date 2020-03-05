@@ -105,7 +105,7 @@ void GBChase::prepareRuleExecutionPlans(
                 } else if (j == pivot && !isNegated) {
                     for(auto &nodeId : nodes) {
                         auto nodeStep = g.getNodeStep(nodeId);
-                        if (nodeStep == prevstep) {
+                        if (nodeStep >= prevstep) {
                             selection.push_back(nodeId);
                         }
                     }
