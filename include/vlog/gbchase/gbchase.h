@@ -52,7 +52,7 @@ class GBChase : public Chase {
                 std::vector<std::pair<size_t,size_t>> &admissibleRules) const;
 
         void prepareRuleExecutionPlans(
-                const Rule &rule,
+                const size_t &ruleIdx,
                 const size_t prevstep,
                 const size_t step,
                 std::vector<GBRuleInput> &newnodes);

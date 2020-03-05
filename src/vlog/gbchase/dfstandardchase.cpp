@@ -30,8 +30,7 @@ size_t DFStandardChase::executeRulesInStratum(
         for(auto p : admissibleRules) {
             auto ruleIdx = p.first;
             size_t prevstep = p.second;
-            auto &rule = rules[ruleIdx];
-            prepareRuleExecutionPlans(rule, prevstep, step, newnodes);
+            prepareRuleExecutionPlans(ruleIdx, prevstep, step, newnodes);
         }
 
         //Execute the rules
@@ -62,10 +61,9 @@ size_t DFStandardChase::executeRulesInStratum(
                 startStep);
         const bool ruleIsAdmissible = response.first;
         if (ruleIsAdmissible) {
-            auto &rule = rules[ruleIdx];
             size_t prevstep = response.second;
             std::vector<GBRuleInput> newnodes;
-            prepareRuleExecutionPlans(rule, prevstep, step, newnodes);
+            prepareRuleExecutionPlans(ruleIdx, prevstep, step, newnodes);
 
             //Execute the rule associated to the node
             auto nnodes = g.getNNodes();
