@@ -1143,6 +1143,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                     terms3[currentRow].first = itr->get(0);
                     terms3[currentRow].second = counter;
                     terms3[currentRow].node = itr->getNodeId();
+                    break;
                 case 6:
                 case 7:
                     for(int i = 0; i < tuples->getNColumns(); ++i) {
@@ -1232,18 +1233,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
             }
         }
 
-        //Any other variables that is not a join variable must be copied
+        //We want to retain all variables
         std::vector<int> copyVarPosLeft;
         for(int j = 0; j < varTuples.size(); ++j) {
-            bool found = false;
-            for(auto &p : joinVarPos) {
-                if (p.first == j) {
-                    found = true;
-                    break;
-                }
-            }
-            if (!found)
-                copyVarPosLeft.push_back(j);
+            copyVarPosLeft.push_back(j);
         }
 
         if (g.areNodesWithPredicate(headAtom.getPredicate().getId())) {
