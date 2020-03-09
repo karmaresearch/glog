@@ -55,6 +55,19 @@ uint64_t *ChaseMgmt::Rows::getRow(size_t id) {
     return block_content.get() + offset * sizerow;
 }
 
+static bool checkValue(uint64_t target, uint64_t v, std::set<uint64_t> &toCheck) {
+    // LOG(TRACEL) << "checkValue: target = " << target << ", v = " << v;
+    if ((v & RULEVARMASK) == target) {
+        // LOG(TRACEL) << "TRUE";
+        return true;
+    }
+    if (v != 0) {
+        toCheck.insert(v);
+    }
+    // LOG(TRACEL) << "FALSE";
+    return false;
+}
+
 //************** END ROWS *************
 
 //************** RULE CONTAINER ***************
@@ -94,19 +107,6 @@ ChaseMgmt::ChaseMgmt(std::vector<RuleExecutionDetails> &rules,
                         typeChase));
         }
     }
-
-static bool checkValue(uint64_t target, uint64_t v, std::set<uint64_t> &toCheck) {
-    // LOG(TRACEL) << "checkValue: target = " << target << ", v = " << v;
-    if ((v & RULEVARMASK) == target) {
-        // LOG(TRACEL) << "TRUE";
-        return true;
-    }
-    if (v != 0) {
-        toCheck.insert(v);
-    }
-    // LOG(TRACEL) << "FALSE";
-    return false;
-}
 
 bool ChaseMgmt::Rows::checkRecursive(uint64_t target, uint64_t value, std::set<uint64_t> &toCheck) {
     if (typeChase == TypeChase::SUM_CHASE || typeChase == TypeChase::SUM_RESTRICTED_CHASE) {
@@ -233,4 +233,24 @@ std::shared_ptr<Column> ChaseMgmt::getNewOrExistingIDs(
 bool ChaseMgmt::checkCyclicTerms(uint32_t ruleid) {
     return cyclic;
 }
+
+uint64_t ChaseMgmt::countDepth(uint64_t id, uint64_t depth) {
+    if ((id & RULEVARMASK) != 0) {
+        auto &ruleContainer = rules[GET_RULE(id)];
+        uint8_t var = GET_VAR(id);
+        auto rows = ruleContainer->getRows(var);
+        uint64_t value = id & ~RULEVARMASK;
+        uint64_t *row = rows->getRow(value);
+        uint64_t depthChildren = 0;
+        for(uint64_t i = 0; i < rows->getSizeRow(); ++i) {
+            uint64_t depthChild = countDepth(row[i]);
+            if (depthChild > depthChildren) {
+                depthChildren = depthChild;
+            }
+        }
+        return 1 + depthChildren;
+    }
+    return depth;
+}
+
 //************** END CHASE MGMT ************

@@ -890,7 +890,7 @@ void ExistentialRuleProcessor::enhanceFunctionTerms(
                 //Get the arguments of the function term from the chase mgmt
                 auto *rows = ruleContainer->getRows(varID);
                 const uint64_t localCounter = COUNTER(term.getValue());
-                const uint64_t *values = rows->getRow(localCounter);
+                uint64_t *values = rows->getRow(localCounter);
                 const uint64_t nvalues = rows->getSizeRow();
                 //Map them to variables
                 const auto &nameVars = rows->getNameArgVars();
@@ -946,8 +946,15 @@ void ExistentialRuleProcessor::enhanceFunctionTerms(
                         if (term.isVariable()) {
                             uint8_t varID = term.getId();
                             if (!mappings.count(varID)) {
-                                LOG(ERRORL) << "There are existential variables not defined. Must implement their retrievals";
-                                throw 10;
+                                // Here, we must create a value for the existential variable, using the same row (I think ...)
+                                auto *vrows = ruleContainer->getRows(varID);
+                                uint64_t value;
+                                bool v = vrows->existingRow(values, value);
+                                assert(v);
+                                uint64_t rulevar = RULE_SHIFT(ruleID) + VAR_SHIFT(varID);
+                                mappings.insert(std::make_pair(varID, rulevar | value));
+                                // LOG(ERRORL) << "There are existential variables not defined. Must implement their retrievals";
+                                // throw 10;
                             }
                             t.set(VTerm(0, mappings[varID]), m);
                         } else {
@@ -1050,7 +1057,7 @@ bool ExistentialRuleProcessor::blocked_check(uint64_t *row,
     return found;
 }
 
-void ExistentialRuleProcessor::consolidate(const bool isFinished) {
+bool ExistentialRuleProcessor::consolidate(const bool isFinished) {
     if (replaceExtColumns && tmpRelation != NULL) {
         //Populate the allColumns vector with known columns and constants
         std::vector<std::shared_ptr<Column>> allColumns;
@@ -1058,7 +1065,7 @@ void ExistentialRuleProcessor::consolidate(const bool isFinished) {
         auto unfilterdSegment = tmpRelation->getSegment();
         uint64_t nrows = unfilterdSegment->getNRows();
         if (nrows == 0) {
-            return;
+            return false;
         }
         for(uint8_t i = 0; i < nKnownColumns; ++i) {
             allColumns[posKnownColumns[i]] = unfilterdSegment->getColumn(
@@ -1109,7 +1116,7 @@ void ExistentialRuleProcessor::consolidate(const bool isFinished) {
 
                 if (blockedCount == nrows) {
                     tmpRelation = std::unique_ptr<SegmentInserter>();
-                    return;
+                    return false;
                 }
                 for (size_t i = 0; i < nrows; i++) {
                     if (blocked[i]) {
@@ -1153,7 +1160,7 @@ void ExistentialRuleProcessor::consolidate(const bool isFinished) {
 
             if (filterRows.size() == nrows * nAtomsToCheck) {
                 tmpRelation = std::unique_ptr<SegmentInserter>();
-                return; //every substitution already exists in the database.
+                return false; //every substitution already exists in the database.
                 // Nothing new can be derived.
             }
             //Filter out only valid subs
@@ -1174,7 +1181,7 @@ void ExistentialRuleProcessor::consolidate(const bool isFinished) {
         }
 
         if (nrows == 0) {
-            return;
+            return false;
         }
 
         for(auto &el : posExtColumns) {
@@ -1214,5 +1221,5 @@ void ExistentialRuleProcessor::consolidate(const bool isFinished) {
         replaceExtColumns = false;
         tmpRelation = std::unique_ptr<SegmentInserter>();
     }
-    FinalRuleProcessor::consolidate(isFinished);
+    return FinalRuleProcessor::consolidate(isFinished);
 }
