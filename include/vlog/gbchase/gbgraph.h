@@ -66,7 +66,10 @@ class GBGraph {
         void addNode(PredId_t predid, size_t ruleIdx,
                 size_t step, std::shared_ptr<const TGSegment> data);
 
-        void replaceEqualTerms(std::shared_ptr<const TGSegment> data);
+        void replaceEqualTerms(
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data);
 
         size_t getNDerivedFacts() const {
             size_t nderived = 0;

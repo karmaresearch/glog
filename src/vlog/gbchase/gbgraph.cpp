@@ -1,7 +1,10 @@
 #include <vlog/gbchase/gbgraph.h>
 #include <vlog/gbchase/gbruleexecutor.h>
 
-void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step, std::shared_ptr<const TGSegment> data) {
+#include <vlog/support.h>
+
+void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
+        std::shared_ptr<const TGSegment> data) {
     auto nodeId = getNNodes();
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
@@ -9,6 +12,167 @@ void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step, std::shared_
     outputNode.step = step;
     outputNode.data = data;
     pred2Nodes[predid].push_back(nodeId);
+}
+
+void GBGraph::replaceEqualTerms(
+        size_t ruleIdx,
+        size_t step,
+        std::shared_ptr<const TGSegment> data) {
+    std::vector<std::pair<Term_t, Term_t>> termsToReplace;
+    //Fill termsToReplace
+    auto itr = data->iterator();
+    assert(data->getNColumns() == 2);
+    while (itr->hasNext()) {
+        itr->next();
+        auto v1 = itr->get(0);
+        auto v2 = itr->get(1);
+        if (v1 == v2)
+            continue;
+        if (v1 < v2)
+            termsToReplace.push_back(std::make_pair(v1, v2));
+        else
+            termsToReplace.push_back(std::make_pair(v2, v1));
+    }
+    if (termsToReplace.empty())
+        return;
+    std::sort(termsToReplace.begin(), termsToReplace.end());
+    auto it = std::unique (termsToReplace.begin(), termsToReplace.end());
+    termsToReplace.resize(std::distance(termsToReplace.begin(),it));
+
+    //Create a map with all the elements to substitute
+    FinalEGDTermMap map;
+    map.set_empty_key((Term_t) -1);
+    for(auto &pair : termsToReplace) {
+        uint64_t key = pair.first;
+        uint64_t value = pair.second;
+        if (key == value)
+            continue;
+        if (((key & RULEVARMASK) == 0) && ((value & RULEVARMASK) == 0)) {
+            LOG(ERRORL) << "Due to UNA, the chase does not exist (" <<
+                key << "," << value << ")";
+            throw 10;
+        }
+        assert(key < value);
+        if (!map.count(key)) {
+            map.insert(std::make_pair(key,value));
+        } else {
+            auto prevValue = map[key];
+            bool prevValueSmallerThanValue = prevValue < value;
+            if (!prevValueSmallerThanValue) {
+                map[key] = value;
+            }
+        }
+    }
+    while (true) {
+        bool replacedEntry = false;
+        for(auto &pair : map) {
+            if (map.count(pair.second)) {
+                //Replace the value with the current one
+                auto &v = map[pair.second];
+                pair.second = v;
+                replacedEntry = true;
+            }
+        }
+        if (!replacedEntry) {
+            break;
+        }
+    }
+
+    //Consider all the nodes one-by-one and do the replacement
+    assert(map.size() > 0);
+    for(auto pair : pred2Nodes) {
+        PredId_t predid = pair.first;
+        auto &nodeIDs = pair.second;
+        assert(!nodes.empty());
+        const auto card = getNodeData(nodeIDs[0])->getNColumns();
+        const auto nfields = trackProvenance ? card + 1 : card;
+        std::unique_ptr<SegmentInserter> rewrittenTuples = std::unique_ptr<
+            SegmentInserter>(new SegmentInserter(nfields));
+        std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
+                new Term_t[nfields]);
+        for(auto &nodeId : nodeIDs) {
+            auto data = getNodeData(nodeId);
+            size_t countUnaffectedTuples = 0;
+            std::unique_ptr<SegmentInserter> oldTuples;
+            auto itr = data->iterator();
+            while (itr->hasNext()) {
+                itr->next();
+                bool found = false;
+                for(int i = 0; i < card; ++i) {
+                    auto v = itr->get(i);
+                    if (map.count(v)) {
+                        found = true;
+                        row[i] = map[v];
+                    } else {
+                        row[i] = v;
+                    }
+                }
+                if (found) {
+                    if (trackProvenance) {
+                        row[card] = ~0ul;
+                    }
+                    rewrittenTuples->addRow(row.get());
+                    if (countUnaffectedTuples > 0 &&
+                            oldTuples.get() == NULL) {
+                        //Copy all previous tuples
+                        oldTuples = std::unique_ptr<SegmentInserter>(
+                                new SegmentInserter(nfields));
+                        auto itr2 = data->iterator();
+                        for(size_t i = 0; i < countUnaffectedTuples; ++i) {
+                            itr2->next();
+                            for(int i = 0; i < card; ++i) {
+                                row[i] = itr2->get(i);
+                            }
+                            if (trackProvenance) {
+                                row[card] = itr2->getNodeId();
+                            }
+                            oldTuples->addRow(row.get());
+                        }
+                    }
+                } else {
+                    if (oldTuples.get() != NULL) {
+                        if (trackProvenance) {
+                            row[card] = itr->getNodeId();
+                        }
+                        oldTuples->addRow(row.get());
+                    } else {
+                        countUnaffectedTuples++;
+                    }
+                }
+            }
+            if (oldTuples.get() != NULL) {
+                std::shared_ptr<const Segment> seg = oldTuples->getSegment();
+                auto tuples = GBRuleExecutor::fromSeg2TGSeg(
+                        seg , nodes[nodeId].step, true, 0, trackProvenance);
+                nodes[nodeId].data = tuples;
+            } else {
+                LOG(ERRORL) << "The case where all the tuples are replaced"
+                    " is not (yet) supported";
+                throw 10;
+            }
+        }
+        //Create a new node with the replaced tuples
+        if (rewrittenTuples->getNRows() > 0) {
+            std::shared_ptr<const Segment> seg = rewrittenTuples->getSegment();
+            auto tuples = GBRuleExecutor::fromSeg2TGSeg(
+                    seg, ~0ul, false, 0, trackProvenance);
+            tuples = tuples->sort()->unique();
+            //Retain
+            auto retainedTuples = retain(predid, tuples);
+            bool nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
+            if (nonempty) {
+                //Add new nodes
+                if (trackProvenance) {
+                    auto nodeId = getNNodes();
+                    auto dataToAdd = tuples->slice(nodeId, 0, tuples->getNRows());
+                    addNode(predid, ruleIdx, step, dataToAdd);
+                } else {
+                    //Add a single node
+                    addNode(predid, ruleIdx, step, retainedTuples);
+                }
+            }
+        }
+    }
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(

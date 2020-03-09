@@ -311,16 +311,17 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
                 if (rule.isEGD()) {
-                    g.replaceEqualTerms(retainedTuples);
-                }
-                //Add new nodes
-                if (trackProvenance) {
-                    createNewNodesWithProv(node.ruleIdx, node.step,
-                            retainedTuples, derivationNodes);
+                    g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
                 } else {
-                    //Add a single node
-                    g.addNode(currentPredicate, node.ruleIdx,
-                            node.step, retainedTuples);
+                    //Add new nodes
+                    if (trackProvenance) {
+                        createNewNodesWithProv(node.ruleIdx, node.step,
+                                retainedTuples, derivationNodes);
+                    } else {
+                        //Add a single node
+                        g.addNode(currentPredicate, node.ruleIdx,
+                                node.step, retainedTuples);
+                    }
                 }
             }
         }
