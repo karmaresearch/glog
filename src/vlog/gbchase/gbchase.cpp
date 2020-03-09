@@ -310,6 +310,10 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             }
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
+                if (rule.isEGD()) {
+                    g.replaceEqualTerms(retainedTuples);
+                }
+                //Add new nodes
                 if (trackProvenance) {
                     createNewNodesWithProv(node.ruleIdx, node.step,
                             retainedTuples, derivationNodes);
