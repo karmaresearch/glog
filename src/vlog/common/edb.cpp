@@ -23,6 +23,7 @@
 #include <vlog/embeddings/embtable.h>
 #include <vlog/embeddings/topktable.h>
 #include <vlog/text/elastictable.h>
+#include <vlog/text/stringtable.h>
 #include <vlog/incremental/edb-table-from-idb.h>
 #include <vlog/incremental/edb-table-importer.h>
 
@@ -154,6 +155,22 @@ void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf,
 void EDBLayer::addInmemoryTable(std::string predicate, std::vector<std::vector<std::string>> &rows) {
     PredId_t id = (PredId_t) predDictionary->getOrAdd(predicate);
     addInmemoryTable(predicate, id, rows);
+}
+
+void EDBLayer::addStringTable(const EDBConf::Table &tableConf) {
+    EDBInfoTable infot;
+    const std::string predicate = tableConf.predname;
+    infot.id = (PredId_t) predDictionary->getOrAdd(predicate);
+    if (doesPredExists(infot.id)) {
+        LOG(WARNL) << "Rewriting table for predicate " << predicate;
+        dbPredicates.erase(infot.id);
+    }
+    infot.type = "String";
+    StringTable *table = new StringTable(infot.id, this,
+            tableConf.params[0]);
+    infot.arity = table->getArity();
+    infot.manager = std::shared_ptr<EDBTable>(table);
+    dbPredicates.insert(make_pair(infot.id, infot));
 }
 
 void EDBLayer::addInmemoryTable(std::string predicate, PredId_t id, std::vector<std::vector<std::string>> &rows) {

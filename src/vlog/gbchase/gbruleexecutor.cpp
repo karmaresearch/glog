@@ -515,17 +515,18 @@ void GBRuleExecutor::nestedloopjoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        if (nodesLeft.size() > 0) {
-            SegmentCache &c = SegmentCache::getInstance();
-            if (!c.contains(nodesLeft, fields1)) {
-                inputLeft = inputLeft->sortBy(fields1);
-                c.insert(nodesLeft, fields1, inputLeft);
-            } else {
-                inputLeft = c.get(nodesLeft, fields1);
-            }
-        } else {
-            inputLeft = inputLeft->sortBy(fields1);
-        }
+        //Caching works only if there is at most one join variable...
+        /*if (nodesLeft.size() > 0) {
+          SegmentCache &c = SegmentCache::getInstance();
+          if (!c.contains(nodesLeft, fields1)) {
+          inputLeft = inputLeft->sortBy(fields1);
+          c.insert(nodesLeft, fields1, inputLeft);
+          } else {
+          inputLeft = c.get(nodesLeft, fields1);
+          }
+          } else {*/
+        inputLeft = inputLeft->sortBy(fields1);
+        /*}*/
     }
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
 
@@ -543,26 +544,9 @@ void GBRuleExecutor::nestedloopjoin(
         itrLeft->next();
         currentKey.clear();
         itrLeft->mark();
-        countLeft = 1;
         for (int i = 0; i < fields1.size(); i++) {
             currentKey.push_back(itrLeft->get(fields1[i]));
         }
-        while (itrLeft->hasNext()) {
-            itrLeft->next();
-            bool equal = true;
-            for (int i = 0; i < fields1.size(); i++) {
-                auto k = itrLeft->get(fields1[i]);
-                if (k != currentKey[i]) {
-                    equal = false;
-                    break;
-                }
-            }
-            if (!equal) {
-                break;
-            }
-            countLeft++;
-        }
-
         //Do a lookup on the right-side
         for (int i = 0; i < fields2.size(); i++) {
             t.set(VTerm(0,currentKey[i]),fields2[i]);
@@ -570,32 +554,51 @@ void GBRuleExecutor::nestedloopjoin(
         Literal l(literalRight.getPredicate(), t);
         auto segRight = processFirstAtom_EDB(l, positions);
         auto itrRight = segRight->iterator();
-        while (itrRight->hasNext()) {
-            itrRight->next();
-
-            size_t i = 0;
-            itrLeft->reset();
-            while (i < countLeft) {
-                //Materialize the join
-                for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
-                    auto leftPos = copyVarPosLeft[idx];
-                    auto el = itrLeft->get(leftPos);
-                    currentrow[idx] = el;
+        if (itrRight->hasNext()) {
+            countLeft = 1; //First determine how many rows in the left side
+            //share the same key
+            while (itrLeft->hasNext()) {
+                itrLeft->next();
+                bool equal = true;
+                for (int i = 0; i < fields1.size(); i++) {
+                    auto k = itrLeft->get(fields1[i]);
+                    if (k != currentKey[i]) {
+                        equal = false;
+                        break;
+                    }
                 }
-                for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
-                    auto rightPos = copyVarPosRight[idx];
-                    auto value = itrRight->get(rightPos);
-                    currentrow[copyVarPosLeft.size() + idx] = value;
+                if (!equal) {
+                    break;
                 }
-                if (trackProvenance) {
-                    currentrow[sizerow] = itrLeft->getNodeId();
-                    currentrow[sizerow + 1] = itrRight->getNodeId();
-                }
-                output->addRow(currentrow);
-                if (i < (countLeft - 1))
-                    itrLeft->next();
-                i++;
+                countLeft++;
             }
+            while (itrRight->hasNext()) {
+                itrRight->next();
+                size_t i = 0;
+                itrLeft->reset();
+                while (i < countLeft) {
+                    //Materialize the join
+                    for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+                        auto leftPos = copyVarPosLeft[idx];
+                        auto el = itrLeft->get(leftPos);
+                        currentrow[idx] = el;
+                    }
+                    for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
+                        auto rightPos = copyVarPosRight[idx];
+                        auto value = itrRight->get(rightPos);
+                        currentrow[copyVarPosLeft.size() + idx] = value;
+                    }
+                    if (trackProvenance) {
+                        currentrow[sizerow] = itrLeft->getNodeId();
+                        currentrow[sizerow + 1] = itrRight->getNodeId();
+                    }
+                    output->addRow(currentrow);
+                    if (i < (countLeft - 1))
+                        itrLeft->next();
+                    i++;
+                }
+            }
+
         }
     }
 }
@@ -1119,7 +1122,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             if (!equalPrev) {
                 counter++;
                 for(int j = 0; j < depVarPos.size(); ++j) {
-                const auto varPos = depVarPos[j];
+                    const auto varPos = depVarPos[j];
                     prevTerms[j] = itr->get(varPos);
                 }
             }
