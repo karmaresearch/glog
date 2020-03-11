@@ -22,6 +22,7 @@ class EDBConf {
     protected:
         std::vector<Table> tables;
         std::string rootPath;
+        std::string confPath;
 
         void parse(std::string f);
 
@@ -33,6 +34,8 @@ class EDBConf {
         void setRootPath(std::string path);
 
         std::string getRootPath() const;
+
+        std::string getConfigFilePath() const;
 
         const std::vector<Table> &getTables() const {
             return tables;

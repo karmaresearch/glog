@@ -53,13 +53,13 @@ void GBGraph::replaceEqualTerms(
             throw 10;
         }
         assert(key < value);
-        if (!map.count(key)) {
-            map.insert(std::make_pair(key,value));
+        if (!map.count(value)) {
+            map.insert(std::make_pair(value, key));
         } else {
-            auto prevValue = map[key];
-            bool prevValueSmallerThanValue = prevValue < value;
-            if (!prevValueSmallerThanValue) {
-                map[key] = value;
+            auto prevKey = map[value];
+            bool prevKeySmallerThanKey = prevKey < key;
+            if (!prevKeySmallerThanKey) {
+                map[value] = key;
             }
         }
     }
@@ -92,6 +92,7 @@ void GBGraph::replaceEqualTerms(
                 new Term_t[nfields]);
         for(auto &nodeId : nodeIDs) {
             auto data = getNodeData(nodeId);
+            size_t countAffectedTuples = 0;
             size_t countUnaffectedTuples = 0;
             std::unique_ptr<SegmentInserter> oldTuples;
             auto itr = data->iterator();
@@ -112,6 +113,7 @@ void GBGraph::replaceEqualTerms(
                         row[card] = ~0ul;
                     }
                     rewrittenTuples->addRow(row.get());
+                    countAffectedTuples++;
                     if (countUnaffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
                         //Copy all previous tuples
@@ -130,14 +132,18 @@ void GBGraph::replaceEqualTerms(
                         }
                     }
                 } else {
-                    if (oldTuples.get() != NULL) {
-                        if (trackProvenance) {
-                            row[card] = itr->getNodeId();
-                        }
-                        oldTuples->addRow(row.get());
-                    } else {
-                        countUnaffectedTuples++;
+                    if (trackProvenance) {
+                        row[card] = itr->getNodeId();
                     }
+                    if (countAffectedTuples > 0 &&
+                            oldTuples.get() == NULL) {
+                        oldTuples = std::unique_ptr<SegmentInserter>(
+                                new SegmentInserter(nfields));
+                    }
+                    if (oldTuples.get() != NULL) {
+                        oldTuples->addRow(row.get());
+                    }
+                    countUnaffectedTuples++;
                 }
             }
             if (oldTuples.get() != NULL) {
@@ -146,13 +152,21 @@ void GBGraph::replaceEqualTerms(
                         seg , nodes[nodeId].step, true, 0, trackProvenance);
                 nodes[nodeId].data = tuples;
             } else {
-                LOG(ERRORL) << "The case where all the tuples are replaced"
-                    " is not (yet) supported";
-                throw 10;
+                if (rewrittenTuples->getNRows() == data->getNRows()) {
+                    LOG(ERRORL) << "The case where all the tuples are replaced"
+                        " is not (yet) supported";
+                    throw 10;
+                } else {
+                    assert(countUnaffectedTuples == data->getNRows());
+                }
             }
         }
         //Create a new node with the replaced tuples
         if (rewrittenTuples->getNRows() > 0) {
+            //Invalidate the cache?
+            if (cacheRetainEnabled && cacheRetain.count(predid)) {
+                cacheRetain.erase(cacheRetain.find(predid));
+            }
             std::shared_ptr<const Segment> seg = rewrittenTuples->getSegment();
             auto tuples = GBRuleExecutor::fromSeg2TGSeg(
                     seg, ~0ul, false, 0, trackProvenance);

@@ -116,15 +116,21 @@ void EDBLayer::addMDLiteTable(const EDBConf::Table &tableConf) {
 }
 #endif
 
-void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf) {
+void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf,
+        std::string edbconfpath) {
     EDBInfoTable infot;
     const std::string pn = tableConf.predname;
     infot.id = (PredId_t) predDictionary->getOrAdd(pn);
     infot.type = tableConf.type;
     string repository = tableConf.params[0];
-    if (repository.size() > 0 && repository[0] != '/') {
-        //Relative path. Add the root path
-        repository = rootPath + "/" + repository;
+    if (repository.size() > 0 && !Utils::isAbsolutePath(repository)) {
+        //Relative path. Try to see first if there is a file if I append the rootPath
+        std::string absrepository = Utils::join(rootPath, repository);
+        if (!Utils::isDirectory(absrepository)) {
+            absrepository = Utils::join(Utils::parentDir(edbconfpath),
+                    repository);
+        }
+        repository = absrepository;
     }
     InmemoryTable *table;
     if (tableConf.params.size() == 2) {

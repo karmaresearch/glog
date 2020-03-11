@@ -170,7 +170,8 @@ class EDBLayer {
 #ifdef MDLITE
         void addMDLiteTable(const EDBConf::Table &tableConf);
 #endif
-        VLIBEXP void addInmemoryTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addInmemoryTable(const EDBConf::Table &tableConf,
+                std::string edbconfpath);
         VLIBEXP void addSparqlTable(const EDBConf::Table &tableConf);
 
         VLIBEXP void addEDBonIDBTable(const EDBConf::Table &tableConf);
@@ -197,6 +198,7 @@ class EDBLayer {
 
                 const std::vector<EDBConf::Table> tables = conf.getTables();
                 rootPath = conf.getRootPath();
+                std::string edbconfpath = conf.getConfigFilePath();
 
                 predDictionary = std::shared_ptr<Dictionary>(new Dictionary());
 
@@ -223,8 +225,8 @@ class EDBLayer {
                     } else if (table.type == "MDLITE") {
                         addMDLiteTable(table);
 #endif
-                    } else if (table.type == "INMEMORY") {
-                        addInmemoryTable(table);
+                    } else if (table.type == "CSV") {
+                        addInmemoryTable(table, edbconfpath);
 #ifdef SPARQL
                     } else if (table.type == "SPARQL") {
                         addSparqlTable(table);

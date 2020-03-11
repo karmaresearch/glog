@@ -20,6 +20,9 @@ EDBConf::EDBConf(std::string rawcontent, bool isFile) {
         while (std::getline(file, line)) {
             rawcontent += line + "\n";
         }
+        confPath = rawcontent;
+    } else {
+        confPath = "";
     }
     parse(rawcontent);
 }
@@ -35,6 +38,10 @@ void EDBConf::setRootPath(std::string path) {
 
 std::string EDBConf::getRootPath() const {
     return rootPath;
+}
+
+std::string EDBConf::getConfigFilePath() const {
+    return confPath;
 }
 
 void EDBConf::parse(std::string f) {
