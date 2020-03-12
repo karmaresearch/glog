@@ -21,6 +21,11 @@ bool StringTableUnary::execFunction(const uint64_t t1) {
         return std::equal(param.rbegin(), param.rend(), s.rbegin());
     }
 
+    if (fname == "isLiteral") {
+        auto s = std::string(buffer1.get());
+        return s.size() > 1 && s[0] == '\"' && s[1] == '\"';
+    }
+
     LOG(ERRORL) << "(StringTableUnary) Function " << fname << " is unknown";
     throw 10;
 }
