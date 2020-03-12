@@ -2,6 +2,8 @@
 
 #include <vlog/edb.h>
 
+#include <cstring>
+
 StringTableBinary::StringTableBinary(PredId_t predid,
         EDBLayer *layer,
         std::string fname) : StringTable(predid, layer, fname) {
