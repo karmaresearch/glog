@@ -19,6 +19,12 @@ class StringIterator : public EDBIterator {
             predid(predid), t1(t1), t2(t2), found(found), processed(false) {
             }
 
+        StringIterator(PredId_t predid, uint64_t t1,
+                bool found) :
+            predid(predid), t1(t1), found(found), processed(false) {
+            }
+
+
         bool hasNext() {
             return found && !processed;
         }

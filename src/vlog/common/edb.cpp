@@ -24,6 +24,8 @@
 #include <vlog/embeddings/topktable.h>
 #include <vlog/text/elastictable.h>
 #include <vlog/text/stringtable.h>
+#include <vlog/text/stringtable_binary.h>
+#include <vlog/text/stringtable_unary.h>
 #include <vlog/incremental/edb-table-from-idb.h>
 #include <vlog/incremental/edb-table-importer.h>
 
@@ -157,7 +159,7 @@ void EDBLayer::addInmemoryTable(std::string predicate, std::vector<std::vector<s
     addInmemoryTable(predicate, id, rows);
 }
 
-void EDBLayer::addStringTable(const EDBConf::Table &tableConf) {
+void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {
     EDBInfoTable infot;
     const std::string predicate = tableConf.predname;
     infot.id = (PredId_t) predDictionary->getOrAdd(predicate);
@@ -165,9 +167,16 @@ void EDBLayer::addStringTable(const EDBConf::Table &tableConf) {
         LOG(WARNL) << "Rewriting table for predicate " << predicate;
         dbPredicates.erase(infot.id);
     }
-    infot.type = "String";
-    StringTable *table = new StringTable(infot.id, this,
-            tableConf.params[0]);
+    StringTable *table;
+    if (isUnary) {
+        infot.type = "StringUnary";
+        table = new StringTableUnary(infot.id, this,
+                tableConf.params[0], tableConf.params[1]);
+    } else {
+        infot.type = "StringBinary";
+        table = new StringTableBinary(infot.id, this,
+                tableConf.params[0]);
+    }
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));

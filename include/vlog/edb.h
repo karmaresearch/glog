@@ -158,7 +158,7 @@ class EDBLayer {
 
         void addElasticTable(const EDBConf::Table &tableConf);
 
-        void addStringTable(const EDBConf::Table &tableConf);
+        void addStringTable(bool isUnary, const EDBConf::Table &tableConf);
 
 #ifdef MYSQL
         void addMySQLTable(const EDBConf::Table &tableConf);
@@ -243,8 +243,10 @@ class EDBLayer {
                         addTopKTable(table);
                     } else if (table.type == "Elastic") {
                         addElasticTable(table);
-                    } else if (table.type == "String") {
-                        addStringTable(table);
+                    } else if (table.type == "StringBinary") {
+                        addStringTable(false, table);
+                    } else if (table.type == "StringUnary") {
+                        addStringTable(true, table);
                     } else {
                         LOG(ERRORL) << "Type of table is not supported";
                         throw 10;

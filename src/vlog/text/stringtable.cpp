@@ -4,8 +4,6 @@
 StringTable::StringTable(PredId_t predid,
         EDBLayer *layer,
         std::string fname) : predid(predid), layer(layer), fname(fname) {
-    buffer1 = std::unique_ptr<char[]>(new char[MAX_TERM_SIZE]);
-    buffer2 = std::unique_ptr<char[]>(new char[MAX_TERM_SIZE]);
 }
 
 void StringTable::query(QSQQuery *query, TupleTable *outputTable,
@@ -15,33 +13,27 @@ void StringTable::query(QSQQuery *query, TupleTable *outputTable,
     throw 10;
 }
 
-bool StringTable::execFunction(uint64_t t1, const uint64_t t2) {
-    bool found1 = layer->getDictText(t1, buffer1.get());
-    bool found2 = layer->getDictText(t2, buffer2.get());
-    if (!found1 || !found2) {
-        return false;
-    }
-
-    if (fname == "containedIn") {
-        auto resp = std::string(buffer2.get()).find(std::string(buffer1.get()));
-        return resp != std::string::npos;
-    } else if (fname == "equal") {
-        return strcmp(buffer1.get(), buffer2.get()) == 0;
-    }
-
-    LOG(ERRORL) << "Function " << fname << " is unknown";
-    throw 10;
-}
-
 size_t StringTable::getCardinality(const Literal &query) {
-    auto t1 = query.getTermAtPos(0);
-    auto t2 = query.getTermAtPos(1);
-    if (!t1.isVariable() && !t2.isVariable()) {
-        bool found = execFunction(t1.getValue(), t2.getValue());
-        if (found)
-            return 1;
-        else
-            return 0;
+    if (getArity() == 1) {
+        auto t1 = query.getTermAtPos(0);
+        if (!t1.isVariable()) {
+            bool found = execFunction(t1.getValue());
+            if (found)
+                return 1;
+            else
+                return 0;
+        }
+    } else {
+        assert(getArity() == 2);
+        auto t1 = query.getTermAtPos(0);
+        auto t2 = query.getTermAtPos(1);
+        if (!t1.isVariable() && !t2.isVariable()) {
+            bool found = execFunction(t1.getValue(), t2.getValue());
+            if (found)
+                return 1;
+            else
+                return 0;
+        }
     }
     return 0;
 }
@@ -52,9 +44,12 @@ size_t StringTable::getCardinalityColumn(const Literal &query,
 }
 
 bool StringTable::isQueryAllowed(const Literal &query) {
-    auto t1 = query.getTermAtPos(0);
-    auto t2 = query.getTermAtPos(1);
-    return !t1.isVariable() && !t2.isVariable();
+    for(int i = 0; i < getArity(); ++i) {
+        auto t = query.getTermAtPos(i);
+        if (t.isVariable())
+            return false;
+    }
+    return true;
 }
 
 size_t StringTable::estimateCardinality(const Literal &query) {
@@ -73,10 +68,18 @@ EDBIterator *StringTable::getIterator(const Literal &query) {
         LOG(ERRORL) << "Not possible to obtain iterator for input query";
         throw 10;
     }
-    auto t1 = query.getTermAtPos(0);
-    auto t2 = query.getTermAtPos(1);
-    bool found = execFunction(t1.getValue(), t2.getValue());
-    return new StringIterator(predid, t1.getValue(), t1.getValue(), found);
+
+    if (getArity() == 1) {
+        auto t1 = query.getTermAtPos(0);
+        bool found = execFunction(t1.getValue());
+        return new StringIterator(predid, t1.getValue(), found);
+    } else {
+        assert(getArity() == 2);
+        auto t1 = query.getTermAtPos(0);
+        auto t2 = query.getTermAtPos(1);
+        bool found = execFunction(t1.getValue(), t2.getValue());
+        return new StringIterator(predid, t1.getValue(), t2.getValue(), found);
+    }
 }
 
 EDBIterator *StringTable::getSortedIterator(const Literal &query,

@@ -7,23 +7,25 @@
 #include <vector>
 
 class StringTable: public EDBTable {
-    private:
+    protected:
         const PredId_t predid;
         EDBLayer *layer;
         const std::string fname;
-        std::unique_ptr<char[]> buffer1;
-        std::unique_ptr<char[]> buffer2;
 
-        bool execFunction(uint64_t t1, const uint64_t t2);
+        virtual bool execFunction(const uint64_t t1, const uint64_t t2) {
+            return false;
+        }
+
+        virtual bool execFunction(const uint64_t t1) {
+            return false;
+        }
 
     public:
         StringTable(PredId_t predid,
                 EDBLayer *layer,
                 std::string fname);
 
-        uint8_t getArity() const {
-            return 2;
-        }
+        virtual uint8_t getArity() const = 0;
 
         bool areTermsEncoded() {
             return true;
@@ -62,7 +64,7 @@ class StringTable: public EDBTable {
 
         uint64_t getSize();
 
-        ~StringTable();
+        virtual ~StringTable();
 };
 
 #endif
