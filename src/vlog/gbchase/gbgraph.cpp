@@ -506,7 +506,6 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     }
 }
 
-
 uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) {
     uint64_t removedTuples = 0;
 
@@ -517,6 +516,7 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
     std::vector<int> copyVarPos;
     for(size_t i = 0; i < card; ++i)
         copyVarPos.push_back(i);
+    std::sort(nodeIDs.begin(), nodeIDs.end());
     auto tuples = mergeNodes(nodeIDs, copyVarPos);
     tuples = tuples->sort();
     tuples = tuples->unique();
@@ -525,7 +525,20 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
 
     //Replace the content of the nodes
     tuples = tuples->sortByProv();
-    //TODO
+    auto itr = tuples->getIterator();
+    size_t begin = 0;
+    size_t end = 0;
+    size_t prevNode = ~0ul;
+    while (itr->hasNext()) {
+        if (itr->getNodeId() != prevNode) {
+            if (begin < end) {
+            }
+            prevNode = itr->getNodeId();
+        }
+        end++;
+    }
+    if (begin < end) {
+    }
 
     return removedTuples;
 }

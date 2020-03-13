@@ -243,7 +243,6 @@ size_t TGSegmentLegacy::getNodeId() const {
     }
 }
 
-
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv() const {
     if (!trackProvenance) {
         LOG(ERRORL) << "This method should not be called if the segment"
