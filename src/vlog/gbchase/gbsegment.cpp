@@ -242,3 +242,25 @@ size_t TGSegmentLegacy::getNodeId() const {
         return ~0ul;
     }
 }
+
+
+std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv() const {
+    if (!trackProvenance) {
+        LOG(ERRORL) << "This method should not be called if the segment"
+            " does not support the provenance";
+        throw 10;
+    }
+    auto nfields = columns.size();
+    auto oldcols(columns);
+    Segment s(nfields, oldcols);
+    std::vector<uint8_t> fields;
+    fields.push_back(nfields - 1);
+    auto snew = s.sortBy(&fields);
+    std::vector<std::shared_ptr<Column>> newColumns;
+    for(int i = 0; i < nfields; ++i) {
+        newColumns.push_back(snew->getColumn(i));
+    }
+    return std::shared_ptr<TGSegment>(
+            new TGSegmentLegacy(newColumns, s.getNRows(), false, fields[0],
+                trackProvenance));
+}

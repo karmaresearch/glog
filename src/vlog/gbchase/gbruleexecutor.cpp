@@ -383,118 +383,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
 }
 
-std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_IDB(
-        std::shared_ptr<const TGSegment> &input,
-        std::vector<int> &copyVarPos,
-        size_t nodeId) {
-    auto ncols = copyVarPos.size(); //ncol=arity of the relation
-    bool project = ncols < input->getNColumns();
-    if (copyVarPos.size() == 1) {
-        if (project) {
-            std::vector<Term_t> tuples;
-            input->appendTo(copyVarPos[0], tuples);
-            std::sort(tuples.begin(), tuples.end());
-            auto itr = std::unique(tuples.begin(), tuples.end());
-            tuples.erase(itr, tuples.end());
-            if (trackProvenance) {
-                return std::shared_ptr<const TGSegment>(new UnaryWithConstProvTGSegment(tuples, nodeId, true, 0));
-            } else {
-                return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, nodeId, true, 0));
-            }
-        } else {
-            return input; //Can be reused
-        }
-    } else if (copyVarPos.size() == 2) {
-        if (copyVarPos[0] == 0 && copyVarPos[1] == 1) {
-            return input; //Can be reused
-        } else {
-            //Swapped relation
-            std::vector<std::pair<Term_t, Term_t>> tuples;
-            input->appendTo(1, 0, tuples);
-            if (trackProvenance) {
-                return std::shared_ptr<const TGSegment>(new BinaryWithConstProvTGSegment(tuples, nodeId, false, 0));
-            } else {
-                return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, nodeId, false, 0));
-            }
-        }
-    } else {
-        LOG(ERRORL) << "Not implemented";
-        throw 10;
-    }
-}
-
-std::shared_ptr<const TGSegment> GBRuleExecutor::mergeNodes(
-        const std::vector<size_t> &nodeIdxs,
-        std::vector<int> &copyVarPos) {
-    if (nodeIdxs.size() == 1) {
-        size_t idbBodyAtomIdx = nodeIdxs[0];
-        auto data  = g.getNodeData(idbBodyAtomIdx);
-        return processFirstAtom_IDB(data, copyVarPos, idbBodyAtomIdx);
-    } else {
-        auto ncols = copyVarPos.size(); //ncol=arity of the relation
-        bool shouldSortAndUnique = ncols < g.getNodeData(nodeIdxs[0])->getNColumns() || copyVarPos[0] != 0;
-        if (ncols == 1) { //If it has only one column ...
-            if (trackProvenance) {
-                std::vector<std::pair<Term_t,Term_t>> tuples;
-                for(auto idbBodyAtomIdx : nodeIdxs) {
-                    g.getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
-                }
-                if (shouldSortAndUnique) {
-                    std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
-                } else {
-                    return std::shared_ptr<const TGSegment>(new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
-                }
-            } else {
-                std::vector<Term_t> tuples;
-                for(auto idbBodyAtomIdx : nodeIdxs)
-                    g.getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
-                if (shouldSortAndUnique) {
-                    std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, true, 0));
-                } else {
-                    return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, false, 0));
-                }
-            }
-        } else if (ncols == 2) { //If it has only two columns ...
-            if (trackProvenance) {
-                std::vector<BinWithProv> tuples;
-                for(auto idbBodyAtomIdx : nodeIdxs) {
-                    g.getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], copyVarPos[1], tuples);
-                }
-                if (shouldSortAndUnique) {
-                    std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
-                } else {
-                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
-                }
-            } else {
-                std::vector<std::pair<Term_t,Term_t>> tuples;
-                for(auto idbBodyAtomIdx : nodeIdxs) {
-                    g.getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], copyVarPos[1], tuples);
-                }
-                if (shouldSortAndUnique) {
-                    std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, true, 0));
-                } else {
-                    return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, false, 0));
-                }
-            }
-        } else {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
-        }
-    }
-}
-
 void GBRuleExecutor::nestedloopjoin(
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
@@ -904,7 +792,7 @@ void GBRuleExecutor::join(
         std::vector<int> projectedPos;
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
-        inputRight = mergeNodes(nodesRight, projectedPos);
+        inputRight = g.mergeNodes(nodesRight, projectedPos);
     } else {
         //It must be an EDB literal because only these do not have nodes
         assert(literalRight.getPredicate().getType() == EDB);
@@ -1245,7 +1133,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
         if (g.areNodesWithPredicate(headAtom.getPredicate().getId())) {
             const auto &nodesRight = g.getNodeIDsWithPredicate(
                     headAtom.getPredicate().getId());
-            std::shared_ptr<const TGSegment> inputRight = mergeNodes(nodesRight,
+            std::shared_ptr<const TGSegment> inputRight = g.mergeNodes(nodesRight,
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
@@ -1321,7 +1209,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
                         copyVarPosRight);
             } else {
                 firstBodyAtomIsIDB = true;
-                intermediateResults = mergeNodes(
+                intermediateResults = g.mergeNodes(
                         bodyNodes[currentBodyNode], copyVarPosRight);
                 currentBodyNode++;
             }

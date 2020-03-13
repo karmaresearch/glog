@@ -69,7 +69,7 @@ class GBChase : public Chase {
         VLIBEXP GBChase(EDBLayer &layer, Program *program,
                 bool useCacheRetain = true);
 
-        VLIBEXP void run();
+        VLIBEXP virtual void run();
 
         Program *getProgram();
 

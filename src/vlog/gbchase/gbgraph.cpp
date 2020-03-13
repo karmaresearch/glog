@@ -8,6 +8,7 @@ void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
     auto nodeId = getNNodes();
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
+    outputNode.predid = predid;
     outputNode.ruleIdx = ruleIdx;
     outputNode.step = step;
     outputNode.data = data;
@@ -283,7 +284,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
             }
             inserter->addRow(row);
         }
-        return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0, true, 0, trackProvenance); //TODO
+        return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
+                true, 0, trackProvenance); //TODO
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -306,7 +308,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                     }
                     i++;
                 }
-                return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0, true, 0, trackProvenance); //TODO
+                return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
+                        true, 0, trackProvenance); //TODO
             }
         } else {
             //They are all duplicates
@@ -340,7 +343,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                     getNodeData(nodeIdxs[i])->appendTo(0, tuples);
                 }
                 std::sort(tuples.begin(), tuples.end());
-                auto seg = std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, true, 0));
+                auto seg = std::shared_ptr<const TGSegment>(
+                        new UnaryTGSegment(tuples, ~0ul, true, 0));
                 CacheRetainEntry entry;
                 entry.nnodes = nodeIdxs.size();
                 entry.seg = seg;
@@ -354,7 +358,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                     getNodeData(nodeIdxs[i])->appendTo(0, 1, tuples);
                 }
                 std::sort(tuples.begin(), tuples.end());
-                auto seg = std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, true, 0));
+                auto seg = std::shared_ptr<const TGSegment>(
+                        new BinaryTGSegment(tuples, ~0ul, true, 0));
                 CacheRetainEntry entry;
                 entry.nnodes = nodeIdxs.size();
                 entry.seg = seg;
@@ -388,4 +393,139 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
     auto dur = end - start;
     durationRetain += dur;
     return newtuples;
+}
+
+std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
+        const std::vector<size_t> &nodeIdxs,
+        std::vector<int> &copyVarPos) const {
+    if (nodeIdxs.size() == 1) {
+        size_t idbBodyAtomIdx = nodeIdxs[0];
+        auto data  = getNodeData(idbBodyAtomIdx);
+        //return processFirstAtom_IDB(data, copyVarPos, idbBodyAtomIdx);
+
+        auto ncols = copyVarPos.size(); //ncol=arity of the relation
+        bool project = ncols < data->getNColumns();
+        if (copyVarPos.size() == 1) {
+            if (project) {
+                std::vector<Term_t> tuples;
+                data->appendTo(copyVarPos[0], tuples);
+                std::sort(tuples.begin(), tuples.end());
+                auto itr = std::unique(tuples.begin(), tuples.end());
+                tuples.erase(itr, tuples.end());
+                if (trackProvenance) {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithConstProvTGSegment(tuples, idbBodyAtomIdx, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryTGSegment(tuples, idbBodyAtomIdx, true, 0));
+                }
+            } else {
+                return data; //Can be reused
+            }
+        } else if (copyVarPos.size() == 2) {
+            if (copyVarPos[0] == 0 && copyVarPos[1] == 1) {
+                return data; //Can be reused
+            } else {
+                //Swapped relation
+                std::vector<std::pair<Term_t, Term_t>> tuples;
+                data->appendTo(1, 0, tuples);
+                if (trackProvenance) {
+                    return std::shared_ptr<const TGSegment>(
+                            new BinaryWithConstProvTGSegment(tuples, idbBodyAtomIdx, false, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new BinaryTGSegment(tuples, idbBodyAtomIdx, false, 0));
+                }
+            }
+        } else {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+    } else {
+        auto ncols = copyVarPos.size(); //ncol=arity of the relation
+        bool shouldSortAndUnique = ncols < getNodeData(nodeIdxs[0])->getNColumns() || copyVarPos[0] != 0;
+        if (ncols == 1) { //If it has only one column ...
+            if (trackProvenance) {
+                std::vector<std::pair<Term_t,Term_t>> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
+                }
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                    return std::shared_ptr<const TGSegment>(new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                }
+            } else {
+                std::vector<Term_t> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs)
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                    return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(new UnaryTGSegment(tuples, ~0ul, false, 0));
+                }
+            }
+        } else if (ncols == 2) { //If it has only two columns ...
+            if (trackProvenance) {
+                std::vector<BinWithProv> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], copyVarPos[1], tuples);
+                }
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                }
+            } else {
+                std::vector<std::pair<Term_t,Term_t>> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], copyVarPos[1], tuples);
+                }
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                    return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(new BinaryTGSegment(tuples, ~0ul, false, 0));
+                }
+            }
+        } else {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+    }
+}
+
+
+uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) {
+    uint64_t removedTuples = 0;
+
+    //Merge the tuples into a single segment
+    assert(nodeIDs.size() > 0);
+    auto data = getNodeData(nodeIDs[0]);
+    auto card = data->getNColumns();
+    std::vector<int> copyVarPos;
+    for(size_t i = 0; i < card; ++i)
+        copyVarPos.push_back(i);
+    auto tuples = mergeNodes(nodeIDs, copyVarPos);
+    tuples = tuples->sort();
+    tuples = tuples->unique();
+
+    //TODO: Retain only the new tuples
+
+    //Replace the content of the nodes
+    tuples = tuples->sortByProv();
+    //TODO
+
+    return removedTuples;
 }

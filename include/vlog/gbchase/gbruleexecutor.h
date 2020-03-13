@@ -66,15 +66,6 @@ class GBRuleExecutor {
                 const Literal &atom,
                 std::vector<int> &copyVarPos);
 
-        std::shared_ptr<const TGSegment> processFirstAtom_IDB(
-                std::shared_ptr<const TGSegment> &input,
-                std::vector<int> &copyVarPos,
-                size_t nodeId);
-
-        std::shared_ptr<const TGSegment> mergeNodes(
-                const std::vector<size_t> &nodeIdxs,
-                std::vector<int> &copyVarPos);
-
         void mergejoin(
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,

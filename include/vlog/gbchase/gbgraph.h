@@ -11,6 +11,7 @@
 class GBGraph {
     private:
         struct GBGraph_Node {
+            PredId_t predid;
             size_t ruleIdx;
             size_t step;
             std::vector<size_t> incomingEdges;
@@ -55,6 +56,10 @@ class GBGraph {
             return nodes[nodeId].data;
         }
 
+        PredId_t getNodePredicate(size_t nodeId) const {
+            return nodes[nodeId].predid;
+        }
+
         bool areNodesWithPredicate(PredId_t predid) const {
             return pred2Nodes.count(predid);
         }
@@ -62,6 +67,10 @@ class GBGraph {
         const std::vector<size_t> &getNodeIDsWithPredicate(PredId_t predid) const {
             return pred2Nodes.at(predid);
         }
+
+        std::shared_ptr<const TGSegment> mergeNodes(
+                const std::vector<size_t> &nodeIdxs,
+                std::vector<int> &copyVarPos) const;
 
         void addNode(PredId_t predid, size_t ruleIdx,
                 size_t step, std::shared_ptr<const TGSegment> data);
@@ -90,6 +99,9 @@ class GBGraph {
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
                 std::shared_ptr<const TGSegment> newtuples);
+
+        //Returns the number of tuples that have been removed
+        uint64_t removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
