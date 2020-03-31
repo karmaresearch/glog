@@ -507,17 +507,19 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
 }
 
 uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) {
+    std::vector<size_t> sortedNodeIDs = nodeIDs;
+    std::sort(sortedNodeIDs.begin(), sortedNodeIDs.end());
+
     uint64_t removedTuples = 0;
 
     //Merge the tuples into a single segment
     assert(nodeIDs.size() > 0);
-    auto data = getNodeData(nodeIDs[0]);
+    auto data = getNodeData(sortedNodeIDs[0]);
     auto card = data->getNColumns();
     std::vector<int> copyVarPos;
     for(size_t i = 0; i < card; ++i)
         copyVarPos.push_back(i);
-    std::sort(nodeIDs.begin(), nodeIDs.end());
-    auto tuples = mergeNodes(nodeIDs, copyVarPos);
+    auto tuples = mergeNodes(sortedNodeIDs, copyVarPos);
     tuples = tuples->sort();
     tuples = tuples->unique();
 
@@ -525,19 +527,34 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
 
     //Replace the content of the nodes
     tuples = tuples->sortByProv();
-    auto itr = tuples->getIterator();
+    auto itr = tuples->iterator();
     size_t begin = 0;
     size_t end = 0;
     size_t prevNode = ~0ul;
+    auto currentNodeID = sortedNodeIDs.begin();
     while (itr->hasNext()) {
         if (itr->getNodeId() != prevNode) {
             if (begin < end) {
+                while (prevNode > *currentNodeID) {
+                    LOG(ERRORL) << "Some nodes must be completely emptied. This"
+                        " operation is not currently supported";
+                    throw 10;
+                }
+                currentNodeID++;
+                nodes[prevNode].data = tuples->slice(prevNode, begin, end);
             }
             prevNode = itr->getNodeId();
         }
         end++;
     }
     if (begin < end) {
+        while (prevNode > *currentNodeID) {
+            LOG(ERRORL) << "Some nodes must be completely emptied. This"
+                " operation is not currently supported";
+            throw 10;
+        }
+        currentNodeID++;
+        nodes[prevNode].data = tuples->slice(prevNode, begin, end);
     }
 
     return removedTuples;
