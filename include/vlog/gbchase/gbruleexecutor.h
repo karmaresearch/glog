@@ -7,6 +7,7 @@
 
 #include <vlog/gbchase/gbgraph.h>
 #include <vlog/gbchase/gbsegment.h>
+#include <vlog/gbchase/gbsegmentinserter.h>
 
 #include <chrono>
 
@@ -50,9 +51,9 @@ class GBRuleExecutor {
                 bool shouldSort,
                 bool shouldDelDupl);
 
-        std::shared_ptr<const Segment> postprocessJoin(
+        /*std::shared_ptr<const Segment> postprocessJoin(
                 std::shared_ptr<const Segment> &intermediateResults,
-                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes);
+                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes);*/
 
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,
@@ -74,7 +75,7 @@ class GBRuleExecutor {
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
-                std::unique_ptr<SegmentInserter> &output);
+                std::unique_ptr<GBSegmentInserter> &output);
 
         void nestedloopjoin(
                 std::shared_ptr<const TGSegment> inputLeft,
@@ -85,7 +86,7 @@ class GBRuleExecutor {
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
-                std::unique_ptr<SegmentInserter> &output);
+                std::unique_ptr<GBSegmentInserter> &output);
 
         void leftjoin(
                 std::shared_ptr<const TGSegment> inputLeft,
@@ -93,7 +94,7 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> inputRight,
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
-                std::unique_ptr<SegmentInserter> &output,
+                std::unique_ptr<GBSegmentInserter> &output,
                 const bool copyOnlyLeftNode = false);
 
         void join(
@@ -104,7 +105,7 @@ class GBRuleExecutor {
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight,
-                std::unique_ptr<SegmentInserter> &output);
+                std::unique_ptr<GBSegmentInserter> &output);
 
         void shouldSortDelDupls(const Literal &head,
                 const std::vector<Literal> &bodyAtoms,
@@ -131,10 +132,10 @@ class GBRuleExecutor {
             g(g), layer(layer) {
             }
 
-        static std::shared_ptr<const TGSegment> fromSeg2TGSeg(
+        /*static std::shared_ptr<const TGSegment> fromSeg2TGSeg(
                 std::shared_ptr<const Segment> seg,
                 size_t nodeId, bool isSorted, uint8_t sortedField,
-                bool trackProvenance);
+                bool trackProvenance);*/
 
         std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
 

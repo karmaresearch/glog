@@ -2,6 +2,7 @@
 #define TERM_H
 
 #include <inttypes.h>
+#include <utility>
 
 // The three defines below are settable.
 

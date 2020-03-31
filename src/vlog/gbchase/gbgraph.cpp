@@ -87,15 +87,16 @@ void GBGraph::replaceEqualTerms(
         assert(!nodes.empty());
         const auto card = getNodeData(nodeIDs[0])->getNColumns();
         const auto nfields = trackProvenance ? card + 1 : card;
-        std::unique_ptr<SegmentInserter> rewrittenTuples = std::unique_ptr<
-            SegmentInserter>(new SegmentInserter(nfields));
+        //std::unique_ptr<SegmentInserter> rewrittenTuples = std::unique_ptr<
+        //    SegmentInserter>(new SegmentInserter(nfields));
+        std::unique_ptr<GBSegmentInserter> rewrittenTuples = GBSegmentInserter::getInserter(nfields);
         std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
                 new Term_t[nfields]);
         for(auto &nodeId : nodeIDs) {
             auto data = getNodeData(nodeId);
             size_t countAffectedTuples = 0;
             size_t countUnaffectedTuples = 0;
-            std::unique_ptr<SegmentInserter> oldTuples;
+            std::unique_ptr<GBSegmentInserter> oldTuples;
             auto itr = data->iterator();
             while (itr->hasNext()) {
                 itr->next();
@@ -118,8 +119,9 @@ void GBGraph::replaceEqualTerms(
                     if (countUnaffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
                         //Copy all previous tuples
-                        oldTuples = std::unique_ptr<SegmentInserter>(
-                                new SegmentInserter(nfields));
+                        //oldTuples = std::unique_ptr<SegmentInserter>(
+                        //        new SegmentInserter(nfields));
+                        oldTuples = GBSegmentInserter::getInserter(nfields);
                         auto itr2 = data->iterator();
                         for(size_t i = 0; i < countUnaffectedTuples; ++i) {
                             itr2->next();
@@ -138,8 +140,9 @@ void GBGraph::replaceEqualTerms(
                     }
                     if (countAffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
-                        oldTuples = std::unique_ptr<SegmentInserter>(
-                                new SegmentInserter(nfields));
+                        //oldTuples = std::unique_ptr<SegmentInserter>(
+                        //        new SegmentInserter(nfields));
+                        oldTuples = GBSegmentInserter::getInserter(nfields);
                     }
                     if (oldTuples.get() != NULL) {
                         oldTuples->addRow(row.get());
@@ -148,9 +151,10 @@ void GBGraph::replaceEqualTerms(
                 }
             }
             if (oldTuples.get() != NULL) {
-                std::shared_ptr<const Segment> seg = oldTuples->getSegment();
-                auto tuples = GBRuleExecutor::fromSeg2TGSeg(
-                        seg , nodes[nodeId].step, true, 0, trackProvenance);
+                //std::shared_ptr<const Segment> seg = oldTuples->getSegment();
+                //auto tuples = GBRuleExecutor::fromSeg2TGSeg(
+                //        seg , nodes[nodeId].step, true, 0, trackProvenance);
+                auto tuples = oldTuples->getSegment(nodes[nodeId].step, true, 0, trackProvenance);
                 nodes[nodeId].data = tuples;
             } else {
                 if (rewrittenTuples->getNRows() == data->getNRows()) {
@@ -163,14 +167,19 @@ void GBGraph::replaceEqualTerms(
             }
         }
         //Create a new node with the replaced tuples
-        if (rewrittenTuples->getNRows() > 0) {
+        if (!rewrittenTuples->isEmpty()) {
             //Invalidate the cache?
             if (cacheRetainEnabled && cacheRetain.count(predid)) {
                 cacheRetain.erase(cacheRetain.find(predid));
             }
-            std::shared_ptr<const Segment> seg = rewrittenTuples->getSegment();
-            auto tuples = GBRuleExecutor::fromSeg2TGSeg(
-                    seg, ~0ul, false, 0, trackProvenance);
+            //TODO
+            //std::shared_ptr<const Segment> seg = rewrittenTuples->getSegment();
+            //auto tuples = GBRuleExecutor::fromSeg2TGSeg(
+            //        seg, ~0ul, false, 0, trackProvenance);
+            auto tuples = rewrittenTuples->getSegment(~0ul,
+                    false,
+                    0,
+                    trackProvenance);
             tuples = tuples->sort()->unique();
             //Retain
             auto retainedTuples = retain(predid, tuples);
@@ -193,7 +202,7 @@ void GBGraph::replaceEqualTerms(
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples) {
-    std::unique_ptr<SegmentInserter> inserter;
+    std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
     const uint8_t extracol = trackProvenance ? 1 : 0;
     Term_t row[ncols + extracol];
@@ -250,8 +259,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
 
             //The tuple must be filtered
             if (!isFiltered && countNew > 0) {
-                inserter = std::unique_ptr<SegmentInserter>(
-                        new SegmentInserter(ncols + extracol));
+                inserter = GBSegmentInserter::getInserter(ncols + extracol);
                 //Copy all the previous new tuples in the right iterator
                 size_t i = 0;
                 auto itrTmp = newtuples->iterator();
@@ -284,8 +292,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
             }
             inserter->addRow(row);
         }
-        return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
-                true, 0, trackProvenance); //TODO
+        //return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
+        //        true, 0, trackProvenance); //TODO
+        return inserter->getSegment(0, true, 0, trackProvenance);
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -293,8 +302,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                 return newtuples;
             } else {
                 //Remove the initial duplicates
-                inserter = std::unique_ptr<SegmentInserter>(
-                        new SegmentInserter(ncols + extracol));
+                inserter = GBSegmentInserter::getInserter(ncols + extracol);
                 //Copy all the previous new tuples in the right iterator
                 size_t i = 0;
                 auto itrTmp = newtuples->iterator();
@@ -308,8 +316,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                     }
                     i++;
                 }
-                return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
-                        true, 0, trackProvenance); //TODO
+                //return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
+                //        true, 0, trackProvenance); //TODO
+                return inserter->getSegment(0, true, 0, trackProvenance);
             }
         } else {
             //They are all duplicates

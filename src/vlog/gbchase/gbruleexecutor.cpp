@@ -1,94 +1,7 @@
 #include <vlog/gbchase/gbruleexecutor.h>
 #include <vlog/gbchase/gbsegmentcache.h>
 #include <vlog/gbchase/gbsegment.h>
-
-std::shared_ptr<const TGSegment> GBRuleExecutor::fromSeg2TGSeg(
-        std::shared_ptr<const Segment> seg,
-        size_t nodeId, bool isSorted, uint8_t sortedField, bool trackProvenance) {
-    auto ncols = seg->getNColumns();
-    if (ncols == 1) {
-        const std::vector<Term_t> &orig = seg->getColumn(0)->getVectorRef();
-        std::vector<Term_t> tuples(orig);
-        return std::shared_ptr<const TGSegment>(
-                new UnaryTGSegment(tuples, nodeId, isSorted, sortedField));
-    } else if (ncols == 2) {
-        auto &col1 = seg->getColumn(0)->getVectorRef();
-        size_t nrows = col1.size();
-        if (trackProvenance) {
-            bool constantNodeVal = seg->getColumn(1)->isConstant();
-            if (constantNodeVal) {
-                std::vector<Term_t> tuples(col1);
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithConstProvTGSegment(
-                            tuples, nodeId, isSorted, sortedField));
-            } else {
-                auto itrProv = seg->getColumn(1)->getReader();
-                std::vector<std::pair<Term_t, Term_t>> out(nrows);
-                for(size_t i = 0; i < nrows; ++i) {
-                    out[i].first = col1[i];
-                    if (!itrProv->hasNext()) {
-                        throw 10;
-                    }
-                    out[i].second = itrProv->next();
-                }
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithProvTGSegment(out, ~0ul, isSorted, sortedField));
-            }
-        } else {
-            auto &col2 = seg->getColumn(1)->getVectorRef();
-            std::vector<std::pair<Term_t, Term_t>> out(nrows);
-            for(size_t i = 0; i < nrows; ++i) {
-                out[i].first = col1[i];
-                out[i].second = col2[i];
-            }
-            return std::shared_ptr<const TGSegment>(
-                    new BinaryTGSegment(out, nodeId, isSorted, sortedField));
-        }
-    } else if (ncols == 3 && trackProvenance) {
-        auto &col1 = seg->getColumn(0)->getVectorRef();
-        auto &col2 = seg->getColumn(1)->getVectorRef();
-        bool constantNodeVal = seg->getColumn(2)->isConstant();
-        size_t nrows = col1.size();
-        if (constantNodeVal) {
-            std::vector<std::pair<Term_t, Term_t>> out(nrows);
-            for(size_t i = 0; i < nrows; ++i) {
-                out[i].first = col1[i];
-                out[i].second = col2[i];
-            }
-            return std::shared_ptr<const TGSegment>(
-                    new BinaryWithConstProvTGSegment(
-                        out, seg->getColumn(2)->first(), isSorted, sortedField));
-        } else {
-            std::vector<BinWithProv> out(nrows);
-            auto itrNode = seg->getColumn(2)->getReader();
-            for(size_t i = 0; i < nrows; ++i) {
-                out[i].first = col1[i];
-                out[i].second = col2[i];
-                if (!itrNode->hasNext()) {
-                    throw 10;
-                }
-                out[i].node = itrNode->next();
-            }
-            return std::shared_ptr<const TGSegment>(
-                    new BinaryWithProvTGSegment(
-                        out, ~0ul, isSorted, sortedField));
-        }
-    } else {
-        std::vector<std::shared_ptr<Column>> columns;
-        for(int i = 0; i < ncols; ++i) {
-            columns.push_back(seg->getColumn(i));
-        }
-        if (trackProvenance) {
-            return std::shared_ptr<const TGSegment>(
-                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted,
-                        sortedField, true));
-        } else {
-            return std::shared_ptr<const TGSegment>(
-                    new TGSegmentLegacy(columns, seg->getNRows(), isSorted,
-                        sortedField, false));
-        }
-    }
-}
+#include <vlog/gbchase/gbsegmentinserter.h>
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
@@ -220,36 +133,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
         }
     }
     return tuples;
-}
-
-std::shared_ptr<const Segment> GBRuleExecutor::postprocessJoin(
-        std::shared_ptr<const Segment> &intermediateResults,
-        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes) {
-    //Take out the last two columns
-    auto ncolumns = intermediateResults->getNColumns();
-    if (ncolumns < 2) {
-        LOG(ERRORL) << "Cannot happen";
-        throw 10;
-    }
-    std::vector<std::shared_ptr<Column>> columns;
-    for(int i = 0; i < ncolumns - 2; ++i) {
-        columns.push_back(intermediateResults->getColumn(i));
-    }
-    //For now, always add one extra column
-    CompressedColumnBlock b(0, 1, columns[0]->size());
-    std::vector<CompressedColumnBlock> blocks;
-    blocks.push_back(b);
-    columns.push_back(std::shared_ptr<Column>(
-                new CompressedColumn(blocks, columns[0]->size())));
-
-    //Save the columns with the mappings to the nodes
-    auto col1 = intermediateResults->getColumn(ncolumns - 2);
-    auto col2 = intermediateResults->getColumn(ncolumns - 1);
-    intermediateResultsNodes.push_back(col1);
-    intermediateResultsNodes.push_back(col2);
-
-    //Create new intermediate results
-    return std::shared_ptr<const Segment>(new Segment(columns.size(), columns));
 }
 
 void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
@@ -392,7 +275,7 @@ void GBRuleExecutor::nestedloopjoin(
         std::vector<std::pair<int, int>> &joinVarsPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::unique_ptr<GBSegmentInserter> &output) {
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
@@ -499,7 +382,7 @@ void GBRuleExecutor::mergejoin(
         std::vector<std::pair<int, int>> &joinVarsPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::unique_ptr<GBSegmentInserter> &output) {
     std::chrono::system_clock::time_point startL = std::chrono::system_clock::now();
 
     std::vector<uint8_t> fields1;
@@ -682,7 +565,7 @@ void GBRuleExecutor::leftjoin(
         std::shared_ptr<const TGSegment> inputRight,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
-        std::unique_ptr<SegmentInserter> &output,
+        std::unique_ptr<GBSegmentInserter> &output,
         const bool copyOnlyLeftNode) {
 
     std::vector<uint8_t> fields1;
@@ -780,7 +663,7 @@ void GBRuleExecutor::join(
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
-        std::unique_ptr<SegmentInserter> &output) {
+        std::unique_ptr<GBSegmentInserter> &output) {
 
     std::shared_ptr<const TGSegment> inputRight;
     bool mergeJoinPossible = true;
@@ -1139,8 +1022,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
             //Prepare the container that will store the retained tuples
             const int nfields = trackProvenance ? tuples->getNColumns() + 1 :
                 tuples->getNColumns();
-            std::unique_ptr<SegmentInserter> outputJoin(new SegmentInserter(
-                        nfields));
+            std::unique_ptr<GBSegmentInserter> outputJoin = GBSegmentInserter::
+                getInserter(nfields);
 
             //Perform a left join
             leftjoin(tuples,
@@ -1152,8 +1035,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
                     true);
 
             //Create a TGSegment from SegmentInserter
-            std::shared_ptr<const Segment> seg = outputJoin->getSegment();
-            tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+            //TODO
+            //std::shared_ptr<const Segment> seg = outputJoin->getSegment();
+            //tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+            tuples = outputJoin->getSegment(~0ul, false, 0, trackProvenance);
         }
     }
     return tuples;
@@ -1224,9 +1109,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
             }
         } else {
             const uint8_t extraColumns = trackProvenance ? 2 : 0;
-            std::unique_ptr<SegmentInserter> newIntermediateResults
-                (new SegmentInserter(copyVarPosLeft.size() +
-                                     copyVarPosRight.size() + extraColumns));
+            std::unique_ptr<GBSegmentInserter> newIntermediateResults =
+                GBSegmentInserter::getInserter(copyVarPosLeft.size() +
+                                     copyVarPosRight.size() + extraColumns);
 
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
@@ -1252,12 +1137,16 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
                 break;
             }
 
-            std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();
+            /*std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();
             if (trackProvenance) {
                 //Process the output of nodes
                 seg = postprocessJoin(seg, intermediateResultsNodes);
-            }
-            intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+            }*/
+            newIntermediateResults->postprocessJoin(intermediateResultsNodes);
+            //intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+            //TODO
+            intermediateResults = newIntermediateResults->getSegment(~0ul, false, 0, trackProvenance);
+
             //Update the list of variables from the left atom
             for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
                 auto var = copyVarPosLeft[varIdx];
