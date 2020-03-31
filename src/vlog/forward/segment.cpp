@@ -783,12 +783,6 @@ void SegmentInserter::addColumns(std::vector<std::shared_ptr<Column>> &c,
         }
     } else {
         for (uint8_t i = 0; i < c.size(); ++i) {
-            /*if (copyColumns[i] != NULL) {
-            //Concatenate first the column
-            //columns[i].concatenate(copyColumns[i].get());
-            //copyColumns[i] = std::shared_ptr<Column>();
-            }*/
-
             columns[i].concatenate(c[i].get());
         }
     }
@@ -803,10 +797,6 @@ void SegmentInserter::addColumn(const uint8_t pos,
     if (isEmpty() && nfields == 1) {
         copyColumns[pos] = column;
     } else {
-        /*if (copyColumns[pos] != std::shared_ptr<Column>()) {
-          columns[pos].concatenate(copyColumns[pos].get());
-          copyColumns[pos] = std::shared_ptr<Column>();
-          }*/
         columns[pos].concatenate(column.get());
     }
 }
