@@ -151,7 +151,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 seg = ins.getSegment();
                 inserterIsClosed = true;
             }
-            if (card == 3 && trackProvenance) {
+            auto ncols = seg->getNColumns();
+            if (ncols == 3 && trackProvenance) {
                 auto &col1 = seg->getColumn(0)->getVectorRef();
                 auto &col2 = seg->getColumn(1)->getVectorRef();
                 bool constantNodeVal = seg->getColumn(2)->isConstant();
@@ -182,7 +183,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 }
             } else {
                 std::vector<std::shared_ptr<Column>> columns;
-                for(int i = 0; i < card; ++i) {
+                for(int i = 0; i < ncols; ++i) {
                     columns.push_back(seg->getColumn(i));
                 }
                 if (trackProvenance) {
@@ -224,9 +225,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
 
             //Create new intermediate results
             seg = std::shared_ptr<const Segment>(new Segment(columns.size(), columns));
-
         }
-
 };
 
 #endif
