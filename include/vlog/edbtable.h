@@ -3,10 +3,12 @@
 
 #include <vlog/qsqquery.h>
 #include <vlog/idxtupletable.h>
+#include <vlog/builtin.h>
 
 class Column;
 class EDBIterator;
 class Segment;
+
 class EDBTable {
     public:
         virtual std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
@@ -77,6 +79,16 @@ class EDBTable {
 
         virtual bool isQueryAllowed(const Literal &query) {
             return true;
+        }
+
+        virtual bool acceptQueriesWithFreeVariables() {
+            return true;
+        }
+
+        virtual BuiltinFunction getBuiltinFunction() {
+            LOG(ERRORL) << "This function should have been implemented"
+                " in a subclass";
+            throw 10;
         }
 };
 

@@ -11,14 +11,25 @@
 #include <memory>
 
 class GBSegmentInserter {
+    private:
+        std::vector<BuiltinFunction> fns;
+
+    protected:
+        virtual void addRow(Term_t *row) = 0;
+
     public:
         static std::unique_ptr<GBSegmentInserter> getInserter(size_t card);
+
+        void addBuiltinFunctions(std::vector<BuiltinFunction> &fns) {
+            this->fns = fns;
+        }
+
+        void add(Term_t *row);
 
         virtual bool isEmpty() const = 0;
 
         virtual size_t getNRows() const = 0;
 
-        virtual void addRow(Term_t *row) = 0;
 
         virtual std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,

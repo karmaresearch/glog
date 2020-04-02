@@ -11,6 +11,10 @@ class StringTableUnary : public StringTable {
     protected:
         bool execFunction(const uint64_t t1);
 
+        bool builtinFunction(Term_t *t, uint8_t *pos) {
+            return execFunction(t[pos[0]]);
+        }
+
     public:
         StringTableUnary(PredId_t predid,
                 EDBLayer *layer,
@@ -19,6 +23,14 @@ class StringTableUnary : public StringTable {
 
         uint8_t getArity() const {
             return 1;
+        }
+
+        BuiltinFunction getBuiltinFunction() {
+            BuiltinFunction fn;
+            fn.fn = std::bind(&StringTableUnary::builtinFunction,
+                    this,
+                    std::placeholders::_1, std::placeholders::_2);
+            return fn;
         }
 };
 

@@ -64,6 +64,10 @@ class StringTable: public EDBTable {
 
         uint64_t getSize();
 
+        bool acceptQueriesWithFreeVariables() {
+            return false;
+        }
+
         virtual ~StringTable();
 };
 

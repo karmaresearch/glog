@@ -87,7 +87,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
                 break;
             }
         if (!found) {
-            LOG(ERRORL) << "Should not happen. At this stage, all variables are known";
+            LOG(ERRORL) << "Should not happen. At this stage, all variables "
+                "are known";
             throw 10;
         }
     }
@@ -172,7 +173,8 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         for(int i = 0; i < rightVars.size(); ++i) {
             for(int j = 0; j < leftVars.size(); ++j) {
                 if (rightVars[i].first == leftVars[j]) {
-                    joinVarPos.push_back(std::pair<int,int>(j, rightVars[i].second));
+                    joinVarPos.push_back(std::pair<int,int>(j,
+                                rightVars[i].second));
                     found = true;
                     break;
                 }
@@ -186,6 +188,38 @@ void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
                 !addedVars.count(rightVars[i].first)) {
             copyVarPosRight.push_back(rightVars[i].second);
             addedVars.insert(rightVars[i].first);
+        }
+    }
+}
+
+void GBRuleExecutor::addBuiltinFunctions(
+        std::vector<BuiltinFunction> &out,
+        const std::vector<Literal> &atoms,
+        const std::vector<size_t> &vars) {
+    for(auto &atom : atoms) {
+        auto fn = layer.getBuiltinFunction(atom);
+        bool allVarsAreFound = true;
+        int idx = 0;
+        for(int i = 0; i < atom.getTupleSize(); ++i) {
+            auto term = atom.getTermAtPos(i);
+            if (term.isVariable()) {
+                //Search among vars
+                bool found = false;
+                for(int j = 0; j < vars.size(); ++j) {
+                    if (term.getId() == vars[j]) {
+                        fn.posArgs[idx++] = j;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    allVarsAreFound = false;
+                    break;
+                }
+            }
+        }
+        if (allVarsAreFound) {
+            out.push_back(fn);
         }
     }
 }
@@ -205,7 +239,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
     }
 
     if (atom.hasRepeatedVars()) {
-        LOG(ERRORL) << "For the moment we do not handle atoms with repeated vars";
+        LOG(ERRORL) << "For now we do not handle atoms with repeated vars";
         throw 10;
     }
 
@@ -236,7 +270,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
                 std::shared_ptr<Column> col;
                 if (term.isVariable()) {
                     col = std::shared_ptr<Column>(
-                            new EDBColumn(layer, atom, varIdx, presortPos, false));
+                            new EDBColumn(layer, atom, varIdx, presortPos,
+                                false));
                     presortPos.push_back(varIdx);
                     varIdx++;
                 } else {
@@ -363,7 +398,7 @@ void GBRuleExecutor::nestedloopjoin(
                         currentrow[sizerow] = itrLeft->getNodeId();
                         currentrow[sizerow + 1] = itrRight->getNodeId();
                     }
-                    output->addRow(currentrow);
+                    output->add(currentrow);
                     if (i < (countLeft - 1))
                         itrLeft->next();
                     i++;
@@ -383,7 +418,8 @@ void GBRuleExecutor::mergejoin(
         std::vector<int> &copyVarPosLeft,
         std::vector<int> &copyVarPosRight,
         std::unique_ptr<GBSegmentInserter> &output) {
-    std::chrono::system_clock::time_point startL = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point startL =
+        std::chrono::system_clock::now();
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
@@ -391,7 +427,8 @@ void GBRuleExecutor::mergejoin(
         fields1.push_back(joinVarsPos[i].first);
         fields2.push_back(joinVarsPos[i].second);
     }
-    std::chrono::system_clock::time_point startS = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point startS =
+        std::chrono::system_clock::now();
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
@@ -504,7 +541,8 @@ void GBRuleExecutor::mergejoin(
             //Move the left iterator countLeft times and emit tuples
             for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                 auto rightPos = copyVarPosRight[idx];
-                currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
+                currentrow[copyVarPosLeft.size() + idx] = itrRight->get(
+                        rightPos);
             }
             auto c = 0;
             bool leftActive = true;
@@ -518,7 +556,7 @@ void GBRuleExecutor::mergejoin(
                     currentrow[sizerow] = itrLeft->getNodeId();
                     currentrow[sizerow + 1] = itrRight->getNodeId();
                 }
-                output->addRow(currentrow);
+                output->add(currentrow);
                 if (itrLeft->hasNext()) {
                     itrLeft->next();
                 } else {
@@ -548,13 +586,15 @@ void GBRuleExecutor::mergejoin(
                 if (!leftActive) {
                     break;
                 }
-                res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
+                res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(),
+                        joinVarsPos);
             }
         }
     }
 #if DEBUG
     LOG(TRACEL) << "Total = " << total;
-    std::chrono::duration<double> secL = std::chrono::system_clock::now() - startS;
+    std::chrono::duration<double> secL =
+        std::chrono::system_clock::now() - startS;
     LOG(TRACEL) << "merge_join: time : " << secL.count() * 1000;
 #endif
 }
@@ -620,7 +660,7 @@ void GBRuleExecutor::leftjoin(
                     auto el = itrLeft->get(leftPos);
                     currentrow[idx] = el;
                 }
-                output->addRow(currentrow);
+                output->add(currentrow);
             }
             if (itrLeft->hasNext()) {
                 itrLeft->next();
@@ -646,7 +686,7 @@ void GBRuleExecutor::leftjoin(
             if (!copyOnlyLeftNode)
                 currentrow[sizerow + 1] = 0;
         }
-        output->addRow(currentrow);
+        output->add(currentrow);
         if (itrLeft->hasNext()) {
             itrLeft->next();
         } else {
@@ -830,12 +870,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 }
             }
         }
-        if (i == 0 || !isprefix(newDepVars[i].second, newDepVars[i - 1].second)) {
+        if (i == 0 || !isprefix(newDepVars[i].second,
+                    newDepVars[i - 1].second)) {
             tuples = tuples->sortBy(depVarPos);
         }
 
         //These are three possible containers for the final result. They will
-        //contain the list of known variables and the existentially quantified ones
+        //contain the list of known variables and the existentially quantified
+        //ones
         std::vector<Term_t> terms1;
         std::vector<std::pair<Term_t, Term_t>> terms2;
         std::vector<BinWithProv> terms3;
@@ -844,9 +886,11 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         const int nfields = tuples->getNColumns() + 1;
         int mode;
         if (nfields == 1) {
-            mode = !trackProvenance ? 0 : tuples->getProvenanceType() == 1 ? 1 : 2;
+            mode = !trackProvenance ? 0 : tuples->getProvenanceType() == 1 ?
+                1 : 2;
         } else if (nfields == 2) {
-            mode = !trackProvenance ? 3 : tuples->getProvenanceType() == 1 ? 4 : 5;
+            mode = !trackProvenance ? 3 : tuples->getProvenanceType() == 1 ?
+                4 : 5;
         } else {
             if (!trackProvenance) {
                 mode = 6;
@@ -881,7 +925,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         size_t currentRow = 0;
         while (itr->hasNext()) {
             itr->next();
-            //Compute a suitable null value for the existentially quantified variable
+            //Compute a suitable null value for the existentially quantified
+            //variable
             bool equalPrev = true;
             for(int j = 0; j < depVarPos.size(); ++j) {
                 const auto varPos = depVarPos[j];
@@ -897,7 +942,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                     prevTerms[j] = itr->get(varPos);
                 }
             }
-            //Copy the previous values (and provenance) and the existential value
+            //Copy the previous values (and provenance) and the existential
+            //value
             switch (mode) {
                 case 0:
                 case 1:
@@ -940,7 +986,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 break;
             case 1:
                 tuples = std::shared_ptr<const TGSegment>(
-                        new UnaryWithConstProvTGSegment(terms1, ~0ul, false, 0));
+                        new UnaryWithConstProvTGSegment(terms1, ~0ul, false,
+                            0));
                 break;
             case 2:
                 tuples = std::shared_ptr<const TGSegment>(
@@ -953,7 +1000,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 break;
             case 4:
                 tuples = std::shared_ptr<const TGSegment>(
-                        new BinaryWithConstProvTGSegment(terms2, ~0ul, false, 0));
+                        new BinaryWithConstProvTGSegment(terms2, ~0ul, false,
+                            0));
                 break;
             case 5:
                 tuples = std::shared_ptr<const TGSegment>(
@@ -977,7 +1025,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
     return tuples;
 }
 
-std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &rule,
+std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
+        Rule &rule,
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<size_t> &varTuples) {
     for(auto &headAtom : rule.getHeads()) {
@@ -994,7 +1043,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
                 for(int j = 0; j < varTuples.size(); ++j) {
                     if (t.getId() == varTuples[j]) {
                         varsToCopyRight.push_back(i);
-                        joinVarPos.push_back(std::make_pair(j,joinVarPos.size()));
+                        joinVarPos.push_back(std::make_pair(
+                                    j,joinVarPos.size()));
                         break;
                     }
                 }
@@ -1016,7 +1066,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
         if (g.areNodesWithPredicate(headAtom.getPredicate().getId())) {
             const auto &nodesRight = g.getNodeIDsWithPredicate(
                     headAtom.getPredicate().getId());
-            std::shared_ptr<const TGSegment> inputRight = g.mergeNodes(nodesRight,
+            std::shared_ptr<const TGSegment> inputRight = g.mergeNodes(
+                    nodesRight,
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
@@ -1044,7 +1095,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(Rule &ru
     return tuples;
 }
 
-std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &node) {
+std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
+        GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
 #ifdef DEBUG
@@ -1057,7 +1109,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
-    //Maybe Rearrange the body atoms? Don't forget to also re-arrange the body
+    //Maybe rearrange the body atoms? Don't forget to also re-arrange the body
     //nodes
 
     std::vector<size_t> varsIntermediate;
@@ -1067,7 +1119,25 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
     size_t currentBodyNode = 0;
     bool firstBodyAtomIsIDB = false;
 
+    //Discover if some body atoms refer to built-in predicates that should not
+    //be joined, but rather used as filtering functioning
+    std::set<size_t> skippedBodyAtoms;
+    std::vector<Literal> filteringBodyAtoms;
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
+        const Literal &currentBodyAtom = bodyAtoms[i];
+        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
+        if (isEDB) {
+            if (!layer.acceptQueriesWithFreeVariables(currentBodyAtom)) {
+                skippedBodyAtoms.insert(i);
+                filteringBodyAtoms.push_back(currentBodyAtom);
+            }
+        }
+    }
+
+    for(size_t i = 0; i < bodyAtoms.size(); ++i) {
+        if (skippedBodyAtoms.count(i)) {
+            continue; //This atom is handled differently
+        }
         const Literal &currentBodyAtom = bodyAtoms[i];
         VTuple currentVars = currentBodyAtom.getTuple();
 
@@ -1081,8 +1151,26 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
         computeVarPos(varsIntermediate, i, bodyAtoms, rule.getHeads(),
                 joinVarPos, copyVarPosLeft, copyVarPosRight);
 
-        //Get the node of the current bodyAtom (if it's IDB)
+        //Update the list of variables from the left atom
         std::vector<size_t> newVarsIntermediateResults;
+        for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
+            auto var = copyVarPosLeft[varIdx];
+            newVarsIntermediateResults.push_back(varsIntermediate[var]);
+        }
+        //Update the list of variables from the right atom
+        for(auto varIdx = 0; varIdx < copyVarPosRight.size(); ++varIdx) {
+            auto varPos = copyVarPosRight[varIdx];
+            newVarsIntermediateResults.push_back(
+                    currentVars.get(varPos).getId());
+        }
+
+        //Compute possible builtin functions that would need to be applied
+        //on the results of the join
+        std::vector<BuiltinFunction> builtinFunctions;
+        addBuiltinFunctions(builtinFunctions,
+                filteringBodyAtoms, newVarsIntermediateResults);
+
+        //Get the node of the current bodyAtom (if it's IDB)
         bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
 
         if (i == 0) {
@@ -1102,6 +1190,12 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
                 std::chrono::steady_clock::now();
             durationFirst += end - start;
 
+            if (!builtinFunctions.empty()) {
+                LOG(ERRORL) << "Builtin functions are not supported if they"
+                    "use variables in one body atom";
+                throw 10;
+            }
+
             //If empty then stop
             if (intermediateResults->isEmpty()) {
                 intermediateResults = std::shared_ptr<const TGSegment>();
@@ -1111,13 +1205,14 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
             const uint8_t extraColumns = trackProvenance ? 2 : 0;
             std::unique_ptr<GBSegmentInserter> newIntermediateResults =
                 GBSegmentInserter::getInserter(copyVarPosLeft.size() +
-                                     copyVarPosRight.size() + extraColumns);
+                        copyVarPosRight.size() + extraColumns);
+            newIntermediateResults->addBuiltinFunctions(builtinFunctions);
 
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
 
-            //Perform a join (or a left join) between the intermediate results and
-            //the new collection
+            //Perform a join (or a left join) between the intermediate results
+            //and the new collection
             join(intermediateResults,
                     i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
                     !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes,
@@ -1137,27 +1232,14 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
                 break;
             }
 
-            /*std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();*/
             if (trackProvenance) {
                 //Process the output of nodes
-                //seg = postprocessJoin(seg, intermediateResultsNodes);
-                newIntermediateResults->postprocessJoin(intermediateResultsNodes);
+                newIntermediateResults->postprocessJoin(
+                        intermediateResultsNodes);
             }
-            //intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
-            intermediateResults = newIntermediateResults->getSegment(~0ul, false, 0, trackProvenance);
-
-            //Update the list of variables from the left atom
-            for(auto varIdx = 0; varIdx < copyVarPosLeft.size(); ++varIdx) {
-                auto var = copyVarPosLeft[varIdx];
-                newVarsIntermediateResults.push_back(varsIntermediate[var]);
-            }
+            intermediateResults = newIntermediateResults->getSegment(
+                    ~0ul, false, 0, trackProvenance);
             currentBodyNode++;
-        }
-        //Update the list of variables from the right atom
-        for(auto varIdx = 0; varIdx < copyVarPosRight.size(); ++varIdx) {
-            auto varPos = copyVarPosRight[varIdx];
-            newVarsIntermediateResults.push_back(
-                    currentVars.get(varPos).getId());
         }
         varsIntermediate = newVarsIntermediateResults;
     }

@@ -11,6 +11,8 @@ class StringTableBinary : public StringTable {
     protected:
         bool execFunction(const uint64_t t1, const uint64_t t2);
 
+        bool builtinFunction(Term_t *t, uint8_t *pos);
+
     public:
         StringTableBinary(PredId_t predid,
                 EDBLayer *layer,
@@ -18,6 +20,15 @@ class StringTableBinary : public StringTable {
 
         uint8_t getArity() const {
             return 2;
+        }
+
+        BuiltinFunction getBuiltinFunction() {
+            BuiltinFunction fn;
+            fn.fn = std::bind(&StringTableBinary::builtinFunction,
+                    this,
+                    std::placeholders::_1, std::placeholders::_2);
+            return fn;
+
         }
 };
 

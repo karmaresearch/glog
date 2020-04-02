@@ -114,7 +114,7 @@ void GBGraph::replaceEqualTerms(
                     if (trackProvenance) {
                         row[card] = ~0ul;
                     }
-                    rewrittenTuples->addRow(row.get());
+                    rewrittenTuples->add(row.get());
                     countAffectedTuples++;
                     if (countUnaffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
@@ -131,7 +131,7 @@ void GBGraph::replaceEqualTerms(
                             if (trackProvenance) {
                                 row[card] = itr2->getNodeId();
                             }
-                            oldTuples->addRow(row.get());
+                            oldTuples->add(row.get());
                         }
                     }
                 } else {
@@ -145,7 +145,7 @@ void GBGraph::replaceEqualTerms(
                         oldTuples = GBSegmentInserter::getInserter(nfields);
                     }
                     if (oldTuples.get() != NULL) {
-                        oldTuples->addRow(row.get());
+                        oldTuples->add(row.get());
                     }
                     countUnaffectedTuples++;
                 }
@@ -247,7 +247,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                 for(int i = 0; i < ncols; ++i) {
                     row[i] = rightItr->get(i);
                 }
-                inserter->addRow(row);
+                inserter->add(row);
             } else {
                 countNew++;
             }
@@ -269,7 +269,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
-                        inserter->addRow(row);
+                        inserter->add(row);
                     }
                     i++;
                 }
@@ -283,17 +283,15 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
-            inserter->addRow(row);
+            inserter->add(row);
         }
         while (rightItr->hasNext()) {
             rightItr->next();
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
-            inserter->addRow(row);
+            inserter->add(row);
         }
-        //return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
-        //        true, 0, trackProvenance); //TODO
         return inserter->getSegment(0, true, 0, trackProvenance);
     } else {
         if (countNew > 0 || activeRightValue) {
@@ -312,12 +310,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
-                        inserter->addRow(row);
+                        inserter->add(row);
                     }
                     i++;
                 }
-                //return GBRuleExecutor::fromSeg2TGSeg(inserter->getSegment(), 0,
-                //        true, 0, trackProvenance); //TODO
                 return inserter->getSegment(0, true, 0, trackProvenance);
             }
         } else {

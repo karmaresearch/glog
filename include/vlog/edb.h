@@ -440,6 +440,10 @@ class EDBLayer {
 
         bool isQueryAllowed(const Literal &query);
 
+        bool acceptQueriesWithFreeVariables(const Literal &query);
+
+        BuiltinFunction getBuiltinFunction(const Literal &query);
+
         ~EDBLayer() {
             for (int i = 0; i < tmpRelations.size(); ++i) {
                 if (tmpRelations[i] != NULL) {

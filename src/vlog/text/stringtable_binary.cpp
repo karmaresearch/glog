@@ -28,3 +28,7 @@ bool StringTableBinary::execFunction(const uint64_t t1, const uint64_t t2) {
     LOG(ERRORL) << "(StringTableBinary) Function " << fname << " is unknown";
     throw 10;
 }
+
+bool StringTableBinary::builtinFunction(Term_t *t, uint8_t *pos) {
+    return execFunction(t[pos[0]], t[pos[1]]);
+}

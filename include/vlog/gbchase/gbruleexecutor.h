@@ -51,10 +51,6 @@ class GBRuleExecutor {
                 bool shouldSort,
                 bool shouldDelDupl);
 
-        /*std::shared_ptr<const Segment> postprocessJoin(
-                std::shared_ptr<const Segment> &intermediateResults,
-                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes);*/
-
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,
                 const std::vector<Literal> &bodyAtoms,
@@ -62,6 +58,10 @@ class GBRuleExecutor {
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
                 std::vector<int> &copyVarPosRight);
+
+        void addBuiltinFunctions(std::vector<BuiltinFunction> &out,
+                const std::vector<Literal> &atoms,
+                const std::vector<size_t> &vars);
 
         std::shared_ptr<const TGSegment> processFirstAtom_EDB(
                 const Literal &atom,

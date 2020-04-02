@@ -1239,6 +1239,25 @@ bool EDBLayer::isQueryAllowed(const Literal &query) {
     return true;
 }
 
+bool EDBLayer::acceptQueriesWithFreeVariables(const Literal &query) {
+    auto predid = query.getPredicate().getId();
+    if (dbPredicates.count(predid)) {
+        auto &table = dbPredicates[predid];
+        return table.manager->acceptQueriesWithFreeVariables();
+    }
+    return true;
+}
+
+BuiltinFunction EDBLayer::getBuiltinFunction(const Literal &query) {
+    auto predid = query.getPredicate().getId();
+    if (dbPredicates.count(predid)) {
+        auto &table = dbPredicates[predid];
+        return table.manager->getBuiltinFunction();
+    }
+    return BuiltinFunction();
+}
+
+
 void EDBMemIterator::init1(PredId_t id, std::vector<Term_t>* v, const bool c1, const Term_t vc1) {
     predid = id;
     nfields = 1;
