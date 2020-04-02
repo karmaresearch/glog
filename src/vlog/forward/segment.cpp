@@ -1503,7 +1503,7 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
         std::shared_ptr<const Segment> seg, int nfields) {
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     if (seg->getNColumns() == 1) {
-        assert(nfields == -1);
+        assert(nfields == -1 || nfields == 1);
         std::shared_ptr<Column> c = seg->getColumn(0);
         //I assume c is sorted
         auto c2 = c->unique();

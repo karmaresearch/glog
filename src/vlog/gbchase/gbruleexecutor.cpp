@@ -1137,14 +1137,13 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule, GBRuleInput &n
                 break;
             }
 
-            /*std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();
+            /*std::shared_ptr<const Segment> seg = newIntermediateResults->getSegment();*/
             if (trackProvenance) {
                 //Process the output of nodes
-                seg = postprocessJoin(seg, intermediateResultsNodes);
-            }*/
-            newIntermediateResults->postprocessJoin(intermediateResultsNodes);
+                //seg = postprocessJoin(seg, intermediateResultsNodes);
+                newIntermediateResults->postprocessJoin(intermediateResultsNodes);
+            }
             //intermediateResults = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
-            //TODO
             intermediateResults = newIntermediateResults->getSegment(~0ul, false, 0, trackProvenance);
 
             //Update the list of variables from the left atom

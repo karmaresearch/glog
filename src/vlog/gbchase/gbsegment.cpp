@@ -42,7 +42,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
         throw 10;
     }
     auto nfields = columns.size();
-    auto nfieldsTocheck = trackProvenance ? nfields - 1 : nfields;
+    auto nfieldsTocheck = trackProvenance ? nfields - 1 : -1; //-1 means check all fields
     auto oldcols(columns);
     std::shared_ptr<Segment> s = std::shared_ptr<Segment>(new Segment(nfields, oldcols));
     auto retained = SegmentInserter::unique(s, nfieldsTocheck);

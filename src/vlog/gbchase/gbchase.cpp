@@ -4,7 +4,7 @@
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     layer(layer),
     program(program),
-    trackProvenance(true),
+    trackProvenance(false),
     g(trackProvenance, useCacheRetain),
     executor(trackProvenance, g, layer) {
         if (!program->stratify(stratification, nStratificationClasses)) {
