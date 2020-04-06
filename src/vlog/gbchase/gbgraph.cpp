@@ -406,7 +406,6 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     if (nodeIdxs.size() == 1) {
         size_t idbBodyAtomIdx = nodeIdxs[0];
         auto data  = getNodeData(idbBodyAtomIdx);
-        //return processFirstAtom_IDB(data, copyVarPos, idbBodyAtomIdx);
 
         auto ncols = copyVarPos.size(); //ncol=arity of the relation
         bool project = ncols < data->getNColumns();
@@ -443,8 +442,12 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 }
             }
         } else {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
+            if (project) {
+                LOG(ERRORL) << "Not implemented";
+                throw 10;
+            } else {
+                return data;
+            }
         }
     } else {
         auto ncols = copyVarPos.size(); //ncol=arity of the relation

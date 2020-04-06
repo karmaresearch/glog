@@ -136,11 +136,12 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         std::vector<std::shared_ptr<Column>> columns;
         const size_t card;
         size_t addedRows;
+        bool isFinal;
 
     public:
-        GBSegmentInserterNAry(size_t card) : writers(card), columns(card - 1),
+        GBSegmentInserterNAry(size_t card) : writers(card),
         card(card),
-        addedRows(0) { }
+        addedRows(0), isFinal(false) { }
 
         bool isEmpty() const  {
             return addedRows == 0;
@@ -161,10 +162,21 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 bool isSorted,
                 uint8_t sortedField,
                 bool trackProvenance) {
-            //postProcessJoin must be called before this method
-            assert(columns[0]);
+
+            if (!isFinal) {
+                if (trackProvenance) {
+                    //In this case, the system should have called
+                    //postprocessJoin
+                    LOG(ERRORL) << "This should not happen";
+                    throw 10;
+                }
+                for(int i = 0; i < card; ++i) {
+                    columns.push_back(writers[i].getColumn());
+                }
+                isFinal = true;
+            }
+
             auto ncols = columns.size();
-            assert(ncols == card - 1);
             if (ncols == 2) {
                 auto &col1 = columns[0]->getVectorRef();
                 size_t nrows = col1.size();
@@ -246,20 +258,21 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             assert(card > 2);
             assert(!columns[0]);
             for(int i = 0; i < card - 2; ++i) {
-                columns[i] = writers[i].getColumn();
+                columns.push_back(writers[i].getColumn());
             }
             //For now, always add one extra column
             CompressedColumnBlock b(0, 1, addedRows);
             std::vector<CompressedColumnBlock> blocks;
             blocks.push_back(b);
-            columns[card-2] = std::shared_ptr<Column>(
-                    new CompressedColumn(blocks, addedRows));
+            columns.push_back(std::shared_ptr<Column>(
+                    new CompressedColumn(blocks, addedRows)));
 
             //Save the columns with the mappings to the nodes
             auto col1 = writers[card - 2].getColumn();
             auto col2 = writers[card - 1].getColumn();
             intermediateResultsNodes.push_back(col1);
             intermediateResultsNodes.push_back(col2);
+            isFinal = true;
         }
 };
 
