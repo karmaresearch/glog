@@ -30,7 +30,6 @@ class GBSegmentInserter {
 
         virtual size_t getNRows() const = 0;
 
-
         virtual std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,

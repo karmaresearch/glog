@@ -89,7 +89,7 @@ void TridentTupleItr::init(Querier *querier, const VTuple *t,
 
     nextProcessed = false;
     nextOutcome = false;
-    processedValues = 0;
+    //processedValues = 0;
 
     //If some variables have the same name, then we must change it
     equalFields = t->getRepeatedVars();
@@ -134,24 +134,27 @@ bool TridentTupleItr::hasNext() {
 }
 
 void TridentTupleItr::next() {
-    if (nextProcessed) {
-        nextProcessed = false;
-    } else {
-        physIterator->next();
+    if (!nextProcessed) {
+        bool resp = hasNext();
+        if (!resp) {
+            LOG(ERRORL) << "Called next() but the iterator is finisehd";
+            throw 10;
+        }
     }
+    nextProcessed = false;
 }
 
 void TridentTupleItr::mark() {
     m_nextProcessed = nextProcessed;
     m_nextOutcome = nextOutcome;
-    m_processedValues = processedValues;
+    //m_processedValues = processedValues;
     physIterator->mark();
 }
 
 void TridentTupleItr::reset() {
     nextProcessed = m_nextProcessed;
     nextOutcome = m_nextOutcome;
-    processedValues = m_processedValues;
+    //processedValues = m_processedValues;
     physIterator->reset(0);
 }
 
@@ -207,16 +210,16 @@ const char* TridentTupleItr::getUnderlyingArray(uint8_t column) {
     // Note: Code below does not work anymore, since it assumes that physIterator is a NewColumnTable,
     // which is no longer always true.
     /*
-    const uint8_t pos = varsPos[column];
-    if (pos == 0 || nvars == 3) {
-        // Can happen if asking for TE(?,?,?)
-        return NULL;
+       const uint8_t pos = varsPos[column];
+       if (pos == 0 || nvars == 3) {
+    // Can happen if asking for TE(?,?,?)
+    return NULL;
     }
     switch (pos) {
-        case 1:
-            return ((NewColumnTable*)physIterator)->getUnderlyingArray(1);
-        case 2:
-            return ((NewColumnTable*)physIterator)->getUnderlyingArray(2);
+    case 1:
+    return ((NewColumnTable*)physIterator)->getUnderlyingArray(1);
+    case 2:
+    return ((NewColumnTable*)physIterator)->getUnderlyingArray(2);
     }
     LOG(ERRORL) << "This should not happen";
     throw 10;

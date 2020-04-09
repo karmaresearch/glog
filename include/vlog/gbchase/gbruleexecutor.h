@@ -43,7 +43,7 @@ class GBRuleExecutor {
 
         std::shared_ptr<const TGSegment> projectTuples(
                 std::shared_ptr<const TGSegment> tuples,
-                const std::vector<int> &posKnownVariables);
+                const std::vector<int> &posVariables);
 
         std::shared_ptr<const TGSegment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,

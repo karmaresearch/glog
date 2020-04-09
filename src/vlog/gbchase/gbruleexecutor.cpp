@@ -243,52 +243,35 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         throw 10;
     }
 
-    //Get the columns
     auto &table = edbTables[p];
     std::vector<std::shared_ptr<Column>> columns;
+    auto nrows = table->getCardinality(atom);
     if (table->useSegments()) {
-        if (copyVarPos.size() != atom.getNVars()) {
-            LOG(ERRORL) << "Operation on EDB table not supported";
-            throw 10;
-        }
         auto seg = table->getSegment();
-        for(int i = 0; i < copyVarPos.size(); ++i) {
-            int pos = copyVarPos[i];
-            auto col = seg->getColumn(pos);
+        for(int i = 0; i < atom.getTupleSize(); ++i) {
+            auto col = seg->getColumn(i);
             columns.push_back(col);
         }
     } else {
-        //Create a segment with EDBColumn
-        auto size = table->getCardinality(atom);
         std::vector<uint8_t> presortPos;
-        int copiedVars = 0;
         int varIdx = 0;
         for(size_t i = 0; i < atom.getTupleSize(); ++i) {
             auto term = atom.getTermAtPos(i);
-            auto pos = copyVarPos[copiedVars];
-            if (i == pos) {
-                std::shared_ptr<Column> col;
-                if (term.isVariable()) {
-                    col = std::shared_ptr<Column>(
-                            new EDBColumn(layer, atom, varIdx, presortPos,
-                                false));
-                    presortPos.push_back(varIdx);
-                    varIdx++;
-                } else {
-                    col = std::shared_ptr<Column>(
-                            new CompressedColumn(term.getValue(), size));
-                }
-                columns.push_back(col);
-                copiedVars++;
-                if (copiedVars == copyVarPos.size())
-                    break;
-            } else if (term.isVariable()) {
+            std::shared_ptr<Column> col;
+            if (term.isVariable()) {
+                col = std::shared_ptr<Column>(
+                        new EDBColumn(layer, atom, varIdx, presortPos,
+                            false));
                 presortPos.push_back(varIdx);
                 varIdx++;
+            } else {
+                col = std::shared_ptr<Column>(
+                        new CompressedColumn(term.getValue(), nrows));
             }
+            columns.push_back(col);
         }
     }
-    auto nrows = columns[0]->size();
+
     if (trackProvenance) {
         CompressedColumnBlock b(~0ul, 0, nrows);
         std::vector<CompressedColumnBlock> blocks;
@@ -297,8 +280,103 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
                     new CompressedColumn(blocks, nrows)));
     }
 
+    auto seg = std::shared_ptr<const TGSegment>(
+            new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
+    if (copyVarPos.size() != atom.getNVars()) {
+        //There is a projection. We might have to remove duplicates
+        auto projectedSegment = projectTuples(seg, copyVarPos);
+        auto sortedSegment = projectedSegment->sort();
+        auto uniqueSegment = sortedSegment->unique();
+        return uniqueSegment;
+    } else {
+        return seg;
+    }
+
+
+
+    /*//Get the columns
+      auto &table = edbTables[p];
+      std::vector<std::shared_ptr<Column>> columns;
+      if (table->useSegments()) {
+      auto seg = table->getSegment();
+      for(int i = 0; i < copyVarPos.size(); ++i) {
+      int pos = copyVarPos[i];
+      auto col = seg->getColumn(pos);
+      columns.push_back(col);
+      }
+      } else {
+      auto size = table->getCardinality(atom);
+      std::vector<uint8_t> presortPos;
+      int copiedVars = 0;
+      int varIdx = 0;
+      for(size_t i = 0; i < atom.getTupleSize(); ++i) {
+      auto term = atom.getTermAtPos(i);
+      auto pos = copyVarPos[copiedVars];
+      if (i == pos) {
+      std::shared_ptr<Column> col;
+      if (term.isVariable()) {
+      col = std::shared_ptr<Column>(
+      new EDBColumn(layer, atom, varIdx, presortPos,
+      false));
+      presortPos.push_back(varIdx);
+      varIdx++;
+      } else {
+      col = std::shared_ptr<Column>(
+      new CompressedColumn(term.getValue(), size));
+      }
+      columns.push_back(col);
+      copiedVars++;
+      if (copiedVars == copyVarPos.size())
+      break;
+      } else if (term.isVariable()) {
+      presortPos.push_back(varIdx);
+      varIdx++;
+      }
+      }
+      }
+      if (copyVarPos.size() != atom.getNVars()) {
+//There was a projection. We might have to remove duplicates
+std::vector<std::unique_ptr<ColumnReader>> readers;
+for(auto c : columns) {
+readers.push_back(c->getReader());
+}
+size_t ncolumns = columns.size();
+auto inserter = GBSegmentInserter::getInserter(ncolumns);
+std::vector<Term_t> prevRow(ncolumns);
+std::vector<Term_t> currentRow(ncolumns);
+bool isFirst = true;
+while (true) {
+bool ok = true;
+for(size_t i = 0; i < readers.size(); ++i) {
+if (!readers[i]->hasNext()) {
+ok = false;
+break;
+} else {
+currentRow[i] = readers[i]->next();
+}
+}
+if (!ok)
+break;
+bool isDuplicate = !isFirst;
+for(size_t i = 0; i < readers.size(); ++i) {
+prevRow[i] = readers[i].get();
+}
+if (!isDuplicate) {
+inserter->addRow(prevRow.get());
+}
+}
+} else {
+    auto nrows = columns[0]->size();
+    if (trackProvenance) {
+        CompressedColumnBlock b(~0ul, 0, nrows);
+        std::vector<CompressedColumnBlock> blocks;
+        blocks.push_back(b);
+        columns.push_back(std::shared_ptr<Column>(
+                    new CompressedColumn(blocks, nrows)));
+    }
     return std::shared_ptr<const TGSegment>(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
+}*/
 }
 
 void GBRuleExecutor::nestedloopjoin(
@@ -592,7 +670,7 @@ void GBRuleExecutor::mergejoin(
         }
     }
 #if DEBUG
-    LOG(TRACEL) << "Total = " << total;
+    LOG(DEBUGL) << "Total = " << total;
     std::chrono::duration<double> secL =
         std::chrono::system_clock::now() - startS;
     LOG(TRACEL) << "merge_join: time : " << secL.count() * 1000;
@@ -1086,7 +1164,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     true);
 
             //Create a TGSegment from SegmentInserter
-            //TODO
             //std::shared_ptr<const Segment> seg = outputJoin->getSegment();
             //tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
             tuples = outputJoin->getSegment(~0ul, false, 0, trackProvenance);

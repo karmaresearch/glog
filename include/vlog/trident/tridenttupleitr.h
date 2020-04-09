@@ -23,10 +23,10 @@ private:
 
     bool nextProcessed;
     bool nextOutcome;
-    size_t processedValues;
+    //size_t processedValues;
 
     bool m_nextProcessed, m_nextOutcome;
-    size_t m_processedValues;
+    //size_t m_processedValues;
 
     bool checkFields();
 
