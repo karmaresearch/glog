@@ -174,8 +174,12 @@ void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {
                 tableConf.params[0], tableConf.params[1]);
     } else {
         infot.type = "StringBinary";
+        std::string param1 = "";
+        if (tableConf.params.size() > 1) {
+            param1 = tableConf.params[1];
+        }
         table = new StringTableBinary(infot.id, this,
-                tableConf.params[0]);
+                tableConf.params[0], param1);
     }
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);

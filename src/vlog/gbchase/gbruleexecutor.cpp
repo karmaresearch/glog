@@ -282,7 +282,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
 
     auto seg = std::shared_ptr<const TGSegment>(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
-    if (copyVarPos.size() != atom.getNVars()) {
+    if (copyVarPos.size() != atom.getTupleSize()) {
         //There is a projection. We might have to remove duplicates
         auto projectedSegment = projectTuples(seg, copyVarPos);
         auto sortedSegment = projectedSegment->sort();
