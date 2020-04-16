@@ -13,6 +13,7 @@ void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
     outputNode.step = step;
     outputNode.data = data;
     pred2Nodes[predid].push_back(nodeId);
+    LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" << data->getNRows();
 }
 
 void GBGraph::replaceEqualTerms(
@@ -369,8 +370,17 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 entry.nnodes = nodeIdxs.size();
                 entry.seg = seg;
                 cacheRetain[p] = entry;
+            } else if (newtuples->getNColumns() > 2) {
+                std::vector<std::pair<Term_t, Term_t>> tuples;
+                if (cacheRetain.count(p)) {
+                    cacheRetain[p].seg->appendTo(0, 1, tuples);
+                }
+                for(size_t i = cacheRetain[p].nnodes; i < nodeIdxs.size(); ++i) {
+                    getNodeData(nodeIdxs[i])->appendTo(0, 1, tuples);
+                }
+
             } else {
-                LOG(ERRORL) << "Retain with arity > 2 is not supported";
+                LOG(ERRORL) << "Retain with arity = 0 is not supported";
                 throw 10;
             }
         }
@@ -532,6 +542,7 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
     tuples = tuples->unique();
 
     //TODO: Retain only the new tuples
+    throw 10;
 
     //Replace the content of the nodes
     tuples = tuples->sortByProv();

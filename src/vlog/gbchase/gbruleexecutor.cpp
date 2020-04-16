@@ -527,11 +527,16 @@ void GBRuleExecutor::mergejoin(
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (nodesRight.size() > 0) {
             SegmentCache &c = SegmentCache::getInstance();
-            if (!c.contains(nodesRight, fields2)) {
-                inputRight = inputRight->sortBy(fields2);
-                c.insert(nodesRight, fields2, inputRight);
+            if (fields2.size() == 1) {
+                if (!c.contains(nodesRight, fields2)) {
+                    inputRight = inputRight->sortBy(fields2);
+                    c.insert(nodesRight, fields2, inputRight);
+                } else {
+                    inputRight = c.get(nodesRight, fields2);
+                }
             } else {
-                inputRight = c.get(nodesRight, fields2);
+                assert(fields2.size() > 1);
+                inputRight = inputRight->sortBy(fields2);
             }
         } else {
             inputRight = inputRight->sortBy(fields2);
@@ -539,6 +544,12 @@ void GBRuleExecutor::mergejoin(
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;
+
+#if DEBUG
+    size_t joinLeftSize = inputLeft->getNRows();
+    size_t joinRightSize = inputRight->getNRows();
+    LOG(DEBUGL) << "Join left size=" << joinLeftSize << " right size=" << joinRightSize;
+#endif
 
     //Do the merge join
     if (itrLeft->hasNext()) {
@@ -564,6 +575,7 @@ void GBRuleExecutor::mergejoin(
     Term_t currentrow[sizerow + 2];
     for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
     int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
+    size_t processedRight = 0;
     while (true) {
         //Are they matching?
         while (res < 0 && itrLeft->hasNext()) {
@@ -571,11 +583,19 @@ void GBRuleExecutor::mergejoin(
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
+#if DEBUG
+        if (processedRight % 10000 == 0)
+            LOG(DEBUGL) << "Processed records " << processedRight;
+#endif
+
         if (res < 0) //The first iterator is finished
             break;
 
         while (res > 0 && itrRight->hasNext()) {
             itrRight->next();
+#if DEBUG
+            processedRight++;
+#endif
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
@@ -647,6 +667,9 @@ void GBRuleExecutor::mergejoin(
             if (!itrRight->hasNext()) {
                 break;
             } else {
+#if DEBUG
+                processedRight++;
+#endif
                 itrRight->next();
             }
             //Does the right row have not the same value as before?

@@ -23,7 +23,7 @@ bool StringTableUnary::execFunction(const uint64_t t1) {
 
     if (fname == "isLiteral") {
         auto s = std::string(buffer1.get());
-        return s.size() > 1 && s[0] == '\"' && s[1] == '\"';
+        return s.size() > 1 && s[0] == '\"' && s[s.size() - 1] == '\"';
     }
 
     LOG(ERRORL) << "(StringTableUnary) Function " << fname << " is unknown";
