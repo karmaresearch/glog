@@ -182,6 +182,23 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
     }
 }
 
+void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
+        std::vector<std::vector<Term_t>> &out) const {
+    //The current implementation does not copy the nodeID, thus the size of
+    //out should reflect the positions
+    assert(posFields.size() == out.size());
+    assert(posFields.size() > 0);
+    size_t i = 0;
+    for(auto pos : posFields) {
+        auto c = columns[pos];
+        auto itr = c->getReader();
+        while (itr->hasNext()) {
+            out[i].push_back(itr->next());
+        }
+        i++;
+    }
+}
+
 std::shared_ptr<TGSegment> TGSegmentLegacy::swap() const {
     if (trackProvenance) {
         if (columns.size() != 3) {
@@ -262,4 +279,8 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv() const {
     return std::shared_ptr<TGSegment>(
             new TGSegmentLegacy(newColumns, s.getNRows(), false, fields[0],
                 trackProvenance));
+}
+
+TGSegmentLegacy::~TGSegmentLegacy() {
+    //std::cout << "Deleting " <<  (void*)this << std::endl;
 }

@@ -82,6 +82,12 @@ class TGSegment {
             throw 10;
         }
 
+        virtual void appendTo(const std::vector<int> &posFields,
+                std::vector<std::vector<Term_t>> &out) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
         virtual void projectTo(uint8_t colPos, std::vector<Term_t> &out) const {
             out.clear();
             appendTo(colPos, out);
@@ -185,6 +191,9 @@ class TGSegmentLegacy : public TGSegment {
                 uint8_t colPos2,
                 std::vector<BinWithProv> &out) const;
 
+        void appendTo(const std::vector<int> &posFields,
+                std::vector<std::vector<Term_t>> &out) const;
+
         void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const;
 
@@ -193,6 +202,8 @@ class TGSegmentLegacy : public TGSegment {
         int getProvenanceType() const;
 
         size_t getNodeId() const;
+
+        ~TGSegmentLegacy();
 };
 
 struct ProvSorter {
