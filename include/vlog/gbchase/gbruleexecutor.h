@@ -34,6 +34,7 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationCreateHead;
 
+        Program *program; //used only for debugging purposes
         EDBLayer &layer;
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
 
@@ -123,19 +124,16 @@ class GBRuleExecutor {
                 std::vector<size_t> &vars);
 
     public:
-        GBRuleExecutor(bool trackProvenance, GBGraph &g, EDBLayer &layer) :
+        GBRuleExecutor(bool trackProvenance, GBGraph &g, EDBLayer &layer,
+                Program *program) :
             durationMergeSort(0),
             durationJoin(0),
             durationCreateHead(0),
             durationFirst(0),
+            program(program),
             trackProvenance(trackProvenance),
             g(g), layer(layer) {
             }
-
-        /*static std::shared_ptr<const TGSegment> fromSeg2TGSeg(
-                std::shared_ptr<const Segment> seg,
-                size_t nodeId, bool isSorted, uint8_t sortedField,
-                bool trackProvenance);*/
 
         std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
 

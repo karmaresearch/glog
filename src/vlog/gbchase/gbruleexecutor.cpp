@@ -510,7 +510,9 @@ void GBRuleExecutor::mergejoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        if (nodesLeft.size() > 0) {
+        if (fields1.size() > 1)
+            LOG(WARNL) << "I cannot use the cache because it works only if the join is over 1 variable";
+        if (nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
                 inputLeft = inputLeft->sortBy(fields1);
@@ -525,7 +527,9 @@ void GBRuleExecutor::mergejoin(
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
-        if (nodesRight.size() > 0) {
+        if (fields2.size() > 1)
+            LOG(WARNL) << "I cannot use the cache because it works only if the join is over 1 variable";
+        if (nodesRight.size() > 0 && fields2.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (fields2.size() == 1) {
                 if (!c.contains(nodesRight, fields2)) {
@@ -1205,6 +1209,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             " with empty frontier variables set";
         throw 10;
     }
+    LOG(DEBUGL) << "Execute rule " << rule.tostring(program, &layer);
 #endif
 
     //Perform the joins and populate the head

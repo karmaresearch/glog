@@ -88,8 +88,6 @@ void GBGraph::replaceEqualTerms(
         assert(!nodes.empty());
         const auto card = getNodeData(nodeIDs[0])->getNColumns();
         const auto nfields = trackProvenance ? card + 1 : card;
-        //std::unique_ptr<SegmentInserter> rewrittenTuples = std::unique_ptr<
-        //    SegmentInserter>(new SegmentInserter(nfields));
         std::unique_ptr<GBSegmentInserter> rewrittenTuples = GBSegmentInserter::getInserter(nfields);
         std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
                 new Term_t[nfields]);
@@ -120,8 +118,6 @@ void GBGraph::replaceEqualTerms(
                     if (countUnaffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
                         //Copy all previous tuples
-                        //oldTuples = std::unique_ptr<SegmentInserter>(
-                        //        new SegmentInserter(nfields));
                         oldTuples = GBSegmentInserter::getInserter(nfields);
                         auto itr2 = data->iterator();
                         for(size_t i = 0; i < countUnaffectedTuples; ++i) {
@@ -141,8 +137,6 @@ void GBGraph::replaceEqualTerms(
                     }
                     if (countAffectedTuples > 0 &&
                             oldTuples.get() == NULL) {
-                        //oldTuples = std::unique_ptr<SegmentInserter>(
-                        //        new SegmentInserter(nfields));
                         oldTuples = GBSegmentInserter::getInserter(nfields);
                     }
                     if (oldTuples.get() != NULL) {
@@ -152,9 +146,6 @@ void GBGraph::replaceEqualTerms(
                 }
             }
             if (oldTuples.get() != NULL) {
-                //std::shared_ptr<const Segment> seg = oldTuples->getSegment();
-                //auto tuples = GBRuleExecutor::fromSeg2TGSeg(
-                //        seg , nodes[nodeId].step, true, 0, trackProvenance);
                 auto tuples = oldTuples->getSegment(nodes[nodeId].step, true, 0, trackProvenance);
                 nodes[nodeId].data = tuples;
             } else {
@@ -173,10 +164,6 @@ void GBGraph::replaceEqualTerms(
             if (cacheRetainEnabled && cacheRetain.count(predid)) {
                 cacheRetain.erase(cacheRetain.find(predid));
             }
-            //TODO
-            //std::shared_ptr<const Segment> seg = rewrittenTuples->getSegment();
-            //auto tuples = GBRuleExecutor::fromSeg2TGSeg(
-            //        seg, ~0ul, false, 0, trackProvenance);
             auto tuples = rewrittenTuples->getSegment(~0ul,
                     false,
                     0,
@@ -342,10 +329,12 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
             //Get the arity
             if (newtuples->getNColumns() == 1) {
                 std::vector<Term_t> tuples;
+                size_t startNodeIdx = 0;
                 if (cacheRetain.count(p)) {
                     cacheRetain[p].seg->appendTo(0, tuples);
+                    startNodeIdx = cacheRetain[p].nnodes;
                 }
-                for(size_t i = cacheRetain[p].nnodes; i < nodeIdxs.size(); ++i) {
+                for(size_t i = startNodeIdx; i < nodeIdxs.size(); ++i) {
                     getNodeData(nodeIdxs[i])->appendTo(0, tuples);
                 }
                 std::sort(tuples.begin(), tuples.end());
@@ -357,10 +346,12 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 cacheRetain[p] = entry;
             } else if (newtuples->getNColumns() == 2) {
                 std::vector<std::pair<Term_t, Term_t>> tuples;
+                size_t startNodeIdx = 0;
                 if (cacheRetain.count(p)) {
                     cacheRetain[p].seg->appendTo(0, 1, tuples);
+                    startNodeIdx = cacheRetain[p].nnodes;
                 }
-                for(size_t i = cacheRetain[p].nnodes; i < nodeIdxs.size(); ++i) {
+                for(size_t i = startNodeIdx; i < nodeIdxs.size(); ++i) {
                     getNodeData(nodeIdxs[i])->appendTo(0, 1, tuples);
                 }
                 std::sort(tuples.begin(), tuples.end());
@@ -376,9 +367,12 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 for(int i = 0; i < ncolumns; ++i)
                     posFields.push_back(i);
                 std::vector<std::vector<Term_t>> tuples(ncolumns);
-                assert(cacheRetain.count(p));
-                cacheRetain[p].seg->appendTo(posFields, tuples);
-                for(size_t i = cacheRetain[p].nnodes; i < nodeIdxs.size(); ++i) {
+                size_t startNodeIdx = 0;
+                if (cacheRetain.count(p)) {
+                    cacheRetain[p].seg->appendTo(posFields, tuples);
+                    startNodeIdx = cacheRetain[p].nnodes;
+                }
+                for(size_t i = startNodeIdx; i < nodeIdxs.size(); ++i) {
                     getNodeData(nodeIdxs[i])->appendTo(posFields, tuples);
                 }
                 size_t nrows = tuples[0].size();

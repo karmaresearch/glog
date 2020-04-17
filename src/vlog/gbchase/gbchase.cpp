@@ -6,7 +6,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
     program(program),
     trackProvenance(false),
     g(trackProvenance, useCacheRetain),
-    executor(trackProvenance, g, layer) {
+    executor(trackProvenance, g, layer, program) {
         if (!program->stratify(stratification, nStratificationClasses)) {
             LOG(ERRORL) << "Program could not be stratified";
             throw std::runtime_error("Program could not be stratified");
