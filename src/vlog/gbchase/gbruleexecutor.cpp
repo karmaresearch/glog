@@ -588,7 +588,7 @@ void GBRuleExecutor::mergejoin(
         }
 
 #if DEBUG
-        if (processedRight % 10000 == 0)
+        if (processedRight % 1000 == 0)
             LOG(DEBUGL) << "Processed records " << processedRight;
 #endif
 
@@ -1203,7 +1203,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
-#ifdef DEBUG
+#ifdef DEBUG//DEBUG
     if (rule.getFrontierVariables().empty()) {
         LOG(ERRORL) << "The system does not yet support the execution of rules"
             " with empty frontier variables set";

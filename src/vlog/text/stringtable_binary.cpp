@@ -57,7 +57,10 @@ bool StringTableBinary::execFunction(const uint64_t t1, const uint64_t t2) {
         auto resp = std::string(buffer2.get()).find(std::string(buffer1.get()));
         outcome = resp != std::string::npos;
     } else if (fname == "equal") {
-        outcome = strcmp(buffer1.get(), buffer2.get()) == 0;
+        auto s1 = std::string(buffer1.get());
+        auto s2 = std::string(buffer2.get());
+        outcome = s1 == s2;
+        //outcome = strcmp(buffer1.get(), buffer2.get()) == 0;
     } else if (fname == "levenshtein") {
         auto s1 = std::string(buffer1.get());
         std::transform(s1.begin(), s1.end(),s1.begin(), ::toupper);
