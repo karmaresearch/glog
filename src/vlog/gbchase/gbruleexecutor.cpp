@@ -549,7 +549,7 @@ void GBRuleExecutor::mergejoin(
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
     durationMergeSort += std::chrono::system_clock::now() - startS;
 
-#if DEBUG
+#if NDEBUG
     size_t joinLeftSize = inputLeft->getNRows();
     size_t joinRightSize = inputRight->getNRows();
     LOG(DEBUGL) << "Join left size=" << joinLeftSize << " right size=" << joinRightSize;
@@ -568,7 +568,7 @@ void GBRuleExecutor::mergejoin(
         return;
     }
 
-#if DEBUG
+#if NDEBUG
     size_t total = 0;
     size_t max = 65536;
 #endif
@@ -587,7 +587,7 @@ void GBRuleExecutor::mergejoin(
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
-#if DEBUG
+#if NDEBUG
         if (processedRight % 1000 == 0)
             LOG(DEBUGL) << "Processed records " << processedRight;
 #endif
@@ -597,7 +597,7 @@ void GBRuleExecutor::mergejoin(
 
         while (res > 0 && itrRight->hasNext()) {
             itrRight->next();
-#if DEBUG
+#if NDEBUG
             processedRight++;
 #endif
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
@@ -631,7 +631,7 @@ void GBRuleExecutor::mergejoin(
                     countLeft++;
                 }
             }
-#if DEBUG
+#if NDEBUG
             total += countLeft;
             while (total >= max) {
                 LOG(TRACEL) << "Count = " << countLeft << ", total = " << total;
@@ -671,7 +671,7 @@ void GBRuleExecutor::mergejoin(
             if (!itrRight->hasNext()) {
                 break;
             } else {
-#if DEBUG
+#if NDEBUG
                 processedRight++;
 #endif
                 itrRight->next();
@@ -696,7 +696,7 @@ void GBRuleExecutor::mergejoin(
             }
         }
     }
-#if DEBUG
+#if NDEBUG
     LOG(DEBUGL) << "Total = " << total;
     std::chrono::duration<double> secL =
         std::chrono::system_clock::now() - startS;

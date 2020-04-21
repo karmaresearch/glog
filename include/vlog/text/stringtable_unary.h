@@ -8,6 +8,9 @@ class StringTableUnary : public StringTable {
         std::unique_ptr<char[]> buffer1;
         const std::string param;
 
+        int param1_int;
+        char param1_char;
+
     protected:
         bool execFunction(const uint64_t t1);
 
