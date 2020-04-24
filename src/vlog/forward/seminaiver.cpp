@@ -1262,7 +1262,11 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
 
             if (first) {
                 std::chrono::system_clock::time_point startFirstA = std::chrono::system_clock::now();
-                if (lastLiteral || bodyLiteral->getNVars() > 0) {
+                // if (lastLiteral || bodyLiteral->getNVars() > 0) {
+                if (lastLiteral
+                        || plan.sizeOutputRelation[optimalOrderIdx] != 0
+                        || plan.posFromFirst[optimalOrderIdx].size() > 0
+                        || plan.joinCoordinates[optimalOrderIdx].size() > 0) {
                     processRuleFirstAtom(nBodyLiterals, bodyLiteral,
                             heads, min, max, processedTables,
                             lastLiteral,
@@ -1272,6 +1276,9 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                             joinOutput);
                     durationFirstAtom += std::chrono::system_clock::now() - startFirstA;
                     first = false;
+                } else { 
+                    // We have an atom without variables (or none that we need further on), and we already
+                    // checked that the atoms are not empty.
                 }
             } else {
                 //Perform the join

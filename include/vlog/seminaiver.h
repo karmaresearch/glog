@@ -240,7 +240,7 @@ class SemiNaiver: public Chase {
 
         VLIBEXP FCIterator getTableItr(const PredId_t predid);
 
-        size_t getSizeTable(const PredId_t predid) const;
+        VLIBEXP size_t getSizeTable(const PredId_t predid) const;
 
         bool isEmpty(const PredId_t predid) const;
 
