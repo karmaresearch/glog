@@ -11,12 +11,23 @@
 class GBGraph {
     private:
         struct GBGraph_Node {
-            PredId_t predid;
-            size_t ruleIdx;
-            size_t step;
-            std::vector<size_t> incomingEdges;
-            std::shared_ptr<const TGSegment> data;
-            GBGraph_Node() : ruleIdx(0), step(0) {}
+            private:
+                std::shared_ptr<const TGSegment> data;
+            public:
+                PredId_t predid;
+                size_t ruleIdx;
+                size_t step;
+                std::vector<size_t> incomingEdges;
+
+                GBGraph_Node() : ruleIdx(0), step(0) {}
+
+                std::shared_ptr<const TGSegment> getData() const {
+                    return data;
+                }
+
+                void setData(std::shared_ptr<const TGSegment> data) {
+                    this->data = data;
+                }
         };
 
         struct CacheRetainEntry {
@@ -53,7 +64,7 @@ class GBGraph {
         }
 
         std::shared_ptr<const TGSegment> getNodeData(size_t nodeId) const {
-            return nodes[nodeId].data;
+            return nodes[nodeId].getData();
         }
 
         PredId_t getNodePredicate(size_t nodeId) const {
@@ -83,7 +94,7 @@ class GBGraph {
         size_t getNDerivedFacts() const {
             size_t nderived = 0;
             for(auto &node : nodes) {
-                nderived += node.data->getNRows();
+                nderived += node.getData()->getNRows();
             }
             return nderived;
         }

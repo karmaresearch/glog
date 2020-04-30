@@ -11,7 +11,7 @@ void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
     outputNode.predid = predid;
     outputNode.ruleIdx = ruleIdx;
     outputNode.step = step;
-    outputNode.data = data;
+    outputNode.setData(data);
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" << data->getNRows();
 }
@@ -147,12 +147,12 @@ void GBGraph::replaceEqualTerms(
             }
             if (oldTuples.get() != NULL) {
                 auto tuples = oldTuples->getSegment(nodes[nodeId].step, true, 0, trackProvenance);
-                nodes[nodeId].data = tuples;
+                nodes[nodeId].setData(tuples);
             } else {
                 if (rewrittenTuples->getNRows() == data->getNRows()) {
-                    LOG(ERRORL) << "The case where all the tuples are replaced"
-                        " is not (yet) supported";
-                    throw 10;
+                    oldTuples = GBSegmentInserter::getInserter(nfields);
+                    auto tuples = oldTuples->getSegment(nodes[nodeId].step, true, 0, trackProvenance);
+                    nodes[nodeId].setData(tuples);
                 } else {
                     assert(countUnaffectedTuples == data->getNRows());
                 }
@@ -568,7 +568,7 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
                     throw 10;
                 }
                 currentNodeID++;
-                nodes[prevNode].data = tuples->slice(prevNode, begin, end);
+                nodes[prevNode].setData(tuples->slice(prevNode, begin, end));
             }
             prevNode = itr->getNodeId();
         }
@@ -581,7 +581,7 @@ uint64_t GBGraph::removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs) 
             throw 10;
         }
         currentNodeID++;
-        nodes[prevNode].data = tuples->slice(prevNode, begin, end);
+        nodes[prevNode].setData(tuples->slice(prevNode, begin, end));
     }
 
     return removedTuples;
