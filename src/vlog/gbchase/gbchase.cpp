@@ -12,6 +12,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
             throw std::runtime_error("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+        rules = program->getAllRules();
     }
 
 Program *GBChase::getProgram() {
@@ -240,7 +241,6 @@ void GBChase::run() {
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
-    rules = program->getAllRules();
 
     for (int currentStrat = 0;
             currentStrat < nStratificationClasses;

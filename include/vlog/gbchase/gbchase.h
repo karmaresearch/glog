@@ -12,6 +12,8 @@
 
 #include <chrono>
 
+typedef enum { GBCHASE, TGCHASE_STATIC } GBChaseAlgorithm;
+
 class GBChase : public Chase {
     protected:
         const bool trackProvenance;

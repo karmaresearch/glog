@@ -6,27 +6,55 @@
 
 #include <chrono>
 
-typedef std::vector<size_t> TGChase_NodeIDs;
+typedef std::vector<std::string> TGChase_NodeIDs;
 
 class TGChase_RuleIO {
     public:
-        TGChase_NodeIDs out;
-        std::vector<TGChase_NodeIDs> in;
+        TGChase_NodeIDs outNodes;
+        std::vector<size_t> outSizes;
+        std::vector<TGChase_NodeIDs> inNodes;
+
+        TGChase_RuleIO(const std::string &outNode,
+                const std::vector<std::string> &inNodes,
+                bool removeEDBNodes = true) {
+            outNodes.push_back(outNode);
+            for(auto &n : inNodes) {
+                if (removeEDBNodes && n.rfind("EDB", 0) == 0) {
+                    continue;
+                }
+                std::vector<std::string> v;
+                v.push_back(n);
+                this->inNodes.push_back(v);
+            }
+        }
+
 };
 
 class TGChase : public GBChase {
     private:
-        std::unordered_map<size_t, size_t> mapExternalInternalIDs;
+        std::unordered_map<std::string, size_t> mapExternalInternalIDs;
 
     public:
         VLIBEXP TGChase(EDBLayer &layer, Program *program);
 
-        void run();
+        virtual void run() = 0;
 
-        void executeRule(const size_t ruleID, const TGChase_RuleIO &io);
+        void executeRule(const size_t ruleID, TGChase_RuleIO &io);
 
-        //Returns the number of facts that have been removed from "nodes"
-        uint64_t retainNodes(const TGChase_NodeIDs &nodes);
+        //uint64_t retainNodes(const TGChase_NodeIDs &nodes);
+};
+
+class TGChaseStatic : public TGChase {
+    private:
+        std::string tgfile;
+        //std::map<PredId_t, std::vector<std::string>> pred2Nodes;
+
+    public:
+        VLIBEXP TGChaseStatic(EDBLayer &layer, Program *program,
+                std::string tgfile) : TGChase(layer, program), tgfile(tgfile) {
+        }
+
+        VLIBEXP virtual void run();
 };
 
 #endif

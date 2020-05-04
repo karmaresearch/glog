@@ -63,6 +63,10 @@ class GBGraph {
             return nodes[nodeId].step;
         }
 
+        size_t getNodeSize(size_t nodeId) const {
+            return nodes[nodeId].getData()->getNRows();
+        }
+
         std::shared_ptr<const TGSegment> getNodeData(size_t nodeId) const {
             return nodes[nodeId].getData();
         }
@@ -71,19 +75,20 @@ class GBGraph {
             return nodes[nodeId].predid;
         }
 
-        bool areNodesWithPredicate(PredId_t predid) const {
-            return pred2Nodes.count(predid);
+        bool areNodesWithPredicate(PredId_t predId) const {
+            return pred2Nodes.count(predId);
         }
 
-        const std::vector<size_t> &getNodeIDsWithPredicate(PredId_t predid) const {
-            return pred2Nodes.at(predid);
+        const std::vector<size_t> &getNodeIDsWithPredicate(
+                PredId_t predId) const {
+            return pred2Nodes.at(predId);
         }
 
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos) const;
 
-        void addNode(PredId_t predid, size_t ruleIdx,
+        void addNode(PredId_t predId, size_t ruleIdx,
                 size_t step, std::shared_ptr<const TGSegment> data);
 
         void replaceEqualTerms(
@@ -111,8 +116,9 @@ class GBGraph {
                 PredId_t pred,
                 std::shared_ptr<const TGSegment> newtuples);
 
-        //Returns the number of tuples that have been removed
-        uint64_t removeDuplicatesFromNodes(const std::vector<size_t> &nodeIDs);
+        //Returns the number of retained tuples. The new node will get the last
+        //step and will be assigned to rule ~0ul
+        uint64_t mergeNodesWithPredicateIntoOne(PredId_t predId);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
