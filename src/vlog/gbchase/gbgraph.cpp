@@ -471,7 +471,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             }
         }
     } else if (copyVarPos.size() == 2) {
-        if (!project && copyVarPos[0] == 0 && copyVarPos[1] == 1) {
+        if (nodeIdxs.size() == 1 && !project &&
+                copyVarPos[0] == 0 && copyVarPos[1] == 1) {
             return getNodeData(nodeIdxs[0]);
         } else {
             if (trackProvenance) {
