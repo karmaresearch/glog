@@ -154,7 +154,7 @@ void TGChaseStatic::run() {
     size_t retainedTuples = 0;
     for(auto &predId : createdPredicates) {
         LOG(DEBUGL) << "Removing duplicates for predicate " << predId
-            << " ...";
+            << " " << program->getPredicateName(predId) << " ...";
         retainedTuples += g.mergeNodesWithPredicateIntoOne(predId);
     }
     std::chrono::duration<double> sec = std::chrono::system_clock::now()
