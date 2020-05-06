@@ -1,6 +1,7 @@
 #include <vlog/text/stringtable_unary.h>
 
 #include <vlog/edb.h>
+#include <cstring>
 
 StringTableUnary::StringTableUnary(PredId_t predid,
         EDBLayer *layer,
