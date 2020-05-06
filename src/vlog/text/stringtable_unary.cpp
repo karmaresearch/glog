@@ -39,6 +39,12 @@ bool StringTableUnary::execFunction(const uint64_t t1) {
         return outcome;
     }
 
+    if (fname == "minLen") {
+        auto len = strlen(buffer1.get());
+        bool outcome = len >= param1_int;
+        return outcome;
+    }
+
     if (fname == "containsNoChar") {
         auto pos = strchr (buffer1.get(), param1_char);
         bool outcome = pos == NULL;
