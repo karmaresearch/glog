@@ -63,13 +63,13 @@ void TGChase::executeRule(const size_t ruleIdx, TGChase_RuleIO &io) {
 }
 
 /*uint64_t TGChase::retainNodes(const TGChase_NodeIDs &nodes) {
-    std::vector<size_t> internalIDs;
-    for(auto node : nodes) {
-        assert(mapExternalInternalIDs.count(node));
-        internalIDs.push_back(mapExternalInternalIDs[node]);
-    }
-    return g.removeDuplicatesFromNodes(internalIDs);
-}*/
+  std::vector<size_t> internalIDs;
+  for(auto node : nodes) {
+  assert(mapExternalInternalIDs.count(node));
+  internalIDs.push_back(mapExternalInternalIDs[node]);
+  }
+  return g.removeDuplicatesFromNodes(internalIDs);
+  }*/
 
 void TGChaseStatic::run() {
     initRun();
@@ -159,7 +159,8 @@ void TGChaseStatic::run() {
     }
     std::chrono::duration<double> sec = std::chrono::system_clock::now()
         - start;
-    LOG(INFOL) << "Runtime duplicates removal: " << sec.count() * 1000 << "sec";
+    LOG(DEBUGL) << "Runtime duplicates removal: "
+        << sec.count() * 1000 << "msec";
     LOG(INFOL) << "Retained " << retainedTuples << " tuples";
 
 

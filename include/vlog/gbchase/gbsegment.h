@@ -320,8 +320,17 @@ class TGSegmentImpl : public TGSegment {
         }
 
         std::shared_ptr<TGSegment> sort() const {
+            //std::chrono::system_clock::time_point start =
+            //    std::chrono::system_clock::now();
             auto t = std::vector<K>(*TGSegmentImpl<S,K,I,CP>::tuples.get());
+            //std::chrono::duration<double> dur = std::chrono::system_clock::now() - start;
+            //LOG(INFOL) << "SORT 1 " << dur.count() * 1000 << "ms";
+
+            //start = std::chrono::system_clock::now();
             std::sort(t.begin(), t.end());
+            //dur = std::chrono::system_clock::now() - start;
+            //LOG(INFOL) << "SORT 2 " << dur.count() * 1000 << "ms";
+
             return std::shared_ptr<TGSegment>(new S(t, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, 0));
         }
 

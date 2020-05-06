@@ -551,8 +551,8 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     }
 
     std::sort(sortedNodeIDs.begin(), sortedNodeIDs.end());
-    std::chrono::steady_clock::time_point start =
-        std::chrono::steady_clock::now();
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
     //Merge the tuples into a single segment
     auto data = getNodeData(sortedNodeIDs[0]);
     auto card = data->getNColumns();
@@ -560,24 +560,21 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     for(size_t i = 0; i < card; ++i)
         copyVarPos.push_back(i);
     auto tuples = mergeNodes(sortedNodeIDs, copyVarPos);
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    auto dur = end - start;
+    std::chrono::duration<double> dur = std::chrono::system_clock::now() - start;
     LOG(DEBUGL) << "Merged " << sortedNodeIDs.size() << " in a container with"
-        << "  " << tuples->getNRows() << " in " << dur.count();
+        << "  " << tuples->getNRows() << " in " << dur.count() * 1000 << "ms";
 
-    start = std::chrono::steady_clock::now();
+    start = std::chrono::system_clock::now();
     tuples = tuples->sort();
-    end = std::chrono::steady_clock::now();
-    dur = end - start;
+    dur = std::chrono::system_clock::now() - start;
     LOG(DEBUGL) << "Sorted " << tuples->getNRows() << " tuples in " <<
-        dur.count();
+        dur.count() * 1000 << "ms";
 
-    start = std::chrono::steady_clock::now();
+    start = std::chrono::system_clock::now();
     tuples = tuples->unique();
-    end = std::chrono::steady_clock::now();
-    dur = end - start;
+    dur = std::chrono::system_clock::now() - start;
     LOG(DEBUGL) << "Retained " << tuples->getNRows() << " unique tuples in " <<
-        dur.count();
+        dur.count() * 1000 << "ms";
 
     //Remove the content of the pre-existing nodes
     size_t lastStep = 0;
@@ -591,37 +588,4 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     //Create a new node
     addNode(predId, ~0ul, lastStep, tuples);
     return tuples->getNRows();
-
-    /*//Replace the content of the nodes
-      tuples = tuples->sortByProv();
-      auto itr = tuples->iterator();
-      size_t begin = 0;
-      size_t end = 0;
-      size_t prevNode = ~0ul;
-      auto currentNodeID = sortedNodeIDs.begin();
-      while (itr->hasNext()) {
-      if (itr->getNodeId() != prevNode) {
-      if (begin < end) {
-      while (prevNode > *currentNodeID) {
-      LOG(ERRORL) << "Some nodes must be completely emptied. This"
-      " operation is not currently supported";
-      throw 10;
-      }
-      currentNodeID++;
-      nodes[prevNode].setData(tuples->slice(prevNode, begin, end));
-      }
-      prevNode = itr->getNodeId();
-      }
-      end++;
-      }
-      if (begin < end) {
-      while (prevNode > *currentNodeID) {
-      LOG(ERRORL) << "Some nodes must be completely emptied. This"
-      " operation is not currently supported";
-      throw 10;
-      }
-      currentNodeID++;
-      nodes[prevNode].setData(tuples->slice(prevNode, begin, end));
-      }*/
-
 }
