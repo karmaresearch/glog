@@ -19,6 +19,9 @@ class GBGraph {
                 size_t step;
                 std::vector<size_t> incomingEdges;
 
+                std::unique_ptr<Literal> queryHead; //Used only for query containment
+                std::vector<Literal> queryBody; //Used only for query containment
+
                 GBGraph_Node() : ruleIdx(0), step(0) {}
 
                 std::shared_ptr<const TGSegment> getData() const {
@@ -39,20 +42,46 @@ class GBGraph {
         std::vector<GBGraph_Node> nodes;
         const bool trackProvenance;
         const bool cacheRetainEnabled;
+        const bool queryContEnabled;
         std::map<PredId_t, CacheRetainEntry> cacheRetain;
-        std::chrono::duration<double, std::milli> durationRetain;
         uint64_t counterNullValues;
+        uint64_t counterFreshVarsQueryCont;
+
+        std::chrono::duration<double, std::milli> durationRetain;
+        std::chrono::duration<double, std::milli> durationQueryContain;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples);
 
+        bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
+
+        void createQueryFromNode(
+                std::unique_ptr<Literal> &outputQueryHead,
+                std::vector<Literal> &outputQueryBody,
+                const Rule *allRules,
+                const Rule &rule,
+                const std::vector<size_t> &incomingEdges);
+
+        void addNode(PredId_t predId,
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data,
+                const std::vector<size_t> &incomingEdges,
+                std::unique_ptr<Literal> outputQueryHead,
+                std::vector<Literal> &outputQueryBody);
+
     public:
-        GBGraph(bool trackProvenance, bool cacheRetainEnabled) :
+        GBGraph(bool trackProvenance,
+                bool cacheRetainEnabled,
+                bool useQueryContainmentForRedundancyElim = false) :
             trackProvenance(trackProvenance),
             cacheRetainEnabled(cacheRetainEnabled),
-            durationRetain(0) {
+            queryContEnabled(useQueryContainmentForRedundancyElim),
+            durationRetain(0),
+            durationQueryContain(0) {
                 counterNullValues = RULE_SHIFT(1);
+                counterFreshVarsQueryCont = 1; //TODO: Maybe change?
             }
 
         size_t getNNodes() const {
@@ -88,8 +117,12 @@ class GBGraph {
                 const std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos) const;
 
-        void addNode(PredId_t predId, size_t ruleIdx,
-                size_t step, std::shared_ptr<const TGSegment> data);
+        void addNode(PredId_t predId,
+                const Rule *allRules,
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data,
+                const std::vector<size_t> &incomingEdges);
 
         void replaceEqualTerms(
                 size_t ruleIdx,
@@ -119,6 +152,9 @@ class GBGraph {
         //Returns the number of retained tuples. The new node will get the last
         //step and will be assigned to rule ~0ul
         uint64_t mergeNodesWithPredicateIntoOne(PredId_t predId);
+
+        bool isRedundant(Rule *rules, size_t ruleIdx,
+                std::vector<size_t> bodyNodeIdx);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

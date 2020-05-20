@@ -3,8 +3,18 @@
 
 #include <vlog/support.h>
 
-void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
-        std::shared_ptr<const TGSegment> data) {
+void GBGraph::createQueryFromNode(std::unique_ptr<Literal> &outputQueryHead,
+        std::vector<Literal> &outputQueryBody,
+        const Rule *allRules,
+        const Rule &rule,
+        const std::vector<size_t> &incomingEdges) {
+    //TODO
+}
+
+void GBGraph::addNode(PredId_t predid, const Rule *allRules,
+        size_t ruleIdx, size_t step,
+        std::shared_ptr<const TGSegment> data,
+        const std::vector<size_t> &incomingEdges) {
     auto nodeId = getNNodes();
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
@@ -12,6 +22,14 @@ void GBGraph::addNode(PredId_t predid, size_t ruleIdx, size_t step,
     outputNode.ruleIdx = ruleIdx;
     outputNode.step = step;
     outputNode.setData(data);
+
+    if (queryContEnabled) {
+        outputNode.incomingEdges = incomingEdges;
+        //Create a query and associate it to the node
+        createQueryFromNode(outputNode.queryHead, outputNode.queryBody,
+                allRules, allRules[ruleIdx], incomingEdges);
+    }
+
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
@@ -588,4 +606,38 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     //Create a new node
     addNode(predId, ~0ul, lastStep, tuples);
     return tuples->getNRows();
+}
+
+bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
+    for(size_t i = 1; i < atoms.size(); ++i) {
+        auto typ = atoms[i].getPredicate().getType();
+        auto prevtyp = atoms[i-1].getPredicate().getType();
+        if (typ != prevtyp) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
+        std::vector<size_t> bodyNodeIdxs) {
+    //Get the rule
+    const Rule rule = rules[ruleIdx];
+
+    //Perform some checks
+    if (rule.getHeads().size() != 1) {
+        LOG(WARNL) << "Query containment does not work with multiple head"
+            " atoms";
+        return false;
+    }
+
+    const auto &body = rule.getBody();
+    //Either all IDB or EDB
+    if (!isRedundant_checkTypeAtoms(body)) {
+            LOG(WARNL) << "The rule mixes EDB and IDB body atoms. Query "
+                "containment does not support it";
+            return false;
+    }
+
+
 }

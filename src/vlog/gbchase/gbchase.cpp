@@ -373,7 +373,8 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                     //Create a new node
                     auto nodeId = g.getNNodes();
                     auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                    g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+                    g.addNode(currentPredicate, rules.data(),
+                           ruleIdx, step, dataToAdd);
                 }
                 startidx = i;
                 for(size_t j = 0; j < nnodes; ++j) {
@@ -386,7 +387,8 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         if (startidx < nrows) {
             auto nodeId = g.getNNodes();
             auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
-            g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+            g.addNode(currentPredicate, rules.data(),
+                    ruleIdx, step, dataToAdd);
         }
     }
 }
