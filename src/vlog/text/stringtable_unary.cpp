@@ -8,7 +8,7 @@ StringTableUnary::StringTableUnary(PredId_t predid,
         std::string fname,
         std::string param) : StringTable(predid, layer, fname), param(param) {
     buffer1 = std::unique_ptr<char[]>(new char[MAX_TERM_SIZE]);
-    if (fname == "maxLen") {
+    if (fname == "maxLen" || fname == "minLen") {
         param1_int = atoi(param.c_str());
     }
     if (fname == "containsNoChar") {
