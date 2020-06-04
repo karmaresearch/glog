@@ -20,7 +20,25 @@ void GBGraph::addNodeNoProv(PredId_t predId,
             " active";
         throw 10;
     }
-    //TODO
+
+    if (queryContEnabled) {
+        LOG(ERRORL) << "Query containment is available only if provenance "
+            "is activated";
+        throw 10;
+    }
+
+    auto nodeId = getNNodes();
+    nodes.emplace_back();
+    GBGraph_Node &outputNode = nodes.back();
+    outputNode.predid = predId;
+    outputNode.ruleIdx = ruleIdx;
+    outputNode.step = step;
+    outputNode.setData(data);
+
+    pred2Nodes[predId].push_back(nodeId);
+    LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
+        data->getNRows();
+
 }
 
 void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
