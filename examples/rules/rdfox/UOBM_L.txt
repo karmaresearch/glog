@@ -1,0 +1,417 @@
+PREFIX a1: <http://semantics.crl.ibm.com/univ-bench-dl.owl#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX ruleml: <http://www.w3.org/2003/11/ruleml#>
+PREFIX swrl: <http://www.w3.org/2003/11/swrl#>
+PREFIX swrlb: <http://www.w3.org/2003/11/swrlb#>
+PREFIX swrlx: <http://www.w3.org/2003/11/swrlx#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+a1:Publication(?X) :- a1:Specification(?X) .
+a1:Person(?X) :- a1:BasketBallFan(?X) .
+a1:Organization(?X) :- a1:hasMember(?X,?X1) .
+a1:Course(?X1) :- a1:listedCourse(?X,?X1) .
+owl:sameAs(?Y1,?Y2) :- a1:isHeadOf(?Y1,?X), a1:isHeadOf(?Y2,?X) .
+a1:Person(?X) :- a1:hasDegreeFrom(?X,?X1) .
+a1:Employee(?X) :- a1:Person(?X), a1:worksFor(?X,?X1), a1:Organization(?X1) .
+a1:Person(?X) :- a1:SportsLover(?X) .
+a1:College(?X) :- a1:WomanCollege(?X) .
+a1:UndergraduateStudent(?X1) :- a1:hasStudent(?X,?X1), a1:WomanCollege(?X) .
+owl:Nothing(<int$false>) :- a1:Man(?X2), a1:hasStudent(?X,?X2), a1:WomanCollege(?X) .
+a1:Engineering(?X) :- a1:Chemical_EngineeringClass(?X) .
+a1:FineArts(?X) :- a1:Medieval_ArtsClass(?X) .
+owl:Nothing(<int$false>) :- swrlb:notInValueSpace(?X1,xsd:string), a1:firstName(?X,?X1) .
+a1:Professor(?X) :- a1:Dean(?X) .
+a1:Person(?X) :- a1:isAdvisedBy(?X,?X1) .
+a1:Science(?X) :- a1:Materials_ScienceClass(?X) .
+a1:BasketBallLover(?X) :- a1:Person(?X), a1:like(?X,?X1), a1:BasketBallClass(?X1) .
+a1:HumanitiesAndSocial(?X) :- a1:LinguisticsClass(?X) .
+a1:Article(?X) :- a1:JournalArticle(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:ReligionsClass(?X) .
+a1:PeopleWithHobby(?X) :- a1:Person(?X), a1:like(?X,?X1) .
+a1:Course(?X1) :- a1:teachingAssistantOf(?X,?X1) .
+a1:University(?X1) :- a1:hasMasterDegreeFrom(?X,?X1) .
+a1:Organization(?X) :- a1:isAffiliatedOrganizationOf(?X,?X1) .
+a1:Organization(?X) :- a1:isAffiliateOf(?X,?X1) .
+a1:isStudentOf(?X,?Y) :- a1:enrollIn(?X,?Y) .
+a1:Person(?X1) :- a1:hasAlumnus(?X,?X1) .
+a1:Person(?X) :- a1:Man(?X) .
+a1:Software(?X) :- a1:softwareVersion(?X,?X1) .
+a1:Science(?X) :- a1:AstronomyClass(?X) .
+a1:Employee(?X) :- a1:Faculty(?X) .
+a1:hasSameHomeTownWith(?X,?Z) :- a1:hasSameHomeTownWith(?X,?Y), a1:hasSameHomeTownWith(?Y,?Z) .
+a1:Publication(?X1) :- a1:softwareDocumentation(?X,?X1) .
+a1:Student(?X) :- a1:UndergraduateStudent(?X) .
+a1:Chair(?X) :- a1:Person(?X), a1:isHeadOf(?X,?X1), a1:Department(?X1) .
+a1:Faculty(?X) :- a1:teacherOf(?X,?X1) .
+a1:Engineering(?X) :- a1:Industry_EngineeringClass(?X) .
+a1:FineArts(?X) :- a1:Asian_ArtsClass(?X) .
+a1:Organization(?X) :- a1:Institute(?X) .
+a1:SwimmingLover(?X) :- a1:Person(?X), a1:like(?X,?X1), a1:SwimmingClass(?X1) .
+a1:Publication(?X) :- a1:Article(?X) .
+a1:hasStudent(?X,?Y) :- a1:isStudentOf(?Y,?X) .
+a1:isStudentOf(?X,?Y) :- a1:hasStudent(?Y,?X) .
+a1:Person(?X1) :- a1:hasMember(?X,?X1) .
+a1:Student(?X) :- a1:ScienceStudent(?X) .
+a1:FineArts(?X) :- a1:Latin_ArtsClass(?X) .
+a1:BasketBallFan(?X) :- a1:Person(?X), a1:isCrazyAbout(?X,?X1), a1:BasketBallClass(?X1) .
+a1:Person(?X) :- a1:TennisFan(?X) .
+a1:TeachingAssistant(?X) :- a1:Person(?X), a1:teachingAssistantOf(?X,?X1), a1:Course(?X1) .
+a1:Schedule(?X) :- a1:listedCourse(?X,?X1) .
+a1:Person(?X) :- a1:SportsFan(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:PsychologyClass(?X) .
+a1:Student(?X) :- a1:NonScienceStudent(?X) .
+owl:Nothing(<int$false>) :- a1:hasMajor(?X,?X1), a1:Science(?X1), a1:NonScienceStudent(?X) .
+a1:Professor(?X) :- a1:AssociateProfessor(?X) .
+a1:hasSameHomeTownWith(?X,?Y) :- a1:hasSameHomeTownWith(?Y,?X) .
+a1:Sports(?X) :- a1:BaseballClass(?X) .
+a1:Person(?X) :- a1:TeachingAssistant(?X) .
+a1:hasDegreeFrom(?X,?Y) :- a1:hasDoctoralDegreeFrom(?X,?Y) .
+a1:HumanitiesAndSocial(?X) :- a1:AnthropologyClass(?X) .
+a1:Research(?X1) :- a1:publicationResearch(?X,?X1) .
+a1:Publication(?X1) :- a1:orgPublication(?X,?X1) .
+a1:Software(?X) :- a1:softwareDocumentation(?X,?X1) .
+a1:Organization(?X) :- a1:University(?X) .
+a1:Faculty(?X) :- a1:PostDoc(?X) .
+a1:Article(?X) :- a1:TechnicalReport(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:Modern_LanguagesClass(?X) .
+a1:Organization(?X1) :- a1:subOrganizationOf(?X,?X1) .
+a1:Sports(?X) :- a1:BasketBallClass(?X) .
+owl:Nothing(<int$false>) :- swrlb:notInValueSpace(?X1,xsd:string), a1:lastName(?X,?X1) .
+a1:Person(?X) :- a1:hasSameHomeTownWith(?X,?X1) .
+a1:Person(?X1) :- a1:isAffiliateOf(?X,?X1) .
+a1:hasDegreeFrom(?X,?Y) :- a1:hasMasterDegreeFrom(?X,?Y) .
+a1:Engineering(?X) :- a1:Computer_EngineeringClass(?X) .
+a1:Organization(?X) :- a1:College(?X) .
+a1:SwimmingFan(?X) :- a1:Person(?X), a1:isCrazyAbout(?X,?X1), a1:SwimmingClass(?X1) .
+a1:Organization(?X) :- a1:hasStudent(?X,?X1) .
+a1:Publication(?X) :- a1:publicationAuthor(?X,?X1) .
+a1:Person(?X) :- a1:age(?X,?X1) .
+a1:Person(?X1) :- a1:publicationAuthor(?X,?X1) .
+a1:Science(?X) :- a1:BiologyClass(?X) .
+a1:BaseballLover(?X) :- a1:Person(?X), a1:like(?X,?X1), a1:BaseballClass(?X1) .
+a1:Person(?X1) :- a1:hasSameHomeTownWith(?X,?X1) .
+a1:Science(?X) :- a1:Marine_ScienceClass(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:PhilosophyClass(?X) .
+a1:Person(?X) :- a1:BaseballFan(?X) .
+a1:Science(?X) :- a1:GeosciencesClass(?X) .
+a1:Course(?X) :- a1:GraduateCourse(?X) .
+a1:Person(?X) :- a1:BasketBallLover(?X) .
+a1:AcademicSubject(?X) :- a1:Science(?X) .
+a1:Student(?X) :- a1:Person(?X), a1:isStudentOf(?X,?X1), a1:Organization(?X1) .
+a1:ScienceStudent(?X) :- a1:Student(?X), a1:hasMajor(?X,?X1), a1:Science(?X1) .
+a1:GraduateCourse(?X1) :- a1:takesCourse(?X,?X1), a1:GraduateStudent(?X) .
+a1:Person(?X) :- a1:telephone(?X,?X1) .
+a1:Person(?X) :- a1:SwimmingLover(?X) .
+a1:Person(?X) :- a1:hasDoctoralDegreeFrom(?X,?X1) .
+a1:Publication(?X) :- a1:UnofficialPublication(?X) .
+a1:hasMember(?X,?Y) :- a1:hasStudent(?X,?Y) .
+a1:AcademicSubject(?X1) :- a1:hasMajor(?X,?X1) .
+a1:FineArts(?X) :- a1:Modern_ArtsClass(?X) .
+a1:Person(?X) :- a1:title(?X,?X1) .
+a1:Employee(?X) :- a1:SupportingStaff(?X) .
+a1:Science(?X) :- a1:MathematicsClass(?X) .
+a1:Faculty(?X1) :- a1:isTaughtBy(?X,?X1) .
+a1:TennisFan(?X) :- a1:Person(?X), a1:isCrazyAbout(?X,?X1), a1:TennisClass(?X1) .
+a1:Person(?X) :- a1:Employee(?X) .
+a1:Organization(?X) :- a1:orgPublication(?X,?X1) .
+a1:Professor(?X1) :- a1:isAdvisedBy(?X,?X1) .
+a1:Course(?X1) :- a1:teacherOf(?X,?X1) .
+a1:Science(?X) :- a1:ChemistryClass(?X) .
+a1:FineArts(?X) :- a1:ArchitectureClass(?X) .
+a1:Article(?X) :- a1:ConferencePaper(?X) .
+a1:BaseballFan(?X) :- a1:Person(?X), a1:isCrazyAbout(?X,?X1), a1:BaseballClass(?X1) .
+a1:isMemberOf(?X,?Y) :- a1:isStudentOf(?X,?Y) .
+a1:Person(?X) :- a1:hasMasterDegreeFrom(?X,?X1) .
+a1:Professor(?X) :- a1:Chair(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:EnglishClass(?X) .
+a1:Publication(?X) :- a1:publicationResearch(?X,?X1) .
+a1:isMemberOf(?X,?Y) :- a1:hasMember(?Y,?X) .
+a1:hasMember(?X,?Y) :- a1:isMemberOf(?Y,?X) .
+a1:Organization(?X1) :- a1:isStudentOf(?X,?X1) .
+a1:Person(?X) :- a1:BaseballLover(?X) .
+a1:Publication(?X) :- a1:Manual(?X) .
+a1:University(?X1) :- a1:hasDegreeFrom(?X,?X1) .
+a1:Person(?X) :- a1:Woman(?X) .
+a1:Faculty(?X) :- a1:Lecturer(?X) .
+a1:Organization(?X) :- a1:ResearchGroup(?X) .
+a1:FineArts(?X) :- a1:Theatre_and_DanceClass(?X) .
+a1:worksFor(?X,?Y) :- a1:isHeadOf(?X,?Y) .
+a1:Professor(?X) :- a1:FullProfessor(?X) .
+a1:Professor(?X) :- a1:VisitingProfessor(?X) .
+a1:Department(?X1) :- a1:enrollIn(?X,?X1) .
+a1:isMemberOf(?X,?Y) :- a1:worksFor(?X,?Y) .
+a1:Engineering(?X) :- a1:Biomedical_EngineeringClass(?X) .
+a1:Person(?X1) :- a1:isFriendOf(?X,?X1) .
+a1:Publication(?X) :- a1:Software(?X) .
+a1:Science(?X) :- a1:PhysicsClass(?X) .
+a1:Engineering(?X) :- a1:Civil_EngineeringClass(?X) .
+a1:AcademicSubject(?X) :- a1:Engineering(?X) .
+a1:Person(?X) :- a1:Chair(?X) .
+a1:Person(?X) :- a1:PeopleWithHobby(?X) .
+a1:AcademicSubject(?X) :- a1:FineArts(?X) .
+a1:Professor(?X) :- a1:AssistantProfessor(?X) .
+a1:SupportingStaff(?X) :- a1:ClericalStaff(?X) .
+a1:Person(?X) :- a1:emailAddress(?X,?X1) .
+a1:TeachingAssistant(?X) :- a1:teachingAssistantOf(?X,?X1) .
+a1:hasDegreeFrom(?X,?Y) :- a1:hasAlumnus(?Y,?X) .
+a1:hasAlumnus(?X,?Y) :- a1:hasDegreeFrom(?Y,?X) .
+a1:University(?X1) :- a1:hasDoctoralDegreeFrom(?X,?X1) .
+a1:Person(?X) :- a1:Director(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:HistoryClass(?X) .
+a1:Course(?X) :- a1:isTaughtBy(?X,?X1) .
+a1:Engineering(?X) :- a1:Aeronautical_EngineeringClass(?X) .
+a1:Student(?X1) :- a1:hasStudent(?X,?X1) .
+a1:University(?X1) :- a1:hasUndergraduateDegreeFrom(?X,?X1) .
+a1:Person(?X) :- a1:firstName(?X,?X1) .
+owl:sameAs(?Y1,?Y2) :- a1:isTaughtBy(?X,?Y1), a1:isTaughtBy(?X,?Y2) .
+a1:ResearchGroup(?X) :- a1:researchProject(?X,?X1) .
+a1:Professor(?X) :- a1:tenured(?X,?X1) .
+a1:Person(?X) :- a1:hasUndergraduateDegreeFrom(?X,?X1) .
+a1:Research(?X1) :- a1:researchProject(?X,?X1) .
+a1:Engineering(?X) :- a1:Materical_Science_EngineeringClass(?X) .
+a1:Person(?X) :- a1:Student(?X) .
+a1:Science(?X) :- a1:StatisticsClass(?X) .
+a1:Student(?X) :- a1:isStudentOf(?X,?X1) .
+a1:Engineering(?X) :- a1:Mechanical_EngineeringClass(?X) .
+a1:isFriendOf(?X,?Y) :- a1:isFriendOf(?Y,?X) .
+a1:Person(?X) :- a1:isFriendOf(?X,?X1) .
+a1:SportsFan(?X) :- a1:Person(?X), a1:isCrazyAbout(?X,?X1), a1:Sports(?X1) .
+a1:Sports(?X) :- a1:TennisClass(?X) .
+a1:isTaughtBy(?X,?Y) :- a1:teacherOf(?Y,?X) .
+a1:teacherOf(?X,?Y) :- a1:isTaughtBy(?Y,?X) .
+a1:SupportingStaff(?X) :- a1:SystemsStaff(?X) .
+a1:Dean(?X) :- a1:isHeadOf(?X,?X1), a1:College(?X1) .
+a1:Person(?X) :- a1:lastName(?X,?X1) .
+a1:Organization(?X1) :- a1:isAffiliatedOrganizationOf(?X,?X1) .
+a1:like(?X,?Y) :- a1:isCrazyAbout(?X,?Y) .
+a1:University(?X) :- a1:hasAlumnus(?X,?X1) .
+a1:Faculty(?X) :- a1:Professor(?X) .
+a1:like(?X,?Y) :- a1:love(?X,?Y) .
+a1:love(?X,?Y) :- a1:like(?X,?Y) .
+a1:Sports(?X) :- a1:SwimmingClass(?X) .
+a1:Work(?X) :- a1:Research(?X) .
+a1:Organization(?X) :- a1:Program(?X) .
+a1:Organization(?X) :- a1:subOrganizationOf(?X,?X1) .
+a1:Publication(?X) :- a1:Book(?X) .
+a1:Person(?X) :- a1:SwimmingFan(?X) .
+a1:Director(?X) :- a1:Person(?X), a1:isHeadOf(?X,?X1), a1:Program(?X1) .
+a1:hasDegreeFrom(?X,?Y) :- a1:hasUndergraduateDegreeFrom(?X,?Y) .
+a1:Engineering(?X) :- a1:Petroleuml_EngineeringClass(?X) .
+a1:Work(?X) :- a1:Course(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:HumanitiesClass(?X) .
+a1:subOrganizationOf(?X,?Z) :- a1:subOrganizationOf(?X,?Y), a1:subOrganizationOf(?Y,?Z) .
+a1:Science(?X) :- a1:Computer_ScienceClass(?X) .
+a1:SportsLover(?X) :- a1:Person(?X), a1:like(?X,?X1), a1:Sports(?X1) .
+owl:Nothing(?X) :- a1:Man(?X), a1:Woman(?X) .
+a1:Person(?X) :- a1:ResearchAssistant(?X) .
+a1:Insterest(?X) :- a1:Music(?X) .
+a1:FineArts(?X) :- a1:DramaClass(?X) .
+a1:Engineering(?X) :- a1:Electrical_EngineeringClass(?X) .
+a1:Insterest(?X) :- a1:Sports(?X) .
+a1:HumanitiesAndSocial(?X) :- a1:EconomicsClass(?X) .
+a1:Student(?X) :- a1:takesCourse(?X,?X1) .
+a1:FineArts(?X) :- a1:Media_Arts_And_ciencesClass(?X) .
+a1:Organization(?X) :- a1:Department(?X) .
+a1:FineArts(?X) :- a1:Performing_ArtsClass(?X) .
+a1:AcademicSubject(?X) :- a1:HumanitiesAndSocial(?X) .
+a1:FineArts(?X) :- a1:MusicsClass(?X) .
+a1:Publication(?X) :- a1:publicationDate(?X,?X1) .
+owl:sameAs(?X,?Y) :- owl:sameAs(?Y,?X) .
+owl:sameAs(?X,?Z) :- owl:sameAs(?X,?Y), owl:sameAs(?Y,?Z) .
+a1:Publication(?Y) :- a1:Publication(?X0), owl:sameAs(?X0,?Y) .
+a1:Specification(?Y) :- a1:Specification(?X0), owl:sameAs(?X0,?Y) .
+a1:Person(?Y) :- a1:Person(?X0), owl:sameAs(?X0,?Y) .
+a1:BasketBallFan(?Y) :- a1:BasketBallFan(?X0), owl:sameAs(?X0,?Y) .
+a1:Organization(?Y) :- a1:Organization(?X0), owl:sameAs(?X0,?Y) .
+a1:hasMember(?Y,?X1) :- a1:hasMember(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasMember(?X0,?Y) :- a1:hasMember(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Course(?Y) :- a1:Course(?X0), owl:sameAs(?X0,?Y) .
+a1:listedCourse(?Y,?X1) :- a1:listedCourse(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:listedCourse(?X0,?Y) :- a1:listedCourse(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:isHeadOf(?Y,?X1) :- a1:isHeadOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isHeadOf(?X0,?Y) :- a1:isHeadOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:hasDegreeFrom(?Y,?X1) :- a1:hasDegreeFrom(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasDegreeFrom(?X0,?Y) :- a1:hasDegreeFrom(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Employee(?Y) :- a1:Employee(?X0), owl:sameAs(?X0,?Y) .
+a1:worksFor(?Y,?X1) :- a1:worksFor(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:worksFor(?X0,?Y) :- a1:worksFor(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:SportsLover(?Y) :- a1:SportsLover(?X0), owl:sameAs(?X0,?Y) .
+a1:College(?Y) :- a1:College(?X0), owl:sameAs(?X0,?Y) .
+a1:WomanCollege(?Y) :- a1:WomanCollege(?X0), owl:sameAs(?X0,?Y) .
+a1:UndergraduateStudent(?Y) :- a1:UndergraduateStudent(?X0), owl:sameAs(?X0,?Y) .
+a1:hasStudent(?Y,?X1) :- a1:hasStudent(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasStudent(?X0,?Y) :- a1:hasStudent(?X0,?X1), owl:sameAs(?X1,?Y) .
+owl:Nothing(?Y) :- owl:Nothing(?X0), owl:sameAs(?X0,?Y) .
+a1:Man(?Y) :- a1:Man(?X0), owl:sameAs(?X0,?Y) .
+a1:Engineering(?Y) :- a1:Engineering(?X0), owl:sameAs(?X0,?Y) .
+a1:Chemical_EngineeringClass(?Y) :- a1:Chemical_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:FineArts(?Y) :- a1:FineArts(?X0), owl:sameAs(?X0,?Y) .
+a1:Medieval_ArtsClass(?Y) :- a1:Medieval_ArtsClass(?X0), owl:sameAs(?X0,?Y) .
+swrlb:notInValueSpace(?Y,?X1) :- swrlb:notInValueSpace(?X0,?X1), owl:sameAs(?X0,?Y) .
+swrlb:notInValueSpace(?X0,?Y) :- swrlb:notInValueSpace(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:firstName(?Y,?X1) :- a1:firstName(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:firstName(?X0,?Y) :- a1:firstName(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Professor(?Y) :- a1:Professor(?X0), owl:sameAs(?X0,?Y) .
+a1:Dean(?Y) :- a1:Dean(?X0), owl:sameAs(?X0,?Y) .
+a1:isAdvisedBy(?Y,?X1) :- a1:isAdvisedBy(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isAdvisedBy(?X0,?Y) :- a1:isAdvisedBy(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Science(?Y) :- a1:Science(?X0), owl:sameAs(?X0,?Y) .
+a1:Materials_ScienceClass(?Y) :- a1:Materials_ScienceClass(?X0), owl:sameAs(?X0,?Y) .
+a1:BasketBallLover(?Y) :- a1:BasketBallLover(?X0), owl:sameAs(?X0,?Y) .
+a1:like(?Y,?X1) :- a1:like(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:like(?X0,?Y) :- a1:like(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:BasketBallClass(?Y) :- a1:BasketBallClass(?X0), owl:sameAs(?X0,?Y) .
+a1:HumanitiesAndSocial(?Y) :- a1:HumanitiesAndSocial(?X0), owl:sameAs(?X0,?Y) .
+a1:LinguisticsClass(?Y) :- a1:LinguisticsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Article(?Y) :- a1:Article(?X0), owl:sameAs(?X0,?Y) .
+a1:JournalArticle(?Y) :- a1:JournalArticle(?X0), owl:sameAs(?X0,?Y) .
+a1:ReligionsClass(?Y) :- a1:ReligionsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:PeopleWithHobby(?Y) :- a1:PeopleWithHobby(?X0), owl:sameAs(?X0,?Y) .
+a1:teachingAssistantOf(?Y,?X1) :- a1:teachingAssistantOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:teachingAssistantOf(?X0,?Y) :- a1:teachingAssistantOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:University(?Y) :- a1:University(?X0), owl:sameAs(?X0,?Y) .
+a1:hasMasterDegreeFrom(?Y,?X1) :- a1:hasMasterDegreeFrom(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasMasterDegreeFrom(?X0,?Y) :- a1:hasMasterDegreeFrom(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:isAffiliatedOrganizationOf(?Y,?X1) :- a1:isAffiliatedOrganizationOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isAffiliatedOrganizationOf(?X0,?Y) :- a1:isAffiliatedOrganizationOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:isAffiliateOf(?Y,?X1) :- a1:isAffiliateOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isAffiliateOf(?X0,?Y) :- a1:isAffiliateOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:isStudentOf(?Y,?X1) :- a1:isStudentOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isStudentOf(?X0,?Y) :- a1:isStudentOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:enrollIn(?Y,?X1) :- a1:enrollIn(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:enrollIn(?X0,?Y) :- a1:enrollIn(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:hasAlumnus(?Y,?X1) :- a1:hasAlumnus(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasAlumnus(?X0,?Y) :- a1:hasAlumnus(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Software(?Y) :- a1:Software(?X0), owl:sameAs(?X0,?Y) .
+a1:softwareVersion(?Y,?X1) :- a1:softwareVersion(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:softwareVersion(?X0,?Y) :- a1:softwareVersion(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:AstronomyClass(?Y) :- a1:AstronomyClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Faculty(?Y) :- a1:Faculty(?X0), owl:sameAs(?X0,?Y) .
+a1:hasSameHomeTownWith(?Y,?X1) :- a1:hasSameHomeTownWith(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasSameHomeTownWith(?X0,?Y) :- a1:hasSameHomeTownWith(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:softwareDocumentation(?Y,?X1) :- a1:softwareDocumentation(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:softwareDocumentation(?X0,?Y) :- a1:softwareDocumentation(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Student(?Y) :- a1:Student(?X0), owl:sameAs(?X0,?Y) .
+a1:Chair(?Y) :- a1:Chair(?X0), owl:sameAs(?X0,?Y) .
+a1:Department(?Y) :- a1:Department(?X0), owl:sameAs(?X0,?Y) .
+a1:teacherOf(?Y,?X1) :- a1:teacherOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:teacherOf(?X0,?Y) :- a1:teacherOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Industry_EngineeringClass(?Y) :- a1:Industry_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Asian_ArtsClass(?Y) :- a1:Asian_ArtsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Institute(?Y) :- a1:Institute(?X0), owl:sameAs(?X0,?Y) .
+a1:SwimmingLover(?Y) :- a1:SwimmingLover(?X0), owl:sameAs(?X0,?Y) .
+a1:SwimmingClass(?Y) :- a1:SwimmingClass(?X0), owl:sameAs(?X0,?Y) .
+a1:ScienceStudent(?Y) :- a1:ScienceStudent(?X0), owl:sameAs(?X0,?Y) .
+a1:Latin_ArtsClass(?Y) :- a1:Latin_ArtsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:isCrazyAbout(?Y,?X1) :- a1:isCrazyAbout(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isCrazyAbout(?X0,?Y) :- a1:isCrazyAbout(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:TennisFan(?Y) :- a1:TennisFan(?X0), owl:sameAs(?X0,?Y) .
+a1:TeachingAssistant(?Y) :- a1:TeachingAssistant(?X0), owl:sameAs(?X0,?Y) .
+a1:Schedule(?Y) :- a1:Schedule(?X0), owl:sameAs(?X0,?Y) .
+a1:SportsFan(?Y) :- a1:SportsFan(?X0), owl:sameAs(?X0,?Y) .
+a1:PsychologyClass(?Y) :- a1:PsychologyClass(?X0), owl:sameAs(?X0,?Y) .
+a1:NonScienceStudent(?Y) :- a1:NonScienceStudent(?X0), owl:sameAs(?X0,?Y) .
+a1:hasMajor(?Y,?X1) :- a1:hasMajor(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasMajor(?X0,?Y) :- a1:hasMajor(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:AssociateProfessor(?Y) :- a1:AssociateProfessor(?X0), owl:sameAs(?X0,?Y) .
+a1:Sports(?Y) :- a1:Sports(?X0), owl:sameAs(?X0,?Y) .
+a1:BaseballClass(?Y) :- a1:BaseballClass(?X0), owl:sameAs(?X0,?Y) .
+a1:hasDoctoralDegreeFrom(?Y,?X1) :- a1:hasDoctoralDegreeFrom(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasDoctoralDegreeFrom(?X0,?Y) :- a1:hasDoctoralDegreeFrom(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:AnthropologyClass(?Y) :- a1:AnthropologyClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Research(?Y) :- a1:Research(?X0), owl:sameAs(?X0,?Y) .
+a1:publicationResearch(?Y,?X1) :- a1:publicationResearch(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:publicationResearch(?X0,?Y) :- a1:publicationResearch(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:orgPublication(?Y,?X1) :- a1:orgPublication(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:orgPublication(?X0,?Y) :- a1:orgPublication(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:PostDoc(?Y) :- a1:PostDoc(?X0), owl:sameAs(?X0,?Y) .
+a1:TechnicalReport(?Y) :- a1:TechnicalReport(?X0), owl:sameAs(?X0,?Y) .
+a1:Modern_LanguagesClass(?Y) :- a1:Modern_LanguagesClass(?X0), owl:sameAs(?X0,?Y) .
+a1:subOrganizationOf(?Y,?X1) :- a1:subOrganizationOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:subOrganizationOf(?X0,?Y) :- a1:subOrganizationOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:lastName(?Y,?X1) :- a1:lastName(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:lastName(?X0,?Y) :- a1:lastName(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Computer_EngineeringClass(?Y) :- a1:Computer_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:SwimmingFan(?Y) :- a1:SwimmingFan(?X0), owl:sameAs(?X0,?Y) .
+a1:publicationAuthor(?Y,?X1) :- a1:publicationAuthor(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:publicationAuthor(?X0,?Y) :- a1:publicationAuthor(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:age(?Y,?X1) :- a1:age(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:age(?X0,?Y) :- a1:age(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:BiologyClass(?Y) :- a1:BiologyClass(?X0), owl:sameAs(?X0,?Y) .
+a1:BaseballLover(?Y) :- a1:BaseballLover(?X0), owl:sameAs(?X0,?Y) .
+a1:Marine_ScienceClass(?Y) :- a1:Marine_ScienceClass(?X0), owl:sameAs(?X0,?Y) .
+a1:PhilosophyClass(?Y) :- a1:PhilosophyClass(?X0), owl:sameAs(?X0,?Y) .
+a1:BaseballFan(?Y) :- a1:BaseballFan(?X0), owl:sameAs(?X0,?Y) .
+a1:GeosciencesClass(?Y) :- a1:GeosciencesClass(?X0), owl:sameAs(?X0,?Y) .
+a1:GraduateCourse(?Y) :- a1:GraduateCourse(?X0), owl:sameAs(?X0,?Y) .
+a1:AcademicSubject(?Y) :- a1:AcademicSubject(?X0), owl:sameAs(?X0,?Y) .
+a1:takesCourse(?Y,?X1) :- a1:takesCourse(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:takesCourse(?X0,?Y) :- a1:takesCourse(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:GraduateStudent(?Y) :- a1:GraduateStudent(?X0), owl:sameAs(?X0,?Y) .
+a1:telephone(?Y,?X1) :- a1:telephone(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:telephone(?X0,?Y) :- a1:telephone(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:UnofficialPublication(?Y) :- a1:UnofficialPublication(?X0), owl:sameAs(?X0,?Y) .
+a1:Modern_ArtsClass(?Y) :- a1:Modern_ArtsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:title(?Y,?X1) :- a1:title(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:title(?X0,?Y) :- a1:title(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:SupportingStaff(?Y) :- a1:SupportingStaff(?X0), owl:sameAs(?X0,?Y) .
+a1:MathematicsClass(?Y) :- a1:MathematicsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:isTaughtBy(?Y,?X1) :- a1:isTaughtBy(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isTaughtBy(?X0,?Y) :- a1:isTaughtBy(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:TennisClass(?Y) :- a1:TennisClass(?X0), owl:sameAs(?X0,?Y) .
+a1:ChemistryClass(?Y) :- a1:ChemistryClass(?X0), owl:sameAs(?X0,?Y) .
+a1:ArchitectureClass(?Y) :- a1:ArchitectureClass(?X0), owl:sameAs(?X0,?Y) .
+a1:ConferencePaper(?Y) :- a1:ConferencePaper(?X0), owl:sameAs(?X0,?Y) .
+a1:isMemberOf(?Y,?X1) :- a1:isMemberOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isMemberOf(?X0,?Y) :- a1:isMemberOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:EnglishClass(?Y) :- a1:EnglishClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Manual(?Y) :- a1:Manual(?X0), owl:sameAs(?X0,?Y) .
+a1:Woman(?Y) :- a1:Woman(?X0), owl:sameAs(?X0,?Y) .
+a1:Lecturer(?Y) :- a1:Lecturer(?X0), owl:sameAs(?X0,?Y) .
+a1:ResearchGroup(?Y) :- a1:ResearchGroup(?X0), owl:sameAs(?X0,?Y) .
+a1:Theatre_and_DanceClass(?Y) :- a1:Theatre_and_DanceClass(?X0), owl:sameAs(?X0,?Y) .
+a1:FullProfessor(?Y) :- a1:FullProfessor(?X0), owl:sameAs(?X0,?Y) .
+a1:VisitingProfessor(?Y) :- a1:VisitingProfessor(?X0), owl:sameAs(?X0,?Y) .
+a1:Biomedical_EngineeringClass(?Y) :- a1:Biomedical_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:isFriendOf(?Y,?X1) :- a1:isFriendOf(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:isFriendOf(?X0,?Y) :- a1:isFriendOf(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:PhysicsClass(?Y) :- a1:PhysicsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Civil_EngineeringClass(?Y) :- a1:Civil_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:AssistantProfessor(?Y) :- a1:AssistantProfessor(?X0), owl:sameAs(?X0,?Y) .
+a1:ClericalStaff(?Y) :- a1:ClericalStaff(?X0), owl:sameAs(?X0,?Y) .
+a1:emailAddress(?Y,?X1) :- a1:emailAddress(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:emailAddress(?X0,?Y) :- a1:emailAddress(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Director(?Y) :- a1:Director(?X0), owl:sameAs(?X0,?Y) .
+a1:HistoryClass(?Y) :- a1:HistoryClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Aeronautical_EngineeringClass(?Y) :- a1:Aeronautical_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:hasUndergraduateDegreeFrom(?Y,?X1) :- a1:hasUndergraduateDegreeFrom(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:hasUndergraduateDegreeFrom(?X0,?Y) :- a1:hasUndergraduateDegreeFrom(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:researchProject(?Y,?X1) :- a1:researchProject(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:researchProject(?X0,?Y) :- a1:researchProject(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:tenured(?Y,?X1) :- a1:tenured(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:tenured(?X0,?Y) :- a1:tenured(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Materical_Science_EngineeringClass(?Y) :- a1:Materical_Science_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:StatisticsClass(?Y) :- a1:StatisticsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Mechanical_EngineeringClass(?Y) :- a1:Mechanical_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:SystemsStaff(?Y) :- a1:SystemsStaff(?X0), owl:sameAs(?X0,?Y) .
+a1:love(?Y,?X1) :- a1:love(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:love(?X0,?Y) :- a1:love(?X0,?X1), owl:sameAs(?X1,?Y) .
+a1:Work(?Y) :- a1:Work(?X0), owl:sameAs(?X0,?Y) .
+a1:Program(?Y) :- a1:Program(?X0), owl:sameAs(?X0,?Y) .
+a1:Book(?Y) :- a1:Book(?X0), owl:sameAs(?X0,?Y) .
+a1:Petroleuml_EngineeringClass(?Y) :- a1:Petroleuml_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:HumanitiesClass(?Y) :- a1:HumanitiesClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Computer_ScienceClass(?Y) :- a1:Computer_ScienceClass(?X0), owl:sameAs(?X0,?Y) .
+a1:ResearchAssistant(?Y) :- a1:ResearchAssistant(?X0), owl:sameAs(?X0,?Y) .
+a1:Insterest(?Y) :- a1:Insterest(?X0), owl:sameAs(?X0,?Y) .
+a1:Music(?Y) :- a1:Music(?X0), owl:sameAs(?X0,?Y) .
+a1:DramaClass(?Y) :- a1:DramaClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Electrical_EngineeringClass(?Y) :- a1:Electrical_EngineeringClass(?X0), owl:sameAs(?X0,?Y) .
+a1:EconomicsClass(?Y) :- a1:EconomicsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Media_Arts_And_ciencesClass(?Y) :- a1:Media_Arts_And_ciencesClass(?X0), owl:sameAs(?X0,?Y) .
+a1:Performing_ArtsClass(?Y) :- a1:Performing_ArtsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:MusicsClass(?Y) :- a1:MusicsClass(?X0), owl:sameAs(?X0,?Y) .
+a1:publicationDate(?Y,?X1) :- a1:publicationDate(?X0,?X1), owl:sameAs(?X0,?Y) .
+a1:publicationDate(?X0,?Y) :- a1:publicationDate(?X0,?X1), owl:sameAs(?X1,?Y) .

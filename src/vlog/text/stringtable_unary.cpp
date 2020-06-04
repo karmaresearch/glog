@@ -7,7 +7,7 @@ StringTableUnary::StringTableUnary(PredId_t predid,
         std::string fname,
         std::string param) : StringTable(predid, layer, fname), param(param) {
     buffer1 = std::unique_ptr<char[]>(new char[MAX_TERM_SIZE]);
-    if (fname == "maxLen") {
+    if (fname == "maxLen" || fname == "minLen") {
         param1_int = atoi(param.c_str());
     }
     if (fname == "containsNoChar") {
@@ -35,6 +35,12 @@ bool StringTableUnary::execFunction(const uint64_t t1) {
     if (fname == "maxLen") {
         auto len = strlen(buffer1.get());
         bool outcome = len <= param1_int;
+        return outcome;
+    }
+
+    if (fname == "minLen") {
+        auto len = strlen(buffer1.get());
+        bool outcome = len >= param1_int;
         return outcome;
     }
 
