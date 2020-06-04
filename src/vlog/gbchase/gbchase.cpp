@@ -319,7 +319,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                                 retainedTuples, derivationNodes);
                     } else {
                         //Add a single node
-                        g.addNode(currentPredicate, node.ruleIdx,
+                        g.addNodeNoProv(currentPredicate, node.ruleIdx,
                                 node.step, retainedTuples);
                     }
                 }
@@ -333,11 +333,25 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         std::vector<std::shared_ptr<Column>> &provenance) {
     if (provenance.size() == 0) {
+        LOG(ERRORL) << "Provenance cannot be NULL";
+        throw 10;
+    }
+    if (provenance.size() == 1) {
+        std::vector<size_t> provnodes; //Get the provenance
+        if (!provenance[0]->isConstant() || provenance[0]->isEmpty()) {
+            LOG(ERRORL) << "The provenance vector is either non-constant"
+                " or empty";
+            throw 10;
+        }
+        auto oldNodeId = provenance[0]->first();
+        provnodes.push_back(oldNodeId);
+
         //There was no join. Must replace the nodeID with a new one
         //Note at this point calling slice will create a new vector
         auto nodeId = g.getNNodes();
         auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-        g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+        g.addNodeProv(currentPredicate, rules.data(), ruleIdx, step, dataToAdd,
+                provnodes);
     } else {
         const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
@@ -373,8 +387,8 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                     //Create a new node
                     auto nodeId = g.getNNodes();
                     auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                    g.addNode(currentPredicate, rules.data(),
-                           ruleIdx, step, dataToAdd);
+                    g.addNodeProv(currentPredicate, rules.data(),
+                           ruleIdx, step, dataToAdd, currentNodeList);
                 }
                 startidx = i;
                 for(size_t j = 0; j < nnodes; ++j) {
@@ -387,8 +401,8 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         if (startidx < nrows) {
             auto nodeId = g.getNNodes();
             auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
-            g.addNode(currentPredicate, rules.data(),
-                    ruleIdx, step, dataToAdd);
+            g.addNodeProv(currentPredicate, rules.data(),
+                    ruleIdx, step, dataToAdd, currentNodeList);
         }
     }
 }

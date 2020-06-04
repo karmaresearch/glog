@@ -117,7 +117,12 @@ class GBGraph {
                 const std::vector<size_t> &nodeIdxs,
                 std::vector<int> &copyVarPos) const;
 
-        void addNode(PredId_t predId,
+        void addNodeNoProv(PredId_t predId,
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data);
+
+        void addNodeProv(PredId_t predId,
                 const Rule *allRules,
                 size_t ruleIdx,
                 size_t step,

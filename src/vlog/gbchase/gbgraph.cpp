@@ -11,7 +11,19 @@ void GBGraph::createQueryFromNode(std::unique_ptr<Literal> &outputQueryHead,
     //TODO
 }
 
-void GBGraph::addNode(PredId_t predid, const Rule *allRules,
+void GBGraph::addNodeNoProv(PredId_t predId,
+        size_t ruleIdx,
+        size_t step,
+        std::shared_ptr<const TGSegment> data) {
+    if (trackProvenance) {
+        LOG(ERRORL) << "This method should not be called if provenance is"
+            " active";
+        throw 10;
+    }
+    //TODO
+}
+
+void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
@@ -24,6 +36,7 @@ void GBGraph::addNode(PredId_t predid, const Rule *allRules,
     outputNode.setData(data);
 
     if (queryContEnabled) {
+        assert(allRules != NULL && !incomingEdges.empty());
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         createQueryFromNode(outputNode.queryHead, outputNode.queryBody,
@@ -201,10 +214,13 @@ void GBGraph::replaceEqualTerms(
                     auto nodeId = getNNodes();
                     auto dataToAdd = tuples->slice(nodeId, 0,
                             tuples->getNRows());
-                    addNode(predid, ruleIdx, step, dataToAdd);
+                    std::vector<size_t> nodes;
+                    //Merge nodes lose the provenance
+                    addNodeProv(predid, NULL, ruleIdx, step, dataToAdd,
+                            nodes);
                 } else {
                     //Add a single node
-                    addNode(predid, ruleIdx, step, retainedTuples);
+                    addNodeNoProv(predid, ruleIdx, step, retainedTuples);
                 }
             }
         }
@@ -604,7 +620,12 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     }
 
     //Create a new node
-    addNode(predId, ~0ul, lastStep, tuples);
+    if (trackProvenance) {
+        std::vector<size_t> nodes;
+        addNodeProv(predId, NULL, ~0ul, lastStep, tuples, nodes);
+    } else {
+        addNodeNoProv(predId, ~0ul, lastStep, tuples);
+    }
     return tuples->getNRows();
 }
 
@@ -634,10 +655,12 @@ bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
     const auto &body = rule.getBody();
     //Either all IDB or EDB
     if (!isRedundant_checkTypeAtoms(body)) {
-            LOG(WARNL) << "The rule mixes EDB and IDB body atoms. Query "
-                "containment does not support it";
-            return false;
+        LOG(WARNL) << "The rule mixes EDB and IDB body atoms. Query "
+            "containment does not support it";
+        return false;
     }
 
-
+    LOG(ERRORL) << "Method not implemented";
+    throw 10;
+    return false;
 }
