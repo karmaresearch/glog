@@ -25,7 +25,7 @@ class Exporter {
                 std::vector<uint64_t> &all_o,
                 std::vector<_EDBPredicates>::iterator it,
                 std::shared_ptr<const FCInternalTable> intTable,
-                const long nrows,
+                const int64_t nrows,
                 int64_t triple[3]);
 
     public:

@@ -1594,37 +1594,6 @@ size_t SemiNaiver::countAllIDBs() {
     return c;
 }
 
-#ifdef WEBINTERFACE
-std::vector<std::pair<string, std::vector<StatsSizeIDB>>> SemiNaiver::getSizeIDBs() {
-    std::vector<std::pair<string, std::vector<StatsSizeIDB>>> out;
-    for (PredId_t i = 0; i < program->getNPredicates(); ++i) {
-        if (predicatesTables[i] != NULL && i != currentPredicate) {
-            if (program->isPredicateIDB(i)) {
-                FCIterator itr = predicatesTables[i]->read(0);
-                std::vector<StatsSizeIDB> stats;
-                while (!itr.isEmpty()) {
-                    std::shared_ptr<const FCInternalTable> t = itr.getCurrentTable();
-                    StatsSizeIDB s;
-                    s.iteration = itr.getCurrentIteration();
-                    s.idRule = itr.getRule()->ruleid;
-                    s.derivation = t->getNRows();
-                    stats.push_back(s);
-                    itr.moveNextCount();
-                }
-
-                if (stats.size() > 0) {
-                    out.push_back(std::make_pair(program->getPredicateName(i), stats));
-                }
-
-                //size_t count = predicatesTables[i]->getNAllRows();
-                //out.push_back(std::make_pair(program->getPredicateName(i), count));
-            }
-        }
-    }
-    return out;
-}
-#endif
-
 void SemiNaiver::printCountAllIDBs(std::string prefix) {
     size_t c = 0;
     long emptyRel = 0;
