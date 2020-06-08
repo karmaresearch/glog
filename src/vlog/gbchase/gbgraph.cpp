@@ -3,12 +3,37 @@
 
 #include <vlog/support.h>
 
-void GBGraph::createQueryFromNode(std::unique_ptr<Literal> &outputQueryHead,
+std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         std::vector<Literal> &outputQueryBody,
         const Rule *allRules,
         const Rule &rule,
         const std::vector<size_t> &incomingEdges) {
-    //TODO
+    assert(rule.getHeads().size() == 1);
+
+    //Rewrite the rule with fresh variables
+    Rule newRule = rule.rewriteWithFreshVars(counterFreshVarsQueryCont);
+    auto &newBody = newRule.getBody();
+
+    outputQueryBody.clear();
+    int idxIncomingEdge = 0;
+    for(int i = 0; i < newBody.size(); ++i) {
+        auto &l = newBody[i];
+        if (l.getPredicate().getType() == EDB) {
+            outputQueryBody.push_back(l);
+        } else {
+            auto incEdge = incomingEdges[idxIncomingEdge++];
+            //Get the head atom associated to the node
+            auto litIncEdge = getNodeHeadQuery(incEdge);
+            //Compute the MGU
+            std::vector<Substitution> subs;
+            auto nsubs = Literal::getSubstitutionsA2B(subs, litIncEdge, l);
+            assert(nsubs != -1);
+            outputQueryBody.push_back(litIncEdge.substitutes(subs));
+        }
+    }
+    assert(idxIncomingEdge == incomingEdges.size());
+
+    return std::unique_ptr<Literal>(new Literal(newRule.getFirstHead()));
 }
 
 void GBGraph::addNodeNoProv(PredId_t predId,
@@ -17,7 +42,7 @@ void GBGraph::addNodeNoProv(PredId_t predId,
         std::shared_ptr<const TGSegment> data) {
     if (trackProvenance) {
         LOG(ERRORL) << "This method should not be called if provenance is"
-            " active";
+            " activated";
         throw 10;
     }
 
@@ -57,8 +82,9 @@ void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
         assert(allRules != NULL && !incomingEdges.empty());
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
-        createQueryFromNode(outputNode.queryHead, outputNode.queryBody,
+        auto queryHead = createQueryFromNode(outputNode.queryBody,
                 allRules, allRules[ruleIdx], incomingEdges);
+        outputNode.queryHead = std::move(queryHead);
     }
 
     pred2Nodes[predid].push_back(nodeId);
@@ -661,7 +687,7 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
 bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
         std::vector<size_t> bodyNodeIdxs) {
     //Get the rule
-    const Rule rule = rules[ruleIdx];
+    const Rule &rule = rules[ruleIdx];
 
     //Perform some checks
     if (rule.getHeads().size() != 1) {
@@ -678,7 +704,37 @@ bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
         return false;
     }
 
-    LOG(ERRORL) << "Method not implemented";
-    throw 10;
+    const auto &h = rule.getFirstHead();
+    const auto predId = h.getPredicate().getId();
+    std::vector<Substitution> subs;
+    for(auto &nodeId : getNodeIDsWithPredicate(predId)) {
+        const Literal &node = getNodeHeadQuery(nodeId);
+        auto nsubs = Literal::getSubstitutionsA2B(subs, h, node);
+        if (nsubs != -1) {
+            const auto &bodyNodeLiterals = getNodeBodyQuery(nodeId);
+            const auto &bodyRule = rule.getBody();
+            for (const auto &l : bodyRule) {
+                auto newLit = l.substitutes(subs);
+                //Check if newLit is contained in bodyNode
+                bool found = false;
+                for(const auto &bodyNodeLiteral : bodyNodeLiterals) {
+                    std::vector<Substitution> subs2;
+                    int nsubs2 = Literal::subsumes(
+                            subs2,
+                            bodyNodeLiteral,
+                            newLit);
+                    if (nsubs2 != -1) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
     return false;
 }

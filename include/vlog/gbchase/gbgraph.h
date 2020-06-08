@@ -45,7 +45,7 @@ class GBGraph {
         const bool queryContEnabled;
         std::map<PredId_t, CacheRetainEntry> cacheRetain;
         uint64_t counterNullValues;
-        uint64_t counterFreshVarsQueryCont;
+        uint32_t counterFreshVarsQueryCont;
 
         std::chrono::duration<double, std::milli> durationRetain;
         std::chrono::duration<double, std::milli> durationQueryContain;
@@ -56,8 +56,7 @@ class GBGraph {
 
         bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
 
-        void createQueryFromNode(
-                std::unique_ptr<Literal> &outputQueryHead,
+        std::unique_ptr<Literal> createQueryFromNode(
                 std::vector<Literal> &outputQueryBody,
                 const Rule *allRules,
                 const Rule &rule,
@@ -81,7 +80,7 @@ class GBGraph {
             durationRetain(0),
             durationQueryContain(0) {
                 counterNullValues = RULE_SHIFT(1);
-                counterFreshVarsQueryCont = 1; //TODO: Maybe change?
+                counterFreshVarsQueryCont = 1 << 20;
             }
 
         size_t getNNodes() const {
@@ -102,6 +101,15 @@ class GBGraph {
 
         PredId_t getNodePredicate(size_t nodeId) const {
             return nodes[nodeId].predid;
+        }
+
+        const Literal &getNodeHeadQuery(size_t nodeId) const {
+            assert(nodes[nodeId].queryHead.get() != NULL);
+            return *(nodes[nodeId].queryHead.get());
+        }
+
+        const std::vector<Literal> getNodeBodyQuery(size_t nodeId) const {
+            return nodes[nodeId].queryBody;
         }
 
         bool areNodesWithPredicate(PredId_t predId) const {

@@ -147,10 +147,10 @@ void VLogUtils::execSPARQLQuery(std::string sparqlquery,
 
         std::chrono::system_clock::time_point startQ = std::chrono::system_clock::now();
         if (operatorTree->first()) {
-	    LOG(INFOL) << "Found another one";
+            LOG(INFOL) << "Found another one";
             while (operatorTree->next()) {
-		LOG(INFOL) << "Found another one";
-	    }
+                LOG(INFOL) << "Found another one";
+            }
         }
         std::chrono::duration<double> durationQ = std::chrono::system_clock::now() - startQ;
         std::chrono::duration<double> duration = std::chrono::system_clock::now() - start;

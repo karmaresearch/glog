@@ -538,6 +538,36 @@ Rule Rule::normalizeVars() const {
     return Rule(ruleId, newheads, newBody, egd);
 }
 
+Rule Rule::rewriteWithFreshVars(uint32_t &counter) const {
+    std::set<uint32_t> s_vars;
+    for(auto &h : heads) {
+        for(auto &v : h.getAllVars()) {
+            s_vars.insert(v);
+        }
+    }
+    for(auto &b : body) {
+        for(auto &v : b.getAllVars()) {
+            s_vars.insert(v);
+        }
+    }
+    std::vector<Substitution> subs;
+    for (auto &v : s_vars) {
+        subs.push_back(Substitution(v, VTerm(counter++, 0)));
+    }
+    std::vector<Literal> newheads;
+    for(auto &head : heads) {
+        Literal newHead = head.substitutes(subs);
+        LOG(DEBUGL) << "head = " << head.tostring() << ", newHead = " << newHead.tostring();
+        newheads.push_back(newHead);
+    }
+    std::vector<Literal> newBody;
+    for (std::vector<Literal>::const_iterator itr = body.cbegin(); itr != body.cend();
+            ++itr) {
+        newBody.push_back(itr->substitutes(subs));
+    }
+    return Rule(ruleId, newheads, newBody, egd);
+}
+
 Rule Rule::createAdornment(uint8_t headAdornment) const {
     if (heads.size() > 1) {
         LOG(ERRORL) << "Function createAdornment is defined only for rules with a single head";
