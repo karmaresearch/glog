@@ -1,11 +1,14 @@
 #include <vlog/gbchase/gbchase.h>
 #include <vlog/gbchase/gbsegmentcache.h>
 
-GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
+GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
+        bool trackProvenance,
+        bool filterQueryCont) :
     layer(layer),
     program(program),
-    trackProvenance(false),
-    g(trackProvenance, useCacheRetain),
+    trackProvenance(trackProvenance),
+    filterQueryCont(filterQueryCont),
+    g(trackProvenance, useCacheRetain, filterQueryCont),
     executor(trackProvenance, g, layer, program) {
         if (!program->stratify(stratification, nStratificationClasses)) {
             LOG(ERRORL) << "Program could not be stratified";
@@ -388,7 +391,7 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                     auto nodeId = g.getNNodes();
                     auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
                     g.addNodeProv(currentPredicate, rules.data(),
-                           ruleIdx, step, dataToAdd, currentNodeList);
+                            ruleIdx, step, dataToAdd, currentNodeList);
                 }
                 startidx = i;
                 for(size_t j = 0; j < nnodes; ++j) {

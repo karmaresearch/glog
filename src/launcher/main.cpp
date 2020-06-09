@@ -63,6 +63,7 @@ void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "trigger\t\t create a trigger graph from a given program." << endl;
     cout << "gbchase\t\t launch the graph-based chase." << endl;
     cout << "tgchase_static\t\t perform a full materialization guided by a trigger graph computed statically (new version)." << endl;
+    cout << "tgchase\t\t perform a full materialization guided by a trigger graph computed on-the-fly (new version)." << endl;
     cout << "query\t\t execute a SPARQL query." << endl;
     cout << "queryLiteral\t\t execute a Literal query." << endl;
     cout << "server\t\t starts in server mode." << endl;
@@ -95,7 +96,7 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
     if (cmd != "help" && cmd != "query" && cmd != "lookup" && cmd != "load" && cmd != "queryLiteral"
             && cmd != "mat" && cmd != "mat_tg" && cmd != "rulesgraph" && cmd != "server" && cmd != "gentq" &&
             cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger"
-            && cmd != "gbchase" && cmd != "tgchase_static") {
+            && cmd != "gbchase" && cmd != "tgchase_static" && cmd != "tgchase") {
         printErrorMsg("The command \"" + cmd + "\" is unknown.");
         return false;
     }
@@ -536,6 +537,8 @@ void launchGBChase(
                 << param1 << ") does not exist";
             throw 10;
         }
+    } else if (cmd == "tgchase") {
+        tc = GBChaseAlgorithm::TGCHASE_DYNAMIC;
     }
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc, param1);
 

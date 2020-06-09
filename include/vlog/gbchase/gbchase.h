@@ -12,11 +12,12 @@
 
 #include <chrono>
 
-typedef enum { GBCHASE, TGCHASE_STATIC } GBChaseAlgorithm;
+typedef enum { GBCHASE, TGCHASE_STATIC, TGCHASE_DYNAMIC } GBChaseAlgorithm;
 
 class GBChase : public Chase {
     protected:
         const bool trackProvenance;
+        const bool filterQueryCont;
         Program *program;
         EDBLayer &layer; //Stores the input data
         GBGraph g; //Stores the derivations
@@ -69,7 +70,9 @@ class GBChase : public Chase {
 
     public:
         VLIBEXP GBChase(EDBLayer &layer, Program *program,
-                bool useCacheRetain = true);
+                bool useCacheRetain = true,
+                bool trackProvenance = false,
+                bool filterQueryCont = false);
 
         VLIBEXP virtual void run();
 

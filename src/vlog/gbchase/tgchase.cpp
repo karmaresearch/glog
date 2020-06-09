@@ -62,15 +62,6 @@ void TGChase::executeRule(const size_t ruleIdx, TGChase_RuleIO &io) {
     }
 }
 
-/*uint64_t TGChase::retainNodes(const TGChase_NodeIDs &nodes) {
-  std::vector<size_t> internalIDs;
-  for(auto node : nodes) {
-  assert(mapExternalInternalIDs.count(node));
-  internalIDs.push_back(mapExternalInternalIDs[node]);
-  }
-  return g.removeDuplicatesFromNodes(internalIDs);
-  }*/
-
 void TGChaseStatic::run() {
     initRun();
     LOG(DEBUGL) << "First load the trigger_path file";

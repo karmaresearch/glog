@@ -871,6 +871,9 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_STATIC) {
         std::shared_ptr<GBChase> sn(new TGChaseStatic(layer, p, param1));
         return sn;
+    } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC) {
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, true, true));
+        return sn;
     } else {
         LOG(ERRORL) << "Type of chase is not supported";
         throw 10;

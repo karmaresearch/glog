@@ -40,14 +40,11 @@ class TGChase : public GBChase {
         virtual void run() = 0;
 
         void executeRule(const size_t ruleID, TGChase_RuleIO &io);
-
-        //uint64_t retainNodes(const TGChase_NodeIDs &nodes);
 };
 
 class TGChaseStatic : public TGChase {
     private:
         std::string tgfile;
-        //std::map<PredId_t, std::vector<std::string>> pred2Nodes;
 
     public:
         VLIBEXP TGChaseStatic(EDBLayer &layer, Program *program,
