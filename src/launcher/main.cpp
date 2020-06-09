@@ -1441,7 +1441,8 @@ int main(int argc, const char** argv) {
         launchTriggeredMat(argc, argv, full_path, *layer, vm,
                 vm["rules"].as<string>(), vm["trigger_paths"].as<string>());
         delete layer;
-    } else if (cmd == "gbchase" || cmd == "tgchase_static") {
+    } else if (cmd == "gbchase" || cmd == "tgchase_static" ||
+            cmd == "tgchase") {
         EDBConf conf(edbFile);
         conf.setRootPath(Utils::parentDir(edbFile));
         EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());

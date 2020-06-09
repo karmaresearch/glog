@@ -236,7 +236,7 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
 int TGSegmentLegacy::getProvenanceType() const {
     if (trackProvenance) {
         assert(columns.size() > 0);
-        if (columns.back()->isConstant()) {
+        if (columns.back()->isEmpty() || columns.back()->isConstant()) {
             return 1;
         } else {
             return 2;
@@ -249,8 +249,7 @@ int TGSegmentLegacy::getProvenanceType() const {
 size_t TGSegmentLegacy::getNodeId() const {
     if (trackProvenance) {
         assert(columns.size() > 0);
-        assert(columns.back()->size() > 0);
-        if (columns.back()->isConstant()) {
+        if (!columns.back()->isEmpty() && columns.back()->isConstant()) {
             return columns.back()->first();
         } else {
             return ~0ul;

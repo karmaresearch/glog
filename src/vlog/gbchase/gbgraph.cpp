@@ -7,6 +7,7 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         std::vector<Literal> &outputQueryBody,
         const Rule *allRules,
         const Rule &rule,
+        std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
     assert(rule.getHeads().size() == 1);
 
@@ -21,7 +22,15 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         if (l.getPredicate().getType() == EDB) {
             outputQueryBody.push_back(l);
         } else {
-            auto incEdge = incomingEdges[idxIncomingEdge++];
+            size_t incEdge;
+            //If the rule has one IDB body atom, then the provenance
+            //is stored in "data"
+            if (i == 0 && incomingEdges.empty()) {
+                incEdge = 0;
+            } else {
+                assert(incomingEdges.size() > 0);
+                incEdge = incomingEdges[idxIncomingEdge++];
+            }
             //Get the head atom associated to the node
             auto litIncEdge = getNodeHeadQuery(incEdge);
             //Compute the MGU
@@ -79,11 +88,13 @@ void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
     outputNode.setData(data);
 
     if (queryContEnabled) {
-        assert(allRules != NULL && !incomingEdges.empty());
+        assert(allRules != NULL);
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
-                allRules, allRules[ruleIdx], incomingEdges);
+                allRules, allRules[ruleIdx],
+                data,
+                incomingEdges);
         outputNode.queryHead = std::move(queryHead);
     }
 

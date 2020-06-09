@@ -60,6 +60,7 @@ class GBGraph {
                 std::vector<Literal> &outputQueryBody,
                 const Rule *allRules,
                 const Rule &rule,
+                std::shared_ptr<const TGSegment> data,
                 const std::vector<size_t> &incomingEdges);
 
         void addNode(PredId_t predId,

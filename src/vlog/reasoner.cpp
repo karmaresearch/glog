@@ -829,7 +829,6 @@ TupleIterator *Reasoner::getTopDownIterator(Literal &query,
     } else {
         return new TupleTableItr(pFinalTable);
     }
-
 }
 
 std::shared_ptr<SemiNaiver> Reasoner::getSemiNaiver(EDBLayer &layer,

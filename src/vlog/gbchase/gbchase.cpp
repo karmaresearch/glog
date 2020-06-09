@@ -336,14 +336,17 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         std::vector<std::shared_ptr<Column>> &provenance) {
     if (provenance.size() == 0) {
-        LOG(ERRORL) << "Provenance cannot be NULL";
-        throw 10;
-    }
-    if (provenance.size() == 1) {
+        //Only EDB body atoms
+        std::vector<size_t> provnodes;
+        auto nodeId = g.getNNodes();
+        auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
+        g.addNodeProv(currentPredicate, rules.data(), ruleIdx, step,
+                dataToAdd, provnodes);
+    } else if (provenance.size() == 1) {
         std::vector<size_t> provnodes; //Get the provenance
         if (!provenance[0]->isConstant() || provenance[0]->isEmpty()) {
             LOG(ERRORL) << "The provenance vector is either non-constant"
-                " or empty";
+                " or empty. These cases are not supported.";
             throw 10;
         }
         auto oldNodeId = provenance[0]->first();
