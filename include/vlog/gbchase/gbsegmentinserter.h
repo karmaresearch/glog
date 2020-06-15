@@ -255,7 +255,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 &intermediateResultsNodes) {
             //Take out the last two columns
             assert(card > 2);
-            for(int i = card - 2; i < card; ++i) {
+            for(int i = 0; i < card - 2; ++i) {
                 columns.push_back(writers[i].getColumn());
             }
             //For now, always add one extra column
