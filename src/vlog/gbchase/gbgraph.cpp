@@ -22,15 +22,8 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         if (l.getPredicate().getType() == EDB) {
             outputQueryBody.push_back(l);
         } else {
-            size_t incEdge;
-            //If the rule has one IDB body atom, then the provenance
-            //is stored in "data"
-            if (i == 0 && incomingEdges.empty()) {
-                incEdge = 0;
-            } else {
-                assert(incomingEdges.size() > 0);
-                incEdge = incomingEdges[idxIncomingEdge++];
-            }
+            assert(incomingEdges.size() > 0);
+            size_t incEdge = incomingEdges[idxIncomingEdge++];
             //Get the head atom associated to the node
             auto litIncEdge = getNodeHeadQuery(incEdge);
             //Compute the MGU
@@ -75,7 +68,7 @@ void GBGraph::addNodeNoProv(PredId_t predId,
 
 }
 
-void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
+void GBGraph::addNodeProv(PredId_t predid,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
@@ -86,16 +79,34 @@ void GBGraph::addNodeProv(PredId_t predid, const Rule *allRules,
     outputNode.ruleIdx = ruleIdx;
     outputNode.step = step;
     outputNode.setData(data);
+    assert(nodeId == data->getNodeId());
 
     if (queryContEnabled) {
-        assert(allRules != NULL);
+        assert(allRules != NULL && program != NULL && layer != NULL);
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
                 allRules, allRules[ruleIdx],
                 data,
                 incomingEdges);
+
+#ifdef DEBUG
+        LOG(INFOL) << "Node " << nodeId << " created with rule " << allRules[ruleIdx].tostring(program, layer);
+        LOG(INFOL) << "     QH: " << queryHead->tostring(program, layer);
+        std::string nodes = "";
+        for(auto i : incomingEdges) {
+            nodes += " " + std::to_string(i);
+        }
+        LOG(INFOL) << "     NO:" << nodes;
+        std::string qb = "";
+        for(auto &l : outputNode.queryBody) {
+            qb += " " + l.tostring(program, layer);
+        }
+        LOG(INFOL) << "     QB:" << qb;
+#endif
+
         outputNode.queryHead = std::move(queryHead);
+        assert(outputNode.queryHead.get() != NULL);
     }
 
     pred2Nodes[predid].push_back(nodeId);
@@ -271,7 +282,7 @@ void GBGraph::replaceEqualTerms(
                             tuples->getNRows());
                     std::vector<size_t> nodes;
                     //Merge nodes lose the provenance
-                    addNodeProv(predid, NULL, ruleIdx, step, dataToAdd,
+                    addNodeProv(predid, ruleIdx, step, dataToAdd,
                             nodes);
                 } else {
                     //Add a single node
@@ -677,7 +688,7 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     //Create a new node
     if (trackProvenance) {
         std::vector<size_t> nodes;
-        addNodeProv(predId, NULL, ~0ul, lastStep, tuples, nodes);
+        addNodeProv(predId, ~0ul, lastStep, tuples, nodes);
     } else {
         addNodeNoProv(predId, ~0ul, lastStep, tuples);
     }

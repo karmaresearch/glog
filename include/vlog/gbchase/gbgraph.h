@@ -47,6 +47,10 @@ class GBGraph {
         uint64_t counterNullValues;
         uint32_t counterFreshVarsQueryCont;
 
+        Rule *allRules;
+        EDBLayer *layer;
+        Program *program;
+
         std::chrono::duration<double, std::milli> durationRetain;
         std::chrono::duration<double, std::milli> durationQueryContain;
 
@@ -79,7 +83,8 @@ class GBGraph {
             cacheRetainEnabled(cacheRetainEnabled),
             queryContEnabled(useQueryContainmentForRedundancyElim),
             durationRetain(0),
-            durationQueryContain(0) {
+            durationQueryContain(0), allRules(NULL),
+            layer(NULL), program(NULL) {
                 counterNullValues = RULE_SHIFT(1);
                 counterFreshVarsQueryCont = 1 << 20;
             }
@@ -90,6 +95,14 @@ class GBGraph {
 
         size_t getNodeStep(size_t nodeId) const {
             return nodes[nodeId].step;
+        }
+
+        void setRulesProgramLayer(Rule *allRules,
+                Program *program,
+                EDBLayer *layer) {
+            this->allRules = allRules;
+            this->program = program;
+            this->layer = layer;
         }
 
         size_t getNodeSize(size_t nodeId) const {
@@ -132,7 +145,6 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> data);
 
         void addNodeProv(PredId_t predId,
-                const Rule *allRules,
                 size_t ruleIdx,
                 size_t step,
                 std::shared_ptr<const TGSegment> data,

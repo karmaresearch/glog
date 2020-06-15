@@ -163,12 +163,12 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 bool trackProvenance) {
 
             if (!isFinal) {
-                if (trackProvenance) {
+/*                if (trackProvenance) {
                     //In this case, the system should have called
                     //postprocessJoin
                     LOG(ERRORL) << "This should not happen";
                     throw 10;
-                }
+                }*/
                 for(int i = 0; i < card; ++i) {
                     columns.push_back(writers[i].getColumn());
                 }
