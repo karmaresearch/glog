@@ -1279,6 +1279,17 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             uniqueTuples = true;
         }
 
+        //If there was only one body atom, then the vector with the provenance
+        //is empty
+        if (trackProvenance && firstBodyAtomIsIDB &&
+                bodyAtoms.size() == 1) {
+            size_t ni = bodyNodes[0][0];
+            //assert(ni == intermediateResults->getNodeId());
+            intermediateResultsNodes.push_back(std::shared_ptr<Column>(
+                        new CompressedColumn(ni,
+                            intermediateResults->getNRows())));
+        }
+
         //Compute the head atoms
         std::chrono::steady_clock::time_point start =
             std::chrono::steady_clock::now();
