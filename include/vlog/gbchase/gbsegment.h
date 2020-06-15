@@ -220,6 +220,9 @@ struct ProvSorter {
         for(int i = 0; i < ncols; ++i) {
             if (tuples[ba] < tuples[bb])
                 return true;
+            else if (tuples[ba] > tuples[bb]) {
+                return false;
+            }
         }
         return false;
     }
