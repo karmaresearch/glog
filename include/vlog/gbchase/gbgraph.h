@@ -63,8 +63,8 @@ class GBGraph {
         std::unique_ptr<Literal> createQueryFromNode(
                 std::vector<Literal> &outputQueryBody,
                 const Rule &rule,
-                std::shared_ptr<const TGSegment> data,
-                const std::vector<size_t> &incomingEdges);
+                const std::vector<size_t> &incomingEdges,
+                bool incrementCounter = true);
 
         void addNode(PredId_t predId,
                 size_t ruleIdx,
@@ -178,8 +178,8 @@ class GBGraph {
         //step and will be assigned to rule ~0ul
         uint64_t mergeNodesWithPredicateIntoOne(PredId_t predId);
 
-        bool isRedundant(Rule *rules, size_t ruleIdx,
-                std::vector<size_t> bodyNodeIdx);
+        bool isRedundant(size_t ruleIdx,
+                const std::vector<size_t> &bodyNodeIdx);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

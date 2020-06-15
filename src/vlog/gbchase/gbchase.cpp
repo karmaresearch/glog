@@ -130,12 +130,65 @@ void GBChase::prepareRuleExecutionPlans(
                 continue;
             }
 
-            LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
-            newnodes.emplace_back();
-            GBRuleInput &newnode = newnodes.back();
-            newnode.ruleIdx = ruleIdx;
-            newnode.step = step;
-            newnode.incomingEdges = acceptableNodes;
+            if (filterQueryCont) {
+                size_t nCombinations = 1;
+                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                    nCombinations = nCombinations * acceptableNodes[i].size();
+                }
+                size_t filteredCombinations = 0;
+                std::vector<int> processedCombs(acceptableNodes.size());
+                std::vector<size_t> currentComb(acceptableNodes.size());
+                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                    processedCombs[i] = -1;
+                }
+                size_t currentIdx = 0;
+                //Check all combinations
+                while (true) {
+                    if (processedCombs[currentIdx] ==
+                            acceptableNodes[currentIdx].size() - 1) {
+                        //Go back one level
+                        if (currentIdx == 0) {
+                            break;
+                        } else {
+                            processedCombs[currentIdx] = -1;
+                            currentIdx--;
+                        }
+                    } else {
+                        processedCombs[currentIdx]++;
+                        auto idx = processedCombs[currentIdx];
+                        currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
+                        //Am I at the last? Then check
+                        if (currentIdx == acceptableNodes.size() - 1) {
+                            //Do the check!
+                            if (g.isRedundant(ruleIdx, currentComb)) {
+                                filteredCombinations++;
+                            }
+                        } else {
+                            currentIdx++;
+                        }
+                    }
+                }
+
+
+                if (filteredCombinations == 0) {
+                    newnodes.emplace_back();
+                    GBRuleInput &newnode = newnodes.back();
+                    newnode.ruleIdx = ruleIdx;
+                    newnode.step = step;
+                    newnode.incomingEdges = acceptableNodes;
+                } else if (filteredCombinations == nCombinations) {
+                    //All combinations are redundant, skip
+                } else {
+                    LOG(ERRORL) << "Not (yet) implemented";
+                    throw 10;
+                }
+            } else {
+                newnodes.emplace_back();
+                GBRuleInput &newnode = newnodes.back();
+                newnode.ruleIdx = ruleIdx;
+                newnode.step = step;
+                newnode.incomingEdges = acceptableNodes;
+            }
         }
     }
 }

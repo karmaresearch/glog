@@ -6,11 +6,13 @@
 std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         std::vector<Literal> &outputQueryBody,
         const Rule &rule,
-        std::shared_ptr<const TGSegment> data,
-        const std::vector<size_t> &incomingEdges) {
+        const std::vector<size_t> &incomingEdges,
+        bool incrementCounter) {
     assert(rule.getHeads().size() == 1);
 
     //Rewrite the rule with fresh variables
+    auto oldCounter = counterFreshVarsQueryCont;
+    counterFreshVarsQueryCont++;
     Rule newRule = rule.rewriteWithFreshVars(counterFreshVarsQueryCont);
     auto &newBody = newRule.getBody();
 
@@ -30,14 +32,40 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
             auto nsubs = Literal::getSubstitutionsA2B(subs, litIncEdge, l);
             assert(nsubs != -1);
 
+            //First replace all remaining variables with fresh ones
             const auto &bodyIncEdge = getNodeBodyQuery(incEdge);
-            //outputQueryBody.push_back(litIncEdge.substitutes(subs));
+            std::set<uint32_t> av;
+            for(auto &litBody : bodyIncEdge) {
+                for(size_t i = 0; i < litBody.getTupleSize(); ++i) {
+                    auto t = litBody.getTermAtPos(i);
+                    if (t.isVariable())
+                        av.insert(t.getId());
+                }
+            }
+            for(auto v : av) {
+                bool found = false;
+                for(auto &s : subs) {
+                    if (s.origin == v) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    subs.push_back(Substitution(v, VTerm(
+                                    counterFreshVarsQueryCont++, 0)));
+                }
+            }
+
             for(auto &litBody : bodyIncEdge) {
                 outputQueryBody.push_back(litBody.substitutes(subs));
             }
         }
     }
     assert(idxIncomingEdge == incomingEdges.size());
+
+    if (!incrementCounter)
+        counterFreshVarsQueryCont = oldCounter;
+
 
     return std::unique_ptr<Literal>(new Literal(newRule.getFirstHead()));
 }
@@ -91,7 +119,6 @@ void GBGraph::addNodeProv(PredId_t predid,
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
                 allRules[ruleIdx],
-                data,
                 incomingEdges);
 
 #ifdef DEBUG
@@ -710,10 +737,10 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
     return true;
 }
 
-bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
-        std::vector<size_t> bodyNodeIdxs) {
+bool GBGraph::isRedundant(size_t ruleIdx,
+        const std::vector<size_t> &bodyNodeIdxs) {
     //Get the rule
-    const Rule &rule = rules[ruleIdx];
+    const Rule &rule = allRules[ruleIdx];
 
     //Perform some checks
     if (rule.getHeads().size() != 1) {
@@ -732,32 +759,86 @@ bool GBGraph::isRedundant(Rule *rules, size_t ruleIdx,
 
     const auto &h = rule.getFirstHead();
     const auto predId = h.getPredicate().getId();
-    std::vector<Substitution> subs;
+    if (!areNodesWithPredicate(predId)) {
+        return false;
+    }
+
+#ifdef DEBUG
+    LOG(INFOL) << "Original rule " << rule.tostring(program, layer);
+#endif
+
+    //Create a conjunctive query for the node we would like to add
+    std::vector<Literal> outputQueryBody;
+    const auto outputQueryHead = createQueryFromNode(outputQueryBody,
+            rule, bodyNodeIdxs, false);
+
+#ifdef DEBUG
+    std::string query = "";
+    for(auto &l : outputQueryBody) {
+        query += " " + l.tostring(program, layer);
+    }
+    LOG(INFOL) << "Checking redundacy for QUERY (H) " << outputQueryHead->
+        tostring(program, layer) << " " << query;
+#endif
+
     for(auto &nodeId : getNodeIDsWithPredicate(predId)) {
-        const Literal &node = getNodeHeadQuery(nodeId);
-        auto nsubs = Literal::getSubstitutionsA2B(subs, h, node);
-        if (nsubs != -1) {
-            const auto &bodyNodeLiterals = getNodeBodyQuery(nodeId);
-            const auto &bodyRule = rule.getBody();
-            for (const auto &l : bodyRule) {
-                auto newLit = l.substitutes(subs);
-                //Check if newLit is contained in bodyNode
-                bool found = false;
-                for(const auto &bodyNodeLiteral : bodyNodeLiterals) {
-                    std::vector<Substitution> subs2;
-                    int nsubs2 = Literal::subsumes(
-                            subs2,
-                            bodyNodeLiteral,
-                            newLit);
-                    if (nsubs2 != -1) {
+        std::vector<Substitution> allSubs;
+        //First check the head
+        const auto &headNodeLiteral = getNodeHeadQuery(nodeId);
+        auto nsubs = Literal::getSubstitutionsA2B(allSubs,
+                headNodeLiteral,
+                *outputQueryHead.get());
+        if (nsubs == -1) {
+            continue;
+        }
+
+        const auto &bodyNodeLiterals = getNodeBodyQuery(nodeId);
+        bool hr = true;
+        for(const auto &bodyNodeLiteral : bodyNodeLiterals) {
+            bool found = false;
+            for(const auto &targetLiteral : outputQueryBody) {
+                std::vector<Substitution> subs;
+                auto nsubs = Literal::getSubstitutionsA2B(subs, bodyNodeLiteral,
+                        targetLiteral);
+                if (nsubs != -1) {
+                    //Now I need to check that the subs are compatible with the
+                    //other ones
+                    bool isCompatible = true;
+                    for (const auto &s : subs) {
+                        //Does the variable already exist?
+                        for(const auto &s2 : allSubs) {
+                            if (s.origin == s2.origin && s.destination !=
+                                    s2.destination) {
+                                isCompatible = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (isCompatible) {
+                        for(const auto &s : subs) {
+                            allSubs.push_back(s);
+                        }
                         found = true;
                         break;
                     }
                 }
-                if (!found) {
-                    return false;
-                }
             }
+
+            if (!found) {
+                hr = false;
+                break;
+            }
+        }
+        if (hr) {
+#ifdef DEBUG
+            std::string match = "";
+            for(auto &l : bodyNodeLiterals) {
+                match += " " + l.tostring(program, layer);
+            }
+            LOG(INFOL) << "Found MATCH for " << headNodeLiteral.tostring(
+                    program, layer) << match;
+#endif
+
             return true;
         }
     }
