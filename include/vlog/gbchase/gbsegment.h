@@ -218,9 +218,9 @@ struct ProvSorter {
         const size_t ba = a * ncols;
         const size_t bb = b * ncols;
         for(int i = 0; i < ncols; ++i) {
-            if (tuples[ba] < tuples[bb])
+            if (tuples[ba + i] < tuples[bb + i])
                 return true;
-            else if (tuples[ba] > tuples[bb]) {
+            else if (tuples[ba + i] > tuples[bb + i]) {
                 return false;
             }
         }
