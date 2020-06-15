@@ -249,10 +249,10 @@ class Predicate {
 
 /*** SUBSTITUTIONS ***/
 struct Substitution {
-    uint8_t origin;
+    uint32_t origin;
     VTerm destination;
     Substitution() {}
-    Substitution(uint8_t origin, VTerm destination) : origin(origin), destination(destination) {}
+    Substitution(uint32_t origin, VTerm destination) : origin(origin), destination(destination) {}
 };
 
 /*class TermMapping {

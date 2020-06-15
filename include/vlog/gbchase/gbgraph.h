@@ -62,7 +62,6 @@ class GBGraph {
 
         std::unique_ptr<Literal> createQueryFromNode(
                 std::vector<Literal> &outputQueryBody,
-                const Rule *allRules,
                 const Rule &rule,
                 std::shared_ptr<const TGSegment> data,
                 const std::vector<size_t> &incomingEdges);
@@ -122,7 +121,7 @@ class GBGraph {
             return *(nodes[nodeId].queryHead.get());
         }
 
-        const std::vector<Literal> getNodeBodyQuery(size_t nodeId) const {
+        const std::vector<Literal> &getNodeBodyQuery(size_t nodeId) const {
             return nodes[nodeId].queryBody;
         }
 

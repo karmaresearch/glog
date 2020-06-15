@@ -5,7 +5,6 @@
 
 std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         std::vector<Literal> &outputQueryBody,
-        const Rule *allRules,
         const Rule &rule,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
@@ -25,12 +24,17 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
             assert(incomingEdges.size() > 0);
             size_t incEdge = incomingEdges[idxIncomingEdge++];
             //Get the head atom associated to the node
-            auto litIncEdge = getNodeHeadQuery(incEdge);
+            const auto &litIncEdge = getNodeHeadQuery(incEdge);
             //Compute the MGU
             std::vector<Substitution> subs;
             auto nsubs = Literal::getSubstitutionsA2B(subs, litIncEdge, l);
             assert(nsubs != -1);
-            outputQueryBody.push_back(litIncEdge.substitutes(subs));
+
+            const auto &bodyIncEdge = getNodeBodyQuery(incEdge);
+            //outputQueryBody.push_back(litIncEdge.substitutes(subs));
+            for(auto &litBody : bodyIncEdge) {
+                outputQueryBody.push_back(litBody.substitutes(subs));
+            }
         }
     }
     assert(idxIncomingEdge == incomingEdges.size());
@@ -86,7 +90,7 @@ void GBGraph::addNodeProv(PredId_t predid,
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
-                allRules, allRules[ruleIdx],
+                allRules[ruleIdx],
                 data,
                 incomingEdges);
 
