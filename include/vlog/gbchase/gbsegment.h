@@ -114,6 +114,10 @@ class TGSegment {
         virtual void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const = 0;
 
+        virtual bool hasColumnarBackend() const {
+            return false;
+        }
+
         //0 = no provenance, 1 = all tuples come from the same node
         //2 = tuples from different nodes
         virtual int getProvenanceType() const = 0;
@@ -156,6 +160,10 @@ class TGSegmentLegacy : public TGSegment {
 
         virtual std::string getName() const {
             return "TGSegmentLegacy";
+        }
+
+        bool hasColumnarBackend() const {
+            return true;
         }
 
         std::shared_ptr<TGSegment> slice(const size_t nodeId,

@@ -374,6 +374,9 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
     cmdline_options.add<string>("l","logLevel", "info",
             "Set the log level (accepted values: trace, debug, info, warning, error, fatal). Default is info.", false);
 
+    cmdline_options.add<string>("p","profiler", "",
+            "File to store useful information to profile the execution of the rules.", false);
+
     cmdline_options.add<string>("e", "edb", "default",
             "Path to the edb conf file. Default is 'edb.conf' in the same directory as the exec file.",false);
     cmdline_options.add<int>("","sleep", 0, "sleep <arg> seconds before starting the run. Useful for attaching profiler.",false);
@@ -541,6 +544,10 @@ void launchGBChase(
         tc = GBChaseAlgorithm::TGCHASE_DYNAMIC;
     }
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc, param1);
+
+    if (vm["profiler"].as<std::string>() != "") {
+        sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
+    }
 
 #ifdef WEBINTERFACE
     //Start the web interface if requested
@@ -860,6 +867,10 @@ void launchFullMat(int argc,
 #endif
         if (vm["printRepresentationSize"].as<bool>()) {
             printRepresentationSize(sn);
+        }
+
+        if (vm["profiler"].as<std::string>() != "") {
+            sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
         }
 
         if (vm["dred"].empty()) {

@@ -26,6 +26,9 @@ struct GBRuleOutput {
     GBRuleOutput() : uniqueTuples(false) {}
 };
 
+typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD } DurationType;
+
+
 
 class GBRuleExecutor {
     private:
@@ -33,6 +36,12 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> durationMergeSort;
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationCreateHead;
+
+        std::chrono::duration<double, std::milli> lastDurationFirst;
+        std::chrono::duration<double, std::milli> lastDurationMergeSort;
+        std::chrono::duration<double, std::milli> lastDurationJoin;
+        std::chrono::duration<double, std::milli> lastDurationCreateHead;
+
 
         Program *program; //used only for debugging purposes
         EDBLayer &layer;
@@ -42,9 +51,20 @@ class GBRuleExecutor {
         GBGraph &g;
         std::vector<size_t> noBodyNodes;
 
+        void shouldSortAndRetainEDBSegments(
+                bool &shouldSort,
+                bool &shouldRetainUnique,
+                const Literal &atom,
+                std::vector<int> &copyVarPos);
+
         std::shared_ptr<const TGSegment> projectTuples(
                 std::shared_ptr<const TGSegment> tuples,
                 const std::vector<int> &posVariables);
+
+        std::shared_ptr<const TGSegment> projectTuples_structuresharing(
+                std::shared_ptr<const TGSegment> tuples,
+                const std::vector<int> &posVariables,
+                bool isSorted);
 
         std::shared_ptr<const TGSegment> projectHead(const Literal &head,
                 std::vector<size_t> &vars,
@@ -130,12 +150,18 @@ class GBRuleExecutor {
             durationJoin(0),
             durationCreateHead(0),
             durationFirst(0),
+            lastDurationMergeSort(0),
+            lastDurationJoin(0),
+            lastDurationCreateHead(0),
+            lastDurationFirst(0),
             program(program),
             trackProvenance(trackProvenance),
             g(g), layer(layer) {
             }
 
         std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
+
+        std::chrono::duration<double, std::milli> getDuration(DurationType typ);
 
         void printStats();
 };

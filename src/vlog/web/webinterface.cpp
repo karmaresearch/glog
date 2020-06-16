@@ -574,8 +574,8 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
                 getOutputNewIterations();
             std::string outrules = "";
             for (const auto &el : outputrules) {
-                outrules += to_string(el.iteration) + "," +
-                    to_string(el.derivation) + "," +
+                outrules += to_string(el.step) + "," +
+                    to_string(el.nderivations_final) + "," +
                     to_string(el.idRule) + "," +
                     to_string(el.timems) + ";";
             }
@@ -713,7 +713,7 @@ void WebInterface::processRequest(std::string req, std::string &resp) {
 
                 std::string listderivations = "";
                 for (const auto &stats : el.second) {
-                    listderivations += to_string(stats.iteration) + "," +
+                    listderivations += to_string(stats.step) + "," +
                         to_string(stats.idRule) + "," +
                         to_string(stats.derivation) + ",";
                 }

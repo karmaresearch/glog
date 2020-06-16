@@ -3,6 +3,32 @@
 #include <vlog/gbchase/gbsegment.h>
 #include <vlog/gbchase/gbsegmentinserter.h>
 
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
+        std::shared_ptr<const TGSegment> tuples,
+        const std::vector<int> &posKnownVariables,
+        bool isSorted) {
+    std::vector<std::shared_ptr<Column>> columns;
+    tuples->projectTo(posKnownVariables, columns);
+    return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
+                tuples->getNRows(), isSorted, 0, trackProvenance));
+}
+
+std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationType typ) {
+    switch (typ) {
+        case DUR_FIRST:
+            return lastDurationFirst;
+        case DUR_MERGE:
+            return lastDurationMergeSort;
+        case DUR_JOIN:
+            return lastDurationJoin;
+        case DUR_HEAD:
+            return lastDurationCreateHead;
+    }
+    throw 10;
+}
+
+
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<int> &posKnownVariables) {
@@ -224,6 +250,37 @@ void GBRuleExecutor::addBuiltinFunctions(
     }
 }
 
+void GBRuleExecutor::shouldSortAndRetainEDBSegments(
+        bool &shouldSort,
+        bool &shouldRetainUnique,
+        const Literal &atom,
+        std::vector<int> &copyVarPos) {
+    //Sort should be done if the order of variables does not reflect the one of
+    //the literal (we assume that the relation is sorted left-to-right
+
+    //Watch out, this procedure does not work with repeated variables
+    int nconsts = 0;
+    int nvars = 0;
+    int idxCopyVar = 0;
+    shouldSort = false;
+    for(size_t i = 0; i < atom.getTupleSize(); ++i) {
+        auto t = atom.getTermAtPos(i);
+        if (t.isVariable()) {
+            nvars++;
+            if (idxCopyVar < copyVarPos.size()) {
+                if (copyVarPos[idxCopyVar] == i) {
+                    idxCopyVar++;
+                } else {
+                    shouldSort = true;
+                }
+            }
+        } else {
+            nconsts++;
+        }
+    }
+    shouldRetainUnique = copyVarPos.size() < nvars;
+}
+
 std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         const Literal &atom,
         std::vector<int> &copyVarPos) {
@@ -243,6 +300,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         throw 10;
     }
 
+    bool shouldSort = true;
+    bool shouldRetainUnique = true;
+
     auto &table = edbTables[p];
     std::vector<std::shared_ptr<Column>> columns;
     auto nrows = table->getCardinality(atom);
@@ -253,6 +313,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             columns.push_back(col);
         }
     } else {
+        //e.g., Trident database
         std::vector<uint8_t> presortPos;
         int varIdx = 0;
         for(size_t i = 0; i < atom.getTupleSize(); ++i) {
@@ -272,6 +333,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         }
     }
 
+    shouldSortAndRetainEDBSegments(
+            shouldSort,
+            shouldRetainUnique,
+            atom,
+            copyVarPos);
+
     if (trackProvenance) {
         CompressedColumnBlock b(~0ul, 0, nrows);
         std::vector<CompressedColumnBlock> blocks;
@@ -284,9 +351,21 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     if (copyVarPos.size() != atom.getTupleSize()) {
         //There is a projection. We might have to remove duplicates
-        auto projectedSegment = projectTuples(seg, copyVarPos);
-        auto sortedSegment = projectedSegment->sort();
-        auto uniqueSegment = sortedSegment->unique();
+        auto projectedSegment = projectTuples_structuresharing(
+                seg, copyVarPos,
+                !shouldSort);
+        std::shared_ptr<const TGSegment> sortedSegment;
+        if (shouldSort) {
+            sortedSegment = projectedSegment->sort();
+        } else {
+            sortedSegment = projectedSegment;
+        }
+        std::shared_ptr<const TGSegment> uniqueSegment;
+        if (shouldRetainUnique) {
+            uniqueSegment = sortedSegment->unique();
+        } else {
+            uniqueSegment = sortedSegment;
+        }
         return uniqueSegment;
     } else {
         return seg;
@@ -461,7 +540,8 @@ void GBRuleExecutor::mergejoin(
         }
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
-    durationMergeSort += std::chrono::system_clock::now() - startS;
+    lastDurationMergeSort = std::chrono::system_clock::now() - startS;
+    durationMergeSort += lastDurationMergeSort;
 
 #if NDEBUG
     size_t joinLeftSize = inputLeft->getNRows();
@@ -1207,7 +1287,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            durationFirst += end - start;
+            lastDurationFirst = end - start;
+            durationFirst += lastDurationFirst;
 
             if (!builtinFunctions.empty()) {
                 LOG(ERRORL) << "Builtin functions are not supported if they"
@@ -1243,7 +1324,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            durationJoin += end - start;
+            lastDurationJoin = end - start;
+            durationJoin += lastDurationJoin;
 
             //If empty then stop
             if (newIntermediateResults->isEmpty()) {
@@ -1303,8 +1385,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     shouldDelDupl);
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            auto dur = end - start;
-            durationCreateHead += dur;
+            lastDurationCreateHead = end - start;
+            durationCreateHead += lastDurationCreateHead;
             GBRuleOutput o;
             o.segment = results;
             o.nodes = intermediateResultsNodes;

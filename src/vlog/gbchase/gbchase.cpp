@@ -351,7 +351,9 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #ifdef DEBUG
     LOG(INFOL) << "Executing rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
+    size_t nders = 0;
     auto &heads = rule.getHeads();
     int headIdx = 0;
     currentPredicate = heads[headIdx].getPredicate().getId();
@@ -375,6 +377,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             }
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
+                nders += retainedTuples->getNRows();
                 if (rule.isEGD()) {
                     g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
                 } else {
@@ -391,6 +394,20 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             }
         }
     }
+
+    if (shouldStoreStats()) {
+        std::chrono::duration<double, std::milli> totalRuntime =
+            std::chrono::system_clock::now() - start;
+
+        StatsRule stats;
+        stats.step = node.step;
+        stats.idRule = node.ruleIdx;
+        stats.nderivations_final = nders;
+        stats.timems = totalRuntime.count();
+        saveStatistics(stats);
+
+    }
+
     return nonempty;
 }
 
