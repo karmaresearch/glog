@@ -873,16 +873,52 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
         auto &bodyAtom = bodyAtoms[0];
         auto th = head.getTuple();
         auto tb = bodyAtom.getTuple();
-        int sortedFields = 0;
-        for(int i = 0; i < th.getSize() && i < tb.getSize(); ++i) {
-            if (th.get(i).getId() != tb.get(i).getId()) {
-                break;
-            }
-            sortedFields++;
+
+        std::set<uint32_t> varsInHead;
+        for(int i = 0; i < th.getSize(); ++i) {
+            if (th.get(i).isVariable())
+                varsInHead.insert(th.get(i).getId());
         }
-        shouldSort = !(sortedFields == th.getSize()) ||
+        std::vector<uint32_t> listVarsInBody;
+        std::set<uint32_t> varsInBody;
+        for(int i = 0; i < tb.getSize(); ++i) {
+            if (tb.get(i).isVariable()) {
+                if (!varsInBody.count(tb.get(i).getId())) {
+                    varsInBody.insert(tb.get(i).getId());
+                    listVarsInBody.push_back(tb.get(i).getId());
+                }
+            }
+        }
+        size_t nsharedvars = 0;
+        for(auto v : varsInBody)
+            if (varsInHead.count(v))
+                nsharedvars++;
+        shouldDelDupl = nsharedvars != varsInBody.size();
+
+
+        uint32_t prevVar = -1;
+        size_t posInBody = 0;
+        bool sortOk = true;
+        for(int i = 0; i < th.getSize(); ++i) {
+            if (th.get(i).isVariable() && th.get(i).getId() != prevVar) {
+                if (varsInBody.count(th.get(i).getId())) {
+                    if (listVarsInBody[posInBody] !=
+                            th.get(i).getId()) {
+                        sortOk = false;
+                        break;
+                    } else {
+                        posInBody++;
+                        if (posInBody == listVarsInBody.size())
+                            break;
+                    }
+                    prevVar = th.get(i).getId();
+                }
+            }
+        }
+        shouldSort = (!sortOk) ||
             (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
-        shouldDelDupl = th.getSize() < tb.getSize();
+
+
     } else {
         shouldSort = shouldDelDupl = true;
     }
