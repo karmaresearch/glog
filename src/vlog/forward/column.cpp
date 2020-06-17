@@ -563,14 +563,14 @@ Term_t EDBColumnReader::first() {
 }
 
 bool EDBColumnReader::hasNext() {
-/*    if (itr == NULL) {
-        setupItr();
-    }
-    bool resp = itr->hasNext();
-    if (!resp) {
-        //release the itr
-        layer.releaseIterator(itr);
-        itr = NULL;
+    /*    if (itr == NULL) {
+          setupItr();
+          }
+          bool resp = itr->hasNext();
+          if (!resp) {
+    //release the itr
+    layer.releaseIterator(itr);
+    itr = NULL;
     }
     return resp;*/
     return itr->hasNext();
@@ -857,4 +857,73 @@ bool Column::subsumes(
     }
     // LOG(TRACEL) << "subsumes returns: ok2 = " << ok2 << ", return " << (! ok2);
     return ! ok2;
+}
+
+bool Column::antijoin(
+        std::shared_ptr<const Column> a,
+        std::shared_ptr<const Column> b,
+        ColumnWriter &writer) {
+    std::unique_ptr<ColumnReader> r1 = a->getReader();
+    std::unique_ptr<ColumnReader> r2 = b->getReader();
+    Term_t v1, v2;
+    v1 = ~0ul;
+    if (!r1->hasNext()) {
+        LOG(ERRORL) << "Case not implemented";
+        throw 10;
+    }
+    v1 = r1->next();
+    if (!r2->hasNext()) {
+        LOG(ERRORL) << "Case not implemented";
+        throw 10;
+    }
+    v2 = r2->next();
+
+    size_t newValues = 0;
+    bool foundMatch = false;
+    for (;;) {
+        if (v1 < v2) {
+            newValues++;
+            if (foundMatch) {
+                writer.add(v1);
+            } else {
+                //I hope they are all new ...
+            }
+            v1 = ~0ul;
+            if (!r1->hasNext()) {
+                break;
+            }
+            v1 = r1->next();
+        } else if (v1 > v2) {
+            if (!r2->hasNext()) {
+                break;
+            }
+            v2 = r2->next();
+        } else {
+            if (!foundMatch && newValues > 0) {
+                std::unique_ptr<ColumnReader> r1_2 = a->getReader();
+                for(size_t i = 0; i < newValues; ++i) {
+                    if (!r1_2->hasNext()) {
+                        LOG(ERRORL) << "Should not happen";
+                        throw 10;
+                    }
+                    writer.add(r1_2->next());
+                }
+            }
+            foundMatch = true;
+            v1 = ~0ul;
+            if (!r1->hasNext()) {
+                break;
+            }
+            v1 = r1->next();
+        }
+    }
+    //Copy v1 and the remaining values
+    if (v1 != ~0ul && foundMatch) {
+        writer.add(v1);
+        while (r1->hasNext()) {
+            writer.add(r1->next());
+        }
+    }
+
+    return !foundMatch;
 }

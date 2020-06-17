@@ -327,6 +327,100 @@ void GBGraph::replaceEqualTerms(
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples) {
+    //Special case for unary relations
+    if (existuples->getNColumns() == 1) {
+        return retainVsNodeFast_one(existuples,
+                newtuples);
+    } else {
+        return retainVsNodeFast_generic(existuples, newtuples);
+    }
+}
+
+std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
+        std::shared_ptr<const TGSegment> existuples,
+        std::shared_ptr<const TGSegment> newtuples) {
+    if (newtuples->hasColumnarBackend()) {
+        ColumnWriter writer;
+        bool allNew = true;
+        auto newColumn = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
+        if (existuples->hasColumnarBackend()) {
+            auto existColumn = ((TGSegmentLegacy*)existuples.get())
+                ->getColumn(0);
+            if (newColumn->isEDB() && existColumn->isEDB()) {
+                //Get literal and pos join
+                EDBLayer &layer = ((EDBColumn*)newColumn.get())->getEDBLayer();
+                const Literal &l1 = ((EDBColumn*)newColumn.get())->getLiteral();
+                uint8_t pos1 = ((EDBColumn*)newColumn.get())
+                    ->posColumnInLiteral();
+                std::vector<uint8_t> posColumns1;
+                posColumns1.push_back(pos1);
+
+                const Literal l2 = ((EDBColumn*)existColumn.get())->getLiteral();
+                uint8_t pos2 = ((EDBColumn*)existColumn.get())
+                    ->posColumnInLiteral();
+                std::vector<uint8_t> posColumns2;
+                posColumns2.push_back(pos2);
+
+                std::vector<std::shared_ptr<Column>> columns = layer.
+                    checkNewIn(l1, posColumns1, l2,
+                            posColumns2);
+
+                auto retainedColumn = columns[0];
+                if (retainedColumn->isEmpty()) {
+                    return std::shared_ptr<const TGSegment>();
+                } else {
+                    assert(retainedColumn->isBackedByVector());
+                    std::vector<Term_t> tuples;
+                    ((InmemoryColumn*)retainedColumn.get())->swap(tuples);
+                    if (trackProvenance) {
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryWithConstProvTGSegment(tuples,
+                                    newtuples->getNodeId(),
+                                    true, 0));
+                    } else {
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryTGSegment(tuples,
+                                    newtuples->getNodeId(),
+                                    true, 0));
+                    }
+                }
+            } else {
+                bool allNew = Column::antijoin(newColumn, existColumn, writer);
+                if (allNew) {
+                    return newtuples;
+                } else {
+                    if (writer.isEmpty()) {
+                        return std::shared_ptr<const TGSegment>();
+                    } else {
+                        std::vector<Term_t> tuples;
+                        tuples.swap(writer.getValues());
+                        if (trackProvenance) {
+                            return std::shared_ptr<const TGSegment>(
+                                    new UnaryWithConstProvTGSegment(tuples,
+                                        newtuples->getNodeId(),
+                                        true, 0));
+                        } else {
+                            return std::shared_ptr<const TGSegment>(
+                                    new UnaryTGSegment(tuples,
+                                        newtuples->getNodeId(),
+                                        true, 0));
+                        }
+                    }
+                }
+            }
+        } else {
+            //TODO antijoin between a column and a TGUnarySegment
+            return retainVsNodeFast_generic(existuples, newtuples);
+        }
+    } else {
+        return retainVsNodeFast_generic(existuples, newtuples);
+    }
+}
+
+std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
+        std::shared_ptr<const TGSegment> existuples,
+        std::shared_ptr<const TGSegment> newtuples) {
+
     std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
     const uint8_t extracol = trackProvenance ? 1 : 0;
@@ -577,7 +671,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 std::vector<std::shared_ptr<Column>> projectedColumns;
                 std::vector<std::shared_ptr<Column>> outColumns;
                 seg->projectTo(copyVarPos, projectedColumns);
-                assert(projectedColumns.size() == 1);
+                assert(trackProvenance || projectedColumns.size() == 1);
                 if (shouldSortAndUnique) {
                     auto col = projectedColumns[0]->sort();
                     outColumns.push_back(col->unique());
@@ -587,8 +681,18 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 size_t nrows = outColumns[0]->size();
 
                 if (trackProvenance) {
-                    LOG(ERRORL) << "Not implemented";
-                    throw 10;
+                    //Add one column with the provenance
+                    assert(projectedColumns[1]->isConstant());
+                    outColumns.push_back(std::shared_ptr<Column>(
+                                new CompressedColumn(seg->getNodeId(), nrows)));
+
+                    return std::shared_ptr<const TGSegment>(
+                            new TGSegmentLegacy(
+                                outColumns,
+                                nrows,
+                                true,
+                                0,
+                                true));
                 } else {
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(

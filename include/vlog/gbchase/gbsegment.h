@@ -166,6 +166,10 @@ class TGSegmentLegacy : public TGSegment {
             return true;
         }
 
+        std::shared_ptr<const Column> getColumn(size_t idx) const {
+            return columns[idx];
+        }
+
         std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const;

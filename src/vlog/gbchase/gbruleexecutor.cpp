@@ -1206,6 +1206,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     LOG(DEBUGL) << "Execute rule " << rule.tostring(program, &layer);
 #endif
 
+    lastDurationFirst = std::chrono::duration<double, std::milli>(0);
+    lastDurationMergeSort = std::chrono::duration<double, std::milli>(0);
+    lastDurationJoin = std::chrono::duration<double, std::milli>(0);
+    lastDurationCreateHead = std::chrono::duration<double, std::milli>(0);
+
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
     //Maybe rearrange the body atoms? Don't forget to also re-arrange the body

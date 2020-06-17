@@ -58,6 +58,14 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples);
 
+        std::shared_ptr<const TGSegment> retainVsNodeFast_one(
+                std::shared_ptr<const TGSegment> existuples,
+                std::shared_ptr<const TGSegment> newtuples);
+
+        std::shared_ptr<const TGSegment> retainVsNodeFast_generic(
+                std::shared_ptr<const TGSegment> existuples,
+                std::shared_ptr<const TGSegment> newtuples);
+
         bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
 
         std::unique_ptr<Literal> createQueryFromNode(

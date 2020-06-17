@@ -865,7 +865,7 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
         GBChaseAlgorithm typeChase,
         std::string param1) {
     if (typeChase == GBChaseAlgorithm::GBCHASE) {
-        std::shared_ptr<GBChase> sn(new GBChase(layer, p));
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, false, false));
         return sn;
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_STATIC) {
         std::shared_ptr<GBChase> sn(new TGChaseStatic(layer, p, param1));
