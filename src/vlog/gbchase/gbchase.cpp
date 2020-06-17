@@ -354,14 +354,20 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
     size_t nders = 0;
+    size_t nders_un = 0;
+
     auto &heads = rule.getHeads();
     int headIdx = 0;
     currentPredicate = heads[headIdx].getPredicate().getId();
     auto outputsRule = executor.executeRule(rule, node);
     bool nonempty = false;
+
+    std::chrono::system_clock::time_point starth =
+        std::chrono::system_clock::now();
     for (GBRuleOutput &outputRule : outputsRule) {
         currentPredicate = heads[headIdx++].getPredicate().getId();
         auto derivations = outputRule.segment;
+        nders_un += derivations->getNRows();
         auto derivationNodes = outputRule.nodes;
         const bool shouldCleanDuplicates = cleanDuplicates &&
             !outputRule.uniqueTuples;
@@ -396,6 +402,8 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     }
 
     if (shouldStoreStats()) {
+        std::chrono::duration<double, std::milli> retainRuntime =
+            std::chrono::system_clock::now() - starth;
         std::chrono::duration<double, std::milli> totalRuntime =
             std::chrono::system_clock::now() - start;
 
@@ -403,7 +411,13 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         stats.step = node.step;
         stats.idRule = node.ruleIdx;
         stats.nderivations_final = nders;
+        stats.nderivations_unfiltered = nders_un;
         stats.timems = totalRuntime.count();
+        stats.timems_first = executor.getDuration(DurationType::DUR_FIRST).count();
+        stats.timems_merge = executor.getDuration(DurationType::DUR_MERGE).count();
+        stats.timems_join = executor.getDuration(DurationType::DUR_JOIN).count();
+        stats.timems_createhead = executor.getDuration(DurationType::DUR_HEAD).count();
+        stats.timems_retain = retainRuntime.count();
         saveStatistics(stats);
 
     }

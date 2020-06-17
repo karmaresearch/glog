@@ -19,10 +19,16 @@ struct StatsRule {
     int idRule;
 
     double timems;
+    double timems_first;
+    double timems_merge;
+    double timems_join;
+    double timems_createhead;
+    double timems_retain;
 
     StatsRule() : idRule(-1), step(0), nderivations_final(-1),
     nderivations_unfiltered(-1), nderivations_unique(-1),
-    timems(0) {}
+    timems(-1), timems_first(-1), timems_merge(-1),
+    timems_join(-1), timems_createhead(-1), timems_retain(-1) {}
 };
 
 class Chase {
