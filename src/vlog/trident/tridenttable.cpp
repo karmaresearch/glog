@@ -628,7 +628,7 @@ void TridentTable::getQueryFromEDBRelation12(VTerm s, VTerm p, VTerm o,
 }
 
 std::shared_ptr<Column> TridentTable::checkIn(
-    std::vector<Term_t> &values,
+    const std::vector<Term_t> &values,
     const Literal &l,
     uint8_t posInL,
     size_t &sizeOutput) {

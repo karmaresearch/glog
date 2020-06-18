@@ -113,6 +113,10 @@ class Column {
                 std::shared_ptr<Column> subsumer,
                 std::shared_ptr<Column> subsumed);
 
+        static bool subsumes(
+                const Column* subsumer,
+                const Column* subsumed);
+
         static bool antijoin(
                 std::shared_ptr<const Column> a,
                 std::shared_ptr<const Column> b,

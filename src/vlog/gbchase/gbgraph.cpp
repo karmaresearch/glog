@@ -5,6 +5,7 @@
 
 std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         std::vector<Literal> &outputQueryBody,
+        std::vector<size_t> &rangeOutputQueryBody,
         const Rule &rule,
         const std::vector<size_t> &incomingEdges,
         bool incrementCounter) {
@@ -19,6 +20,9 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
     outputQueryBody.clear();
     int idxIncomingEdge = 0;
     for(int i = 0; i < newBody.size(); ++i) {
+        if (i > 0) {
+            rangeOutputQueryBody.push_back(outputQueryBody.size());
+        }
         auto &l = newBody[i];
         if (l.getPredicate().getType() == EDB) {
             outputQueryBody.push_back(l);
@@ -97,7 +101,6 @@ void GBGraph::addNodeNoProv(PredId_t predId,
     pred2Nodes[predId].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
-
 }
 
 void GBGraph::addNodeProv(PredId_t predid,
@@ -118,6 +121,7 @@ void GBGraph::addNodeProv(PredId_t predid,
         outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
+                outputNode.rangeQueryBody,
                 allRules[ruleIdx],
                 incomingEdges);
 
@@ -143,6 +147,18 @@ void GBGraph::addNodeProv(PredId_t predid,
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
+}
+
+uint64_t GBGraph::addTmpNode(PredId_t predId,
+        std::shared_ptr<const TGSegment> data) {
+    mapTmpNodes.insert(std::make_pair(
+                counterTmpNodes, GBGraph_Node()));
+    GBGraph_Node &n = mapTmpNodes[counterTmpNodes];
+    n.predid = predId;
+    n.ruleIdx = ~0ul;
+    n.step = ~0ul;
+    n.setData(data);
+    return counterTmpNodes++;
 }
 
 void GBGraph::replaceEqualTerms(
@@ -871,7 +887,7 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
 }
 
 bool GBGraph::isRedundant(size_t ruleIdx,
-        const std::vector<size_t> &bodyNodeIdxs) {
+        std::vector<size_t> &bodyNodeIdxs) {
     //Get the rule
     const Rule &rule = allRules[ruleIdx];
 
@@ -896,14 +912,15 @@ bool GBGraph::isRedundant(size_t ruleIdx,
         return false;
     }
 
-#ifdef DEBUG
+    //#ifdef DEBUG
     LOG(INFOL) << "Original rule " << rule.tostring(program, layer);
-#endif
+    //#endif
 
     //Create a conjunctive query for the node we would like to add
     std::vector<Literal> outputQueryBody;
+    std::vector<size_t> rangesOutputQueryBody;
     const auto outputQueryHead = createQueryFromNode(outputQueryBody,
-            rule, bodyNodeIdxs, false);
+            rangesOutputQueryBody, rule, bodyNodeIdxs, false);
 
 #ifdef DEBUG
     std::string query = "";
@@ -918,10 +935,10 @@ bool GBGraph::isRedundant(size_t ruleIdx,
         std::vector<Substitution> allSubs;
         //First check the head
         const auto &headNodeLiteral = getNodeHeadQuery(nodeId);
-        auto nsubs = Literal::getSubstitutionsA2B(allSubs,
+        auto nsubsHead = Literal::getSubstitutionsA2B(allSubs,
                 headNodeLiteral,
                 *outputQueryHead.get());
-        if (nsubs == -1) {
+        if (nsubsHead == -1) {
             continue;
         }
 
@@ -971,10 +988,196 @@ bool GBGraph::isRedundant(size_t ruleIdx,
             LOG(INFOL) << "Found MATCH for " << headNodeLiteral.tostring(
                     program, layer) << match;
 #endif
-
             return true;
+        }
+
+        if (isRedundant_checkEquivalenceEDBAtoms(
+                    bodyNodeIdxs,
+                    h,
+                    body,
+                    outputQueryHead.get(),
+                    outputQueryBody,
+                    rangesOutputQueryBody,
+                    nodeId)) {
+            return true;
+        }
+
+    }
+    return false;
+}
+
+bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
+        std::vector<size_t> &bodyNodeIdxs,
+        const Literal &originalRuleHead,
+        const std::vector<Literal> &originalRuleBody,
+        const Literal *rewrittenRuleHead,
+        const std::vector<Literal> &rewrittenRuleBody,
+        const std::vector<size_t> &rangeRewrittenRuleBody,
+        const size_t nodeId) {
+    //Check whether we can identify redundancy by comparing columns in the
+    //EDB layer
+
+    //1st restriction: For now, focus on unary relations
+    if (rewrittenRuleHead->getTupleSize() != 1) {
+        return false;
+    }
+
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
+    auto t = rewrittenRuleHead->getTermAtPos(0);
+    assert(t.isVariable());
+    const uint32_t vId = t.getId();
+    const uint32_t originalVId = originalRuleHead.getTermAtPos(0).getId();
+
+    std::vector<std::pair<size_t, uint8_t>> bodyAtomsWithHeadVar;
+    for(size_t i = 0; i < rewrittenRuleBody.size(); ++i) {
+        auto &l = rewrittenRuleBody[i];
+        for(size_t j = 0; j < l.getTupleSize(); ++j) {
+            if (l.getTermAtPos(j).isVariable() &&
+                    l.getTermAtPos(j).getId() == vId) {
+                bodyAtomsWithHeadVar.push_back(std::make_pair(i,j));
+            }
         }
     }
 
+    //If we can select more body atoms, then we pick the one with the
+    //smallest cardinality
+    size_t selectedBodyAtomIdx = 0;
+    size_t selectedPos = 0;
+    if (bodyAtomsWithHeadVar.size() != 1) {
+        //I select the atom with the smallest cardinality
+        size_t minCard = ~0ul;
+        for(int i = 0; i < bodyAtomsWithHeadVar.size(); ++i) {
+            auto p = bodyAtomsWithHeadVar[i];
+            auto c = layer->getCardinalityColumn(
+                    rewrittenRuleBody[p.first], p.second);
+            if (c < minCard) {
+                minCard = c;
+                selectedBodyAtomIdx = p.first;
+                selectedPos = p.second;
+            }
+        }
+    }
+
+    //Do a join between the bodyAtom and the node to see whether it's
+    //redundant
+    const auto &bl = rewrittenRuleBody[selectedBodyAtomIdx];
+    size_t card = layer->getCardinalityColumn(bl, selectedPos);
+    auto nodeData = getNodeData(nodeId);
+    if (nodeData->hasColumnarBackend()) {
+        auto colNode = ((TGSegmentLegacy*)nodeData.get())->getColumn(0);
+        std::vector<uint8_t> posInL2;
+        posInL2.push_back(((EDBColumn*)colNode.get())->posColumnInLiteral());
+
+        std::shared_ptr<Column> retainedColumn;
+        std::vector<uint8_t> posInL1;
+        posInL1.push_back(selectedPos);
+        auto retainedValues = layer->checkNewIn(bl,
+                posInL1,
+                ((EDBColumn*)colNode.get())->getLiteral(),
+                posInL2);
+        retainedColumn = retainedValues[0];
+        if (!retainedColumn->isEmpty()) {
+            //Search among the other body literals
+            for(size_t j = 0; j < bodyAtomsWithHeadVar.size(); ++j) {
+                auto p = bodyAtomsWithHeadVar[j];
+                if (j == selectedBodyAtomIdx) {
+                    continue;
+                }
+                size_t sizeOutput;
+                assert(retainedColumn->isBackedByVector());
+                const auto &v = ((InmemoryColumn*)retainedColumn.get())->
+                    getVectorRef();
+                retainedColumn = layer->checkIn(
+                        v,
+                        rewrittenRuleBody[p.first],
+                        p.second,
+                        sizeOutput);
+                if (retainedColumn->isEmpty())
+                    break;
+            }
+        }
+
+        assert(retainedColumn != NULL);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli>  dur = end - start;
+        if (retainedColumn->isEmpty()) {
+            return true;
+        } else {
+            //If the number of retained values is smaller than the original
+            //node, then it makes sense to join with the retained values
+            size_t retainedCard = retainedColumn->size();
+            if (retainedCard < card) {
+                //I should create a new temporary node here
+                //1: Get the original body atom that was rewritten in the EDB
+                //just considered
+                int64_t idxBodyAtom = -1;
+                for(size_t i = 0; i < originalRuleBody.size(); ++i) {
+                    auto &b = originalRuleBody[i];
+                    if (b.getTupleSize() == 1) {
+                        auto t = b.getTermAtPos(0);
+                        if (t.isVariable() && t.getId() == originalVId) {
+                            idxBodyAtom = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (idxBodyAtom != -1) {
+                    const Literal &b = originalRuleBody[idxBodyAtom]; //This is
+                    //the atom the we should consider for the replacement.
+                    size_t nodeToReplace = bodyNodeIdxs[idxBodyAtom];
+                    //2: Create a temporary node with only the facts that
+                    //lead to new derivations
+                    assert(retainedColumn->isBackedByVector());
+                    std::vector<Term_t> values;
+                    ((InmemoryColumn*)retainedColumn.get())->swap(values);
+                    std::shared_ptr<const TGSegment> d(new
+                            UnaryWithConstProvTGSegment(
+                                values,
+                                nodeToReplace, true, 0));
+                    auto newNodeId = addTmpNode(
+                            b.getPredicate().getId(), d);
+
+                    //3: Use the temporary node instead
+                    bodyNodeIdxs[idxBodyAtom] = newNodeId;
+                }
+            }
+        }
+    } else {
+        assert(bl.getPredicate().getType() == EDB);
+        std::vector<uint8_t> presortPos;
+        std::shared_ptr<Column> c = std::shared_ptr<Column>(
+                new EDBColumn(*layer, bl,
+                    selectedPos,
+                    presortPos, true));
+
+        //Here I check a EDB column (which we should process) against an existing
+        //node which is not a EDB predicate
+        auto itrOld = nodeData->iterator();
+        itrOld->next();
+        Term_t vold = itrOld->get(0);
+        auto itrNew = c->getReader();
+        Term_t vnew = itrNew->next();
+        while (true) {
+            if (vold == vnew) {
+                if (itrNew->hasNext()) {
+                    vnew = itrNew->next();
+                } else {
+                    return true; // is redundant
+                }
+            } else if (vold < vnew) {
+                if (itrOld->hasNext()) {
+                    itrOld->next();
+                    vold = itrOld->get(0);
+                } else {
+                    break;
+                }
+            } else {
+                //One element in vnew cannot be found. break;
+                break;
+            }
+        }
+    }
     return false;
 }

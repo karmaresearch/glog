@@ -1054,7 +1054,7 @@ bool EDBLayer::supportsCheckIn(const Literal &l) {
 }
 
 std::shared_ptr<Column> EDBLayer::checkIn(
-        std::vector<Term_t> &values,
+        const std::vector<Term_t> &values,
         const Literal &l,
         uint8_t posInL,
         size_t &sizeOutput) {
@@ -1610,7 +1610,7 @@ std::vector<std::shared_ptr<Column>> EDBTable::checkNewIn(
 }
 
 std::shared_ptr<Column> EDBTable::checkIn(
-        std::vector<Term_t> &values,
+        const std::vector<Term_t> &values,
         const Literal &l,
         uint8_t posInL,
         size_t &sizeOutput) {

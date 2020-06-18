@@ -820,8 +820,8 @@ uint64_t Column::countMatches(
 
 // Assumes both columns are sorted
 bool Column::subsumes(
-        std::shared_ptr<Column> subsumer,
-        std::shared_ptr<Column> subsumed) {
+        const Column* subsumer,
+        const Column* subsumed) {
 
     std::unique_ptr<ColumnReader> r1 = subsumer->getReader();
     std::unique_ptr<ColumnReader> r2 = subsumed->getReader();
@@ -834,9 +834,7 @@ bool Column::subsumes(
         v2 = r2->next();
 
     while (ok1 && ok2) {
-        // LOG(TRACEL) << "v1 = " << v1 << ", v2 = " << v2;
         if (v1 > v2) {
-            // LOG(TRACEL) << "subsumes returns false";
             return false;
         }
         if (v1 == v2) {
@@ -855,9 +853,16 @@ bool Column::subsumes(
             }
         }
     }
-    // LOG(TRACEL) << "subsumes returns: ok2 = " << ok2 << ", return " << (! ok2);
-    return ! ok2;
+    return !ok2;
 }
+
+bool Column::subsumes(
+        std::shared_ptr<Column> subsumer,
+        std::shared_ptr<Column> subsumed) {
+    return subsumes(subsumer.get(), subsumed.get());
+}
+
+
 
 bool Column::antijoin(
         std::shared_ptr<const Column> a,

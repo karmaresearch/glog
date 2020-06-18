@@ -142,6 +142,9 @@ void GBChase::prepareRuleExecutionPlans(
                     processedCombs[i] = -1;
                 }
                 size_t currentIdx = 0;
+
+                std::map<size_t, std::vector<size_t>> replacements;
+
                 //Check all combinations
                 while (true) {
                     if (processedCombs[currentIdx] ==
@@ -162,6 +165,23 @@ void GBChase::prepareRuleExecutionPlans(
                             //Do the check!
                             if (g.isRedundant(ruleIdx, currentComb)) {
                                 filteredCombinations++;
+                            } else {
+                                //Take the tmp nodes into account
+                                for(int i = 0; i < currentComb.size(); ++i) {
+                                    auto nodeId = currentComb[i];
+                                    if (g.isTmpNode(nodeId)) {
+                                        auto originalNode = acceptableNodes[
+                                            i][processedCombs[i]];
+                                        if (!replacements.count(originalNode)) {
+                                            replacements.insert(
+                                                    std::make_pair(originalNode,
+                                                        std::vector<size_t>()));
+                                        }
+                                        replacements[originalNode].push_back(
+                                                nodeId);
+                                        currentComb[i] = originalNode;
+                                    }
+                                }
                             }
                         } else {
                             currentIdx++;
@@ -169,18 +189,53 @@ void GBChase::prepareRuleExecutionPlans(
                     }
                 }
 
+                if (filteredCombinations == nCombinations) {
+                    //All combinations are redundant, skip
+                } else {
+                    if (filteredCombinations != 0) {
+                        LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
+                            << filteredCombinations << " " << nCombinations <<
+                            " rule " << ruleIdx;
+                    }
+                    if (!replacements.empty()) {
+                        std::map<size_t, size_t> finalReplacementMap;
+                        for(auto &p : replacements) {
+                            assert(p.second.size() > 0);
+                            if (p.second.size() == 1) {
+                                finalReplacementMap.insert(std::make_pair(
+                                            p.first, p.second[0]));
+                            } else {
+                                size_t idx = 0;
+                                size_t card = ~0ul;
+                                for(size_t i = 0; i < p.second.size(); ++i) {
+                                    auto nodeId = p.second[i];
+                                    if (g.getNodeSize(nodeId) < card) {
+                                        idx = i;
+                                        card = g.getNodeSize(nodeId);
+                                    }
+                                }
+                                finalReplacementMap.insert(std::make_pair(
+                                            p.first, p.second[idx]));
+                            }
+                        }
+                        //Do the replacement
+                        for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                            for(size_t j = 0; j < acceptableNodes[i].size();
+                                    ++j) {
+                                auto n = acceptableNodes[i][j];
+                                if (finalReplacementMap.count(n)) {
+                                    acceptableNodes[i][j] =
+                                        finalReplacementMap[n];
+                                }
+                            }
+                        }
+                    }
 
-                if (filteredCombinations == 0) {
                     newnodes.emplace_back();
                     GBRuleInput &newnode = newnodes.back();
                     newnode.ruleIdx = ruleIdx;
                     newnode.step = step;
                     newnode.incomingEdges = acceptableNodes;
-                } else if (filteredCombinations == nCombinations) {
-                    //All combinations are redundant, skip
-                } else {
-                    LOG(ERRORL) << "Not (yet) implemented";
-                    throw 10;
                 }
             } else {
                 newnodes.emplace_back();
@@ -321,10 +376,12 @@ void GBChase::run() {
             step++;
             LOG(INFOL) << "Step " << step;
             currentIteration = step;
+            g.cleanTmpNodes();
             nnodes = g.getNNodes();
             size_t derivedTuples = executeRulesInStratum(rulesInStratum,
                     currentStrat, stepStratum, step);
         } while (g.getNNodes() != nnodes);
+        g.cleanTmpNodes();
     }
 
     SegmentCache::getInstance().clear();

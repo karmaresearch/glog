@@ -540,7 +540,7 @@ void GBRuleExecutor::mergejoin(
         }
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
-    lastDurationMergeSort = std::chrono::system_clock::now() - startS;
+    lastDurationMergeSort += std::chrono::system_clock::now() - startS;
     durationMergeSort += lastDurationMergeSort;
 
 #if NDEBUG
@@ -1239,7 +1239,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             " with empty frontier variables set";
         throw 10;
     }
-    LOG(DEBUGL) << "Execute rule " << rule.tostring(program, &layer);
+    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);
@@ -1251,6 +1251,29 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     auto &bodyAtoms = rule.getBody();
     //Maybe rearrange the body atoms? Don't forget to also re-arrange the body
     //nodes
+
+#ifdef DEBUG
+    //Check the cardinalities (this is not needed at the moment)
+    size_t currentIDBBodyAtom = 0;
+    std::vector<size_t> cardinalities;
+    for(size_t i = 0; i < bodyAtoms.size(); ++i) {
+        const Literal &currentBodyAtom = bodyAtoms[i];
+        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
+        size_t c = 0;
+        size_t nnodes = 1;
+        if (isEDB) {
+            c = layer.getCardinality(currentBodyAtom);
+        } else {
+            for(auto i : bodyNodes[currentIDBBodyAtom]) {
+                c += g.getNodeData(i)->getNRows();
+            }
+            nnodes = bodyNodes[currentIDBBodyAtom].size();
+            currentIDBBodyAtom++;
+        }
+        cardinalities.push_back(c);
+        LOG(INFOL) << "Cardinality " << c << " nnodes " << nnodes;
+    }
+#endif
 
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const TGSegment> intermediateResults;
@@ -1328,7 +1351,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            lastDurationFirst = end - start;
+            lastDurationFirst += end - start;
             durationFirst += lastDurationFirst;
 
             if (!builtinFunctions.empty()) {
@@ -1365,7 +1388,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            lastDurationJoin = end - start;
+            lastDurationJoin += end - start;
             durationJoin += lastDurationJoin;
 
             //If empty then stop
@@ -1387,6 +1410,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     }
 
     //Filter out the derivations produced by the rule
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
     auto nonempty = !(intermediateResults == NULL ||
             intermediateResults->isEmpty());
     std::vector<GBRuleOutput> output;
@@ -1414,8 +1439,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         }
 
         //Compute the head atoms
-        std::chrono::steady_clock::time_point start =
-            std::chrono::steady_clock::now();
         for (auto &head : rule.getHeads()) {
             bool shouldSort = true, shouldDelDupl = true;
             shouldSortDelDupls(head, bodyAtoms, bodyNodes,
@@ -1426,7 +1449,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     shouldDelDupl);
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            lastDurationCreateHead = end - start;
+            lastDurationCreateHead += end - start;
             durationCreateHead += lastDurationCreateHead;
             GBRuleOutput o;
             o.segment = results;

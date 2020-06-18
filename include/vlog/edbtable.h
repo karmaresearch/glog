@@ -22,7 +22,7 @@ class EDBTable {
                 std::vector<uint8_t> &posInL2);
 
         virtual std::shared_ptr<Column> checkIn(
-                std::vector<Term_t> &values,
+                const std::vector<Term_t> &values,
                 const Literal &l2,
                 uint8_t posInL2,
                 size_t &sizeOutput);
