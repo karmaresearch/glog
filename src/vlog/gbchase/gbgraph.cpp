@@ -443,85 +443,110 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples) {
     if (newtuples->hasColumnarBackend()) {
-        ColumnWriter writer;
-        bool allNew = true;
         auto newColumn1 = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
         auto newColumn2 = ((TGSegmentLegacy*)newtuples.get())->getColumn(1);
-        if (existuples->hasColumnarBackend()) {
-            auto existColumn1 = ((TGSegmentLegacy*)existuples.get())
-                ->getColumn(0);
-            auto existColumn2 = ((TGSegmentLegacy*)existuples.get())
-                ->getColumn(1);
+        if (newColumn1->isEDB() && newColumn2->isEDB()) {
+            ColumnWriter writer;
+            bool allNew = true;
+            //Get literal and pos join
+            EDBLayer &layer = ((EDBColumn*)newColumn1.get())->getEDBLayer();
+            const Literal &l1 = ((EDBColumn*)newColumn1.get())->getLiteral();
+            uint8_t pos1 = ((EDBColumn*)newColumn1.get())
+                ->posColumnInLiteral();
+            const Literal &l2 = ((EDBColumn*)newColumn2.get())->getLiteral();
+            uint8_t pos2 = ((EDBColumn*)newColumn2.get())
+                ->posColumnInLiteral();
+            std::vector<Substitution> subs;
+            if (!l1.sameVarSequenceAs(l2) ||
+                    l1.subsumes(subs, l1, l2) == -1) {
+                //The columns come from different literals. This is not yet
+                //supported
+                throw 10;
+            }
+            std::vector<uint8_t> posColumnsNew;
+            posColumnsNew.push_back(pos1);
+            posColumnsNew.push_back(pos2);
 
-            if (newColumn1->isEDB() && existColumn1->isEDB() &&
-                    newColumn2->isEDB() && existColumn2->isEDB()) {
-                //Get literal and pos join
-                EDBLayer &layer = ((EDBColumn*)newColumn1.get())->getEDBLayer();
-                const Literal &l1 = ((EDBColumn*)newColumn1.get())->getLiteral();
-                uint8_t pos1 = ((EDBColumn*)newColumn1.get())
-                    ->posColumnInLiteral();
-                const Literal &l2 = ((EDBColumn*)newColumn2.get())->getLiteral();
-                uint8_t pos2 = ((EDBColumn*)newColumn2.get())
-                    ->posColumnInLiteral();
-                std::vector<Substitution> subs;
-                if (!l1.sameVarSequenceAs(l2) ||
-                        l1.subsumes(subs, l1, l2) == -1) {
-                    //The columns come from different literals. This is not yet
-                    //supported
-                    throw 10;
+            if (existuples->hasColumnarBackend()) {
+                auto existColumn1 = ((TGSegmentLegacy*)existuples.get())
+                    ->getColumn(0);
+                auto existColumn2 = ((TGSegmentLegacy*)existuples.get())
+                    ->getColumn(1);
+
+                if (existColumn1->isEDB() && existColumn2->isEDB()) {
+                    const Literal l3 = ((EDBColumn*)existColumn1.get())->getLiteral();
+                    uint8_t pos3 = ((EDBColumn*)existColumn1.get())
+                        ->posColumnInLiteral();
+                    const Literal l4 = ((EDBColumn*)existColumn2.get())->getLiteral();
+                    uint8_t pos4 = ((EDBColumn*)existColumn2.get())
+                        ->posColumnInLiteral();
+                    if (!l3.sameVarSequenceAs(l4) ||
+                            l1.subsumes(subs, l3, l4) == -1) {
+                        //The columns come from different literals. This is not yet
+                        //supported
+                        throw 10;
+                    }
+                    std::vector<uint8_t> posColumnsExs;
+                    posColumnsExs.push_back(pos3);
+                    posColumnsExs.push_back(pos4);
+
+                    std::vector<std::shared_ptr<Column>> retainedColumns = layer.
+                        checkNewIn(l1, posColumnsNew, l3, posColumnsExs);
+                    assert(retainedColumns.size() == 2);
+
+                    auto retainedColumn1 = retainedColumns[0];
+                    auto retainedColumn2 = retainedColumns[1];
+                    if (retainedColumn1->isEmpty()) {
+                        return std::shared_ptr<const TGSegment>();
+                    } else {
+                        assert(retainedColumn1->isBackedByVector());
+                        assert(retainedColumn2->isBackedByVector());
+                        std::vector<std::pair<Term_t, Term_t>> tuples;
+
+                        const auto &v1 = retainedColumn1->getVectorRef();
+                        const auto &v2 = retainedColumn2->getVectorRef();
+                        for(size_t i = 0; i < v1.size(); ++i) {
+                            tuples.push_back(std::make_pair(v1[i], v2[i]));
+                        }
+
+                        if (trackProvenance) {
+                            return std::shared_ptr<const TGSegment>(
+                                    new BinaryWithConstProvTGSegment(tuples,
+                                        newtuples->getNodeId(),
+                                        true, 0));
+                        } else {
+                            return std::shared_ptr<const TGSegment>(
+                                    new BinaryTGSegment(tuples,
+                                        newtuples->getNodeId(),
+                                        true, 0));
+                        }
+                    }
                 }
-                std::vector<uint8_t> posColumnsNew;
-                posColumnsNew.push_back(pos1);
-                posColumnsNew.push_back(pos2);
+            } else {
+                assert(existuples->getNColumns() == 2);
+                assert(existtuples->getProvenanceType() != 2);
+                const std::vector<std::pair<Term_t, Term_t>> &t =
+                    existuples->getProvenanceType() == 0 ?
+                    ((BinaryTGSegment*)existuples.get())->getTuples() :
+                    ((BinaryWithConstProvTGSegment*)existuples.get())->getTuples();
 
-                const Literal l3 = ((EDBColumn*)existColumn1.get())->getLiteral();
-                uint8_t pos3 = ((EDBColumn*)existColumn1.get())
-                    ->posColumnInLiteral();
-                const Literal l4 = ((EDBColumn*)existColumn2.get())->getLiteral();
-                uint8_t pos4 = ((EDBColumn*)existColumn2.get())
-                    ->posColumnInLiteral();
-                if (!l3.sameVarSequenceAs(l4) ||
-                        l1.subsumes(subs, l3, l4) == -1) {
-                    //The columns come from different literals. This is not yet
-                    //supported
-                    throw 10;
-                }
-                std::vector<uint8_t> posColumnsExs;
-                posColumnsExs.push_back(pos3);
-                posColumnsExs.push_back(pos4);
-
-                std::vector<std::shared_ptr<Column>> retainedColumns = layer.
-                    checkNewIn(l1, posColumnsNew, l3, posColumnsExs);
-                assert(retainedColumns.size() == 2);
-
-                auto retainedColumn1 = retainedColumns[0];
-                auto retainedColumn2 = retainedColumns[1];
-                if (retainedColumn1->isEmpty()) {
+                std::vector<std::pair<Term_t, Term_t>> retained = layer.
+                    checkNewIn(l1, posColumnsNew, t);
+                if (retained.empty()) {
                     return std::shared_ptr<const TGSegment>();
                 } else {
-                    assert(retainedColumn1->isBackedByVector());
-                    assert(retainedColumn2->isBackedByVector());
-                    std::vector<std::pair<Term_t, Term_t>> tuples;
-
-                    const auto &v1 = retainedColumn1->getVectorRef();
-                    const auto &v2 = retainedColumn2->getVectorRef();
-                    for(size_t i = 0; i < v1.size(); ++i) {
-                        tuples.push_back(std::make_pair(v1[i], v2[i]));
-                    }
-
                     if (trackProvenance) {
                         return std::shared_ptr<const TGSegment>(
-                                new BinaryWithConstProvTGSegment(tuples,
+                                new BinaryWithConstProvTGSegment(retained,
                                     newtuples->getNodeId(),
                                     true, 0));
                     } else {
                         return std::shared_ptr<const TGSegment>(
-                                new BinaryTGSegment(tuples,
+                                new BinaryTGSegment(retained,
                                     newtuples->getNodeId(),
                                     true, 0));
                     }
                 }
-
             }
         }
     }
@@ -688,6 +713,9 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 entry.seg = seg;
                 cacheRetain[p] = entry;
             } else if (newtuples->getNColumns() == 2) {
+                //std::chrono::steady_clock::time_point startCache =
+                //    std::chrono::steady_clock::now();
+
                 std::vector<std::pair<Term_t, Term_t>> tuples;
                 size_t startNodeIdx = 0;
                 if (cacheRetain.count(p)) {
@@ -704,6 +732,12 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 entry.nnodes = nodeIdxs.size();
                 entry.seg = seg;
                 cacheRetain[p] = entry;
+
+                //std::chrono::steady_clock::time_point end =
+                //    std::chrono::steady_clock::now();
+                //std::chrono::duration<double, std::milli> dur = end - start;
+                //LOG(INFOL) << "RETAIN: " << dur.count();
+
             } else if (newtuples->getNColumns() > 2) {
                 size_t ncolumns = newtuples->getNColumns();
                 std::vector<int> posFields;

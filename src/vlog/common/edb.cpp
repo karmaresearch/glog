@@ -1049,6 +1049,17 @@ std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
     return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2);
 }
 
+std::vector<std::pair<Term_t, Term_t>> EDBLayer::checkNewIn(const Literal &l1,
+        std::vector<uint8_t> &posInL1,
+        const std::vector<std::pair<Term_t, Term_t>> &existing) {
+    if (!dbPredicates.count(l1.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l1.getPredicate().getId());
+    return p->second.manager->checkNewIn(l1, posInL1, existing);
+}
+
 bool EDBLayer::supportsCheckIn(const Literal &l) {
     return dbPredicates.count(l.getPredicate().getId());
 }
@@ -1446,6 +1457,13 @@ Term_t EDBMemIterator::getElementAt(const uint8_t p) {
             return twoColumns->second;
         }
     }
+}
+
+std::vector<std::pair<Term_t, Term_t>> EDBTable::checkNewIn(const Literal &l1,
+        std::vector<uint8_t> &posInL1,
+        const std::vector<std::pair<Term_t, Term_t>> &existing) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
 }
 
 std::vector<std::shared_ptr<Column>> EDBTable::checkNewIn(const Literal &l1,

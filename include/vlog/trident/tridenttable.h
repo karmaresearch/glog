@@ -11,134 +11,142 @@
 #include <kognac/factory.h>
 
 class SeqColumnWriter : public SequenceWriter {
-private:
-    ColumnWriter *writer;
-public:
-    SeqColumnWriter(ColumnWriter *w) : writer(w) {
-    }
+    private:
+        ColumnWriter *writer;
+    public:
+        SeqColumnWriter(ColumnWriter *w) : writer(w) {
+        }
 
-    void add(const uint64_t v) {
-        writer->add(v);
-    }
+        void add(const uint64_t v) {
+            writer->add(v);
+        }
 };
 
 class TridentTable: public EDBTable {
 
-private:
+    private:
 
-    KB *kb;
-    Querier *q;
-    DictMgmt *dict;
-    Factory<TridentIterator> kbItrFactory;
-    std::mutex mutex;
-    bool multithreaded;
-    EDBLayer *layer;
+        KB *kb;
+        Querier *q;
+        DictMgmt *dict;
+        Factory<TridentIterator> kbItrFactory;
+        std::mutex mutex;
+        bool multithreaded;
+        EDBLayer *layer;
 
-    TridentIterator *getTridentIter();
+        TridentIterator *getTridentIter();
 
-    std::vector<std::shared_ptr<Column>> performAntiJoin(const Literal &l1,
-                                      std::vector<uint8_t> &pos1, const Literal &l2,
-                                      std::vector<uint8_t> &pos2);
+        std::vector<std::shared_ptr<Column>> performAntiJoin(const Literal &l1,
+                std::vector<uint8_t> &pos1, const Literal &l2,
+                std::vector<uint8_t> &pos2);
+
+        std::vector<std::pair<Term_t, Term_t>> performAntiJoin(const Literal &l1,
+                std::vector<uint8_t> &pos1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
+
+        std::vector<std::shared_ptr<Column>> performAntiJoin(
+                std::vector<std::shared_ptr<Column>>
+                &valuesToCheck,
+                const Literal &l,
+                std::vector<uint8_t> &pos);
+
+        void getQueryFromEDBRelation0(QSQQuery *query, TupleTable *outputTable);
+
+        void getQueryFromEDBRelation12(QSQQuery *query, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
+
+        void getQueryFromEDBRelation12(VTerm s, VTerm p, VTerm o, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<std::pair<uint64_t, uint64_t>> *pairs,
+                std::vector<int> &posVarsToReturn,
+                std::vector<std::pair<int, int>> &joins,
+                std::vector<std::vector<int>> &posToCopy);
+
+        void getQueryFromEDBRelation3(QSQQuery *query, TupleTable *outputTable,
+                std::vector<Term_t> *valuesToFilter);
 
 
-    std::vector<std::shared_ptr<Column>> performAntiJoin(
-                                          std::vector<std::shared_ptr<Column>>
-                                          &valuesToCheck,
-                                          const Literal &l,
-                                          std::vector<uint8_t> &pos);
+    public:
+        TridentTable(std::string kbDir, bool multithreaded, EDBLayer *layer) : layer(layer) {
+            KBConfig config;
+            kb = new KB(kbDir.c_str(), true, false, true, config);
+            q = kb->query();
+            dict = kb->getDictMgmt();
+            this->multithreaded = multithreaded;
+        }
 
-    void getQueryFromEDBRelation0(QSQQuery *query, TupleTable *outputTable);
+        std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const Literal &l2,
+                std::vector<uint8_t> &posInL2);
 
-    void getQueryFromEDBRelation12(QSQQuery *query, TupleTable *outputTable,
-                                   std::vector<uint8_t> *posToFilter,
-                                   std::vector<Term_t> *valuesToFilter);
+        std::vector<std::shared_ptr<Column>> checkNewIn(
+                std::vector <
+                std::shared_ptr<Column >> &checkValues,
+                const Literal &l2,
+                std::vector<uint8_t> &posInL2);
 
-    void getQueryFromEDBRelation12(VTerm s, VTerm p, VTerm o, TupleTable *outputTable,
-                                   std::vector<uint8_t> *posToFilter,
-                                   std::vector<std::pair<uint64_t, uint64_t>> *pairs,
-                                   std::vector<int> &posVarsToReturn,
-                                   std::vector<std::pair<int, int>> &joins,
-                                   std::vector<std::vector<int>> &posToCopy);
+        std::vector<std::pair<Term_t, Term_t>> checkNewIn(
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
 
-    void getQueryFromEDBRelation3(QSQQuery *query, TupleTable *outputTable,
-                                  std::vector<Term_t> *valuesToFilter);
+        std::shared_ptr<Column> checkIn(
+                const std::vector<Term_t> &values,
+                const Literal &l2,
+                uint8_t posInL2,
+                size_t &sizeOutput);
 
+        //execute the query on the knowledge base
+        void query(QSQQuery *query, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-public:
-    TridentTable(std::string kbDir, bool multithreaded, EDBLayer *layer) : layer(layer) {
-        KBConfig config;
-        kb = new KB(kbDir.c_str(), true, false, true, config);
-        q = kb->query();
-        dict = kb->getDictMgmt();
-        this->multithreaded = multithreaded;
-    }
+        Querier *getQuerier() {
+            return q;
+        }
 
-    std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
-                                      std::vector<uint8_t> &posInL1,
-                                      const Literal &l2,
-                                      std::vector<uint8_t> &posInL2);
+        KB *getKB() {
+            return kb;
+        }
 
-    std::vector<std::shared_ptr<Column>> checkNewIn(
-                                          std::vector <
-                                          std::shared_ptr<Column >> &checkValues,
-                                          const Literal &l2,
-                                          std::vector<uint8_t> &posInL2);
+        size_t estimateCardinality(const Literal &query);
 
-    std::shared_ptr<Column> checkIn(
-        const std::vector<Term_t> &values,
-        const Literal &l2,
-        uint8_t posInL2,
-        size_t &sizeOutput);
+        size_t getCardinality(const Literal &query);
 
-    //execute the query on the knowledge base
-    void query(QSQQuery *query, TupleTable *outputTable,
-               std::vector<uint8_t> *posToFilter,
-               std::vector<Term_t> *valuesToFilter);
+        size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
 
-    Querier *getQuerier() {
-        return q;
-    }
+        bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    KB *getKB() {
-        return kb;
-    }
+        EDBIterator *getIterator(const Literal &query);
 
-    size_t estimateCardinality(const Literal &query);
+        EDBIterator *getSortedIterator(const Literal &query,
+                const std::vector<uint8_t> &fields);
 
-    size_t getCardinality(const Literal &query);
+        bool getDictNumber(const char *text, const size_t sizeText,
+                uint64_t &id);
 
-    size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
+        bool getDictText(const uint64_t id, char *text);
 
-    bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
-                 std::vector<Term_t> *valuesToFilter);
+        bool getDictText(const uint64_t id, std::string &text);
 
-    EDBIterator *getIterator(const Literal &query);
+        uint8_t getArity() const {
+            // Moved this manifest constant from edb importer to here       RFHH
+            return 3;
+        }
 
-    EDBIterator *getSortedIterator(const Literal &query,
-                                   const std::vector<uint8_t> &fields);
+        uint64_t getNTerms();
 
-    bool getDictNumber(const char *text, const size_t sizeText,
-                       uint64_t &id);
+        uint64_t getSize();
 
-    bool getDictText(const uint64_t id, char *text);
+        void releaseIterator(EDBIterator *itr);
 
-    bool getDictText(const uint64_t id, std::string &text);
-
-    uint8_t getArity() const {
-        // Moved this manifest constant from edb importer to here       RFHH
-        return 3;
-    }
-
-    uint64_t getNTerms();
-
-    uint64_t getSize();
-
-    void releaseIterator(EDBIterator *itr);
-
-    ~TridentTable() {
-        delete q;
-        delete kb;
-    }
+        ~TridentTable() {
+            delete q;
+            delete kb;
+        }
 
 };
 
