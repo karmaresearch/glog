@@ -740,7 +740,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
         auto existingTuples = cacheRetain[p].seg;
         newtuples = retainVsNodeFast(existingTuples, newtuples);
         if (newtuples == NULL || newtuples->isEmpty()) {
-            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            std::chrono::steady_clock::time_point end =
+                std::chrono::steady_clock::now();
             auto dur = end - start;
             durationRetain += dur;
             return std::shared_ptr<const TGSegment>();
@@ -750,7 +751,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
             auto nodeData = getNodeData(nodeIdx);
             newtuples = retainVsNodeFast(nodeData, newtuples);
             if (newtuples == NULL || newtuples->isEmpty()) {
-                std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+                std::chrono::steady_clock::time_point end =
+                    std::chrono::steady_clock::now();
                 auto dur = end - start;
                 durationRetain += dur;
                 return std::shared_ptr<const TGSegment>();
@@ -1008,9 +1010,9 @@ bool GBGraph::isRedundant(size_t ruleIdx,
         return false;
     }
 
-    //#ifdef DEBUG
+#ifdef DEBUG
     LOG(INFOL) << "Original rule " << rule.tostring(program, layer);
-    //#endif
+#endif
 
     //Create a conjunctive query for the node we would like to add
     std::vector<Literal> outputQueryBody;
