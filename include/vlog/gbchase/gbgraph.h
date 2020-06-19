@@ -70,6 +70,10 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples);
 
+        std::shared_ptr<const TGSegment> retainVsNodeFast_two(
+                std::shared_ptr<const TGSegment> existuples,
+                std::shared_ptr<const TGSegment> newtuples);
+
         std::shared_ptr<const TGSegment> retainVsNodeFast_generic(
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples);
