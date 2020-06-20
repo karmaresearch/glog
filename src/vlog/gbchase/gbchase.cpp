@@ -352,6 +352,7 @@ size_t GBChase::executeRulesInStratum(
 }
 
 void GBChase::run() {
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
@@ -383,6 +384,10 @@ void GBChase::run() {
         } while (g.getNNodes() != nnodes);
         g.cleanTmpNodes();
     }
+
+    std::chrono::duration<double, std::milli> dur =
+        std::chrono::system_clock::now() - start;
+    LOG(INFOL) << "Runtime chase: " << dur.count();
 
     SegmentCache::getInstance().clear();
     executor.printStats();
@@ -519,8 +524,14 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                 } else {
                     provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
                         getValue(provRowIdx);
-                    if (j > 1)
-                        provRowIdx = provenance[(j-1)*2]->getValue(provRowIdx);
+                    if (j > 1) {
+                        auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
+                        if (tmp == ~0ul) {
+                            provRowIdx = 0;
+                        } else {
+                            provRowIdx = tmp;
+                        }
+                    }
                 }
             }
         }

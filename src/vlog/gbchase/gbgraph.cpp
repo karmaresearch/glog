@@ -524,7 +524,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
                 }
             } else {
                 assert(existuples->getNColumns() == 2);
-                assert(existtuples->getProvenanceType() != 2);
+                assert(existuples->getProvenanceType() != 2);
                 const std::vector<std::pair<Term_t, Term_t>> &t =
                     existuples->getProvenanceType() == 0 ?
                     ((BinaryTGSegment*)existuples.get())->getTuples() :

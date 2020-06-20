@@ -26,7 +26,7 @@ struct GBRuleOutput {
     GBRuleOutput() : uniqueTuples(false) {}
 };
 
-typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD } DurationType;
+typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD, DUR_PREP2TO1 } DurationType;
 
 
 
@@ -36,11 +36,13 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> durationMergeSort;
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationCreateHead;
+        std::chrono::duration<double, std::milli> durationPrep2to1;
 
         std::chrono::duration<double, std::milli> lastDurationFirst;
         std::chrono::duration<double, std::milli> lastDurationMergeSort;
         std::chrono::duration<double, std::milli> lastDurationJoin;
         std::chrono::duration<double, std::milli> lastDurationCreateHead;
+        std::chrono::duration<double, std::milli> lastDurationPrep2to1;
 
 
         Program *program; //used only for debugging purposes
@@ -87,6 +89,14 @@ class GBRuleExecutor {
         std::shared_ptr<const TGSegment> processFirstAtom_EDB(
                 const Literal &atom,
                 std::vector<int> &copyVarPos);
+
+        void joinTwoOne(
+                std::shared_ptr<const TGSegment> inputLeft,
+                std::shared_ptr<const TGSegment> inputRight,
+                int joinLeftVarPos,
+                std::vector<int> &copyVarPosLeft,
+                const int copyNodes,
+                std::unique_ptr<GBSegmentInserter> &output);
 
         void mergejoin(
                 std::shared_ptr<const TGSegment> inputLeft,
