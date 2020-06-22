@@ -1015,7 +1015,7 @@ void GBRuleExecutor::join(
                 output);
     } else {
         if (mergeJoinPossible) {
-            if (inputLeft->getNColumns() == 2
+            /*if (inputLeft->getNColumns() == 2
                     && inputRight->getNColumns() == 1
                     && joinVarPos.size() == 1) {
                 assert(copyVarPosRight.size() == 0);
@@ -1080,7 +1080,7 @@ void GBRuleExecutor::join(
                             copyTypeNode,
                             output);
                 }
-            } else {
+            } else {*/
                 mergejoin(inputLeft,
                         nodesLeft,
                         inputRight,
@@ -1089,7 +1089,7 @@ void GBRuleExecutor::join(
                         copyVarPosLeft,
                         copyVarPosRight,
                         output);
-            }
+            //}
         } else {
             nestedloopjoin(inputLeft,
                     nodesLeft,
