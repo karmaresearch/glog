@@ -321,6 +321,18 @@ class EDBLayer {
 
         bool supportsCheckIn(const Literal &l);
 
+        void join(std::vector<Term_t> &out, const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft);
+
+        void join(std::vector<std::pair<Term_t,Term_t>> &out,
+                const Literal &l1, std::vector<uint8_t> &posInL1,
+                const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft1,
+                const uint8_t copyVarPosLeft2);
+
         std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const Literal &l2,

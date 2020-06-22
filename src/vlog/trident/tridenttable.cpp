@@ -771,6 +771,399 @@ std::shared_ptr<Column> TridentTable::checkIn(
     return col->getColumn();
 }
 
+void __join111(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue1());
+        }
+    }
+}
+
+void __join1112(std::vector<std::pair<Term_t,Term_t>> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    if (pitr1->hasNext()) {
+        t1 = pitr1->getValue1();
+    }
+    Term_t t2 = ~0ul;
+    if (pitr2->hasNext()) {
+        t2 = pitr2->getValue1();
+    }
+    while (true) {
+        if (t1 == t2) {
+            out.push_back(
+                    std::make_pair(pitr1->getValue1(), pitr1->getValue2()));
+        }
+        bool advanceLeft = t1 <= t2;
+        bool advanceRight = t1 >= t2;
+        if (advanceLeft) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (advanceRight) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue1();
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+void __join112(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue2());
+        }
+    }
+}
+
+void __join121(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue1());
+        }
+    }
+}
+
+
+void __join122(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue2());
+        }
+    }
+}
+
+void __join212(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue1();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue2());
+        }
+    }
+}
+
+void __join222(std::vector<Term_t> &out,
+        PairItr *pitr1,
+        PairItr *pitr2) {
+    Term_t t1 = ~0ul;
+    Term_t t2 = ~0ul;
+    while (true) {
+        if (t1 == ~0ul) {
+            if (pitr1->hasNext()) {
+                pitr1->next();
+                t1 = pitr1->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (t2 == ~0ul) {
+            if (pitr2->hasNext()) {
+                pitr2->next();
+                t2 = pitr2->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (t1 < t2) {
+            t1 = ~0ul;
+        } else if (t1 > t2) {
+            t2 = ~0ul;
+        } else {
+            t1 = t2 = ~0ul;
+            out.push_back(pitr1->getValue2());
+        }
+    }
+}
+
+
+enum TYPAtom { XcY, Xcc, TNA };
+enum TYPJoin { J11, J12, J21, J22, JNA };
+enum TYPCpy { C1, C2, C12, C21, CNA };
+
+void TridentTable::join(std::vector<Term_t> &out1,
+        std::vector<std::pair<Term_t,Term_t>> &out2,
+        const Literal &l1,
+        std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+        const Literal &l2, const uint8_t posInL2,
+        const std::vector<uint8_t> copyVarPosLeft) {
+
+    TridentTupleItr itr1;
+    //Prepare the iterators
+    VTuple t1 = l1.getTuple();
+    std::vector<uint8_t> fieldToSort;
+    fieldToSort.push_back(l1.getPosVars()[joinLeftVarPos]);
+    itr1.init(q, &t1, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    TridentTupleItr itr2;
+    VTuple t2 = l2.getTuple();
+    fieldToSort.clear();
+    fieldToSort.push_back(l2.getPosVars()[posInL2]);
+    itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    //Do some checks
+    if (l1.getNVars() == 0 || l1.getNVars() == 3) {
+        LOG(ERRORL) << "These cases are not supported.";
+        throw 10;
+    }
+
+    TYPAtom ta1 = TYPAtom::TNA;
+    TYPAtom ta2 = TYPAtom::TNA;
+    TYPJoin j = TYPJoin::JNA;
+    TYPCpy c = TYPCpy::CNA;
+
+    //Type atoms
+    if (!l1.getTermAtPos(1).isVariable() && l1.getTermAtPos(0).isVariable()
+            && l1.getTermAtPos(2).isVariable() &&
+            l1.getTermAtPos(0).getId() != l1.getTermAtPos(2).getId()) {
+        ta1 = TYPAtom::XcY;
+    } else if (l1.getNVars() == 1) {
+        ta1 = TYPAtom::Xcc;
+    }
+    if (!l2.getTermAtPos(1).isVariable() && l2.getTermAtPos(0).isVariable()
+            && l2.getTermAtPos(2).isVariable() &&
+            l2.getTermAtPos(0).getId() != l2.getTermAtPos(2).getId()) {
+        ta2 = TYPAtom::XcY;
+    } else if (l2.getNVars() == 1) {
+        ta2 =  TYPAtom::Xcc;
+    }
+
+    //Type join
+    if (ta1 == TYPAtom::XcY && ta2 == TYPAtom::XcY) {
+        j = TYPJoin::J11;
+    } else if (ta1 == TYPAtom::XcY && ta2 == TYPAtom::Xcc) {
+        j = TYPJoin::J12;
+    } else if (ta1 == TYPAtom::Xcc && ta2 == TYPAtom::XcY) {
+        j = TYPJoin::J21;
+    } else if (ta1 == TYPAtom::Xcc && ta2 == TYPAtom::Xcc) {
+        j = TYPJoin::J22;
+    }
+
+    //Type copy
+    if (copyVarPosLeft.size() == 1) {
+        if (copyVarPosLeft[0] == joinLeftVarPos) {
+            c = TYPCpy::C1;
+        } else {
+            c = TYPCpy::C2;
+        }
+    } else if (copyVarPosLeft.size() == 2) {
+        if (copyVarPosLeft[0] == joinLeftVarPos) {
+            c = TYPCpy::C12;
+        } else {
+            c = TYPCpy::C21;
+        }
+    }
+
+    if (ta1 == TYPAtom::TNA || ta2 == TYPAtom::TNA ||
+            j == TYPJoin::JNA || c == TYPCpy::CNA) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    //Work with the physical iterators... a dirty hack but much faster
+    PairItr *pitr1 = itr1.getPhysicalIterator();
+    PairItr *pitr2 = itr2.getPhysicalIterator();
+    if (j == TYPJoin::J11) {
+        switch (c) {
+            case C1:
+                __join111(out1, pitr1, pitr2);
+                return;
+            case C2:
+                __join112(out1, pitr1, pitr2);
+                return;
+            case C12:
+                __join1112(out2, pitr1, pitr2);
+                return;
+            case C21:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            default: throw 10;
+        }
+    } else if (j == TYPJoin::J12) {
+        switch (c) {
+            case C1:
+                __join121(out1, pitr1, pitr2);
+                return;
+            case C2:
+                __join122(out1, pitr1, pitr2);
+                return;
+            case C12:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            case C21:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            default: throw 10;
+        }
+    } else if (j == TYPJoin::J21) {
+        switch (c) {
+            case C1:
+                LOG(ERRORL) << "Cannot happen";
+                throw 10;
+            case C2:
+                __join212(out1, pitr1, pitr2);
+                return;
+            case C12:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            case C21:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            default: throw 10;
+        }
+    } else {
+        switch (c) {
+            case C1:
+                LOG(ERRORL) << "Cannot happen";
+                throw 10;
+            case C2:
+                __join222(out1, pitr1, pitr2);
+                return;
+            case C12:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            case C21:
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            default: throw 10;
+        }
+    }
+
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
 std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(
         const Literal &l1,
         std::vector<uint8_t> &posInL1,

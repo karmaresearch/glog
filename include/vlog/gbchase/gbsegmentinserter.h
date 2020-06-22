@@ -24,7 +24,19 @@ class GBSegmentInserter {
             this->fns = fns;
         }
 
+        size_t getNBuiltinFunctions() const {
+            return fns.size();
+        }
+
         void add(Term_t *row);
+
+        virtual void swap(std::vector<Term_t> &t) {
+            throw 10;
+        }
+
+        virtual void swap(std::vector<std::pair<Term_t, Term_t>> &t) {
+            throw 10;
+        }
 
         virtual bool isEmpty() const = 0;
 
@@ -54,6 +66,10 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
 
         bool isEmpty() const {
             return tuples.empty();
+        }
+
+        void swap(K &t) {
+            tuples.swap(t);
         }
 
         virtual size_t getNRows() const {

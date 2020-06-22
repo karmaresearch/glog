@@ -90,6 +90,13 @@ class GBRuleExecutor {
                 const Literal &atom,
                 std::vector<int> &copyVarPos);
 
+        void joinTwoOne_EDB(
+                std::shared_ptr<const TGSegment> inputLeft,
+                std::shared_ptr<const TGSegment> inputRight,
+                int joinLeftVarPos,
+                std::vector<int> &copyVarPosLeft,
+                std::unique_ptr<GBSegmentInserter> &output);
+
         void joinTwoOne(
                 std::shared_ptr<const TGSegment> inputLeft,
                 std::shared_ptr<const TGSegment> inputRight,

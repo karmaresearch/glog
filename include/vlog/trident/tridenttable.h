@@ -66,6 +66,12 @@ class TridentTable: public EDBTable {
         void getQueryFromEDBRelation3(QSQQuery *query, TupleTable *outputTable,
                 std::vector<Term_t> *valuesToFilter);
 
+        void join(std::vector<Term_t> &out1,
+                std::vector<std::pair<Term_t,Term_t>> &out2,
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const std::vector<uint8_t> copyVarPosLeft);
 
     public:
         TridentTable(std::string kbDir, bool multithreaded, EDBLayer *layer) : layer(layer) {
@@ -74,6 +80,31 @@ class TridentTable: public EDBTable {
             q = kb->query();
             dict = kb->getDictMgmt();
             this->multithreaded = multithreaded;
+        }
+
+        void join(std::vector<Term_t> &out, const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft) {
+            std::vector<std::pair<Term_t, Term_t>> unused;
+            std::vector<uint8_t> pos;
+            pos.push_back(copyVarPosLeft);
+            join(out, unused, l1, posInL1, joinLeftVarPos,
+                    l2, posInL2, pos);
+        }
+
+        void join(std::vector<std::pair<Term_t,Term_t>> &out,
+                const Literal &l1, std::vector<uint8_t> &posInL1,
+                const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft1,
+                const uint8_t copyVarPosLeft2) {
+            std::vector<Term_t> unused;
+            std::vector<uint8_t> pos;
+            pos.push_back(copyVarPosLeft1);
+            pos.push_back(copyVarPosLeft2);
+            join(unused, out, l1, posInL1, joinLeftVarPos,
+                    l2, posInL2, pos);
         }
 
         std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,

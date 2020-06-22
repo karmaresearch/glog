@@ -482,6 +482,74 @@ void GBRuleExecutor::nestedloopjoin(
     }
 }
 
+void GBRuleExecutor::joinTwoOne_EDB(
+        std::shared_ptr<const TGSegment> inputLeft,
+        std::shared_ptr<const TGSegment> inputRight,
+        int joinLeftVarPos,
+        std::vector<int> &copyVarPosLeft,
+        std::unique_ptr<GBSegmentInserter> &output) {
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
+
+    //Get column 1, 2 left
+    auto col1Left = ((TGSegmentLegacy*)inputLeft.get())
+        ->getColumn(0);
+    auto col2Left = ((TGSegmentLegacy*)inputLeft.get())
+        ->getColumn(1);
+
+    //Get column 1 right
+    auto col1Right = ((TGSegmentLegacy*)inputRight.get())
+        ->getColumn(0);
+
+    if (!col1Left->isEDB() || !col2Left->isEDB() || !col1Right->isEDB()) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    const Literal &l1Left = ((EDBColumn*)col1Left.get())->getLiteral();
+    uint8_t pos1 = ((EDBColumn*)col1Left.get())->posColumnInLiteral();
+    std::vector<uint8_t> posColumns1;
+    posColumns1.push_back(pos1);
+
+    const Literal &l2Left = ((EDBColumn*)col2Left.get())->getLiteral();
+    pos1 = ((EDBColumn*)col2Left.get())->posColumnInLiteral();
+    posColumns1.push_back(pos1);
+
+    std::vector<Substitution> subs;
+    if (!l1Left.sameVarSequenceAs(l2Left) ||
+            l2Left.subsumes(subs, l1Left, l2Left) == -1) {
+        //The columns come from different literals. This is not yet
+        //supported
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    const Literal &l1Right = ((EDBColumn*)col1Right.get())->getLiteral();
+    uint8_t pos2 = ((EDBColumn*)col1Right.get())->posColumnInLiteral();
+
+    const uint8_t ncopyvars = copyVarPosLeft.size();
+    if (ncopyvars == 1) {
+        std::vector<Term_t> c1;
+        layer.join(c1,
+                l1Left, posColumns1, joinLeftVarPos, l1Right, pos2,
+                copyVarPosLeft[0]);
+        output->swap(c1);
+    } else if (ncopyvars == 2) {
+        std::vector<std::pair<Term_t,Term_t>> c2;
+        layer.join(c2,
+                l1Left, posColumns1, joinLeftVarPos, l1Right, pos2,
+                copyVarPosLeft[0], copyVarPosLeft[1]);
+        output->swap(c2);
+    } else {
+        LOG(ERRORL) << "Case not supported";
+        throw 10;
+    }
+
+    //dur = std::chrono::system_clock::now() - start;
+    //LOG(INFOL) << "2To1 TotalJoin: " << dur.count();
+    //LOG(INFOL) << "2To1 Copy: " << durationCopy.count();
+}
+
 void GBRuleExecutor::joinTwoOne(
         std::shared_ptr<const TGSegment> inputLeft,
         std::shared_ptr<const TGSegment> inputRight,
@@ -500,14 +568,22 @@ void GBRuleExecutor::joinTwoOne(
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     inputRight = inputRight->sortBy(fields2);
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
-    auto dur = std::chrono::system_clock::now() - start;
+    std::chrono::duration<double, std::milli> dur =
+        std::chrono::system_clock::now() - start;
     lastDurationPrep2to1 += dur;
     durationPrep2to1 += dur;
 
     const uint8_t ncopyvars = copyVarPosLeft.size();
     const uint8_t varpos1 = copyVarPosLeft[0];
     const uint8_t varpos2 = ncopyvars == 2 ? copyVarPosLeft[1] : 0;
+
+    const bool fastCopy = copyNodes == 0 &&
+        output->getNBuiltinFunctions() == 0;
+    std::vector<Term_t> c1;
+    std::vector<std::pair<Term_t,Term_t>> c2;
     Term_t currentrow[4];
+
+    std::chrono::duration<double, std::milli> durationCopy;
 
     start = std::chrono::system_clock::now();
     //Join
@@ -531,29 +607,51 @@ void GBRuleExecutor::joinTwoOne(
             }
         }
         if (v1 == v2) {
-            currentrow[0] = itrLeft->get(varpos1);
-            int startidx = 1;
-            if (ncopyvars == 2) {
-                currentrow[1] = itrLeft->get(varpos2);
-                startidx = 2;
+            std::chrono::system_clock::time_point start1 =
+                std::chrono::system_clock::now();
+            if (fastCopy) {
+                if (ncopyvars == 1) {
+                    c1.push_back(itrLeft->get(varpos1));
+                } else {
+                    c2.push_back(std::make_pair(itrLeft->get(varpos1),
+                                itrLeft->get(varpos2)));
+                }
+            } else {
+                currentrow[0] = itrLeft->get(varpos1);
+                int startidx = 1;
+                if (ncopyvars == 2) {
+                    currentrow[1] = itrLeft->get(varpos2);
+                    startidx = 2;
+                }
+                if (copyNodes == 2) {
+                    currentrow[startidx] = itrRight->getNodeId();
+                    currentrow[startidx + 1] = itrLeft->getNodeId();
+                } else if (copyNodes == 1) {
+                    currentrow[startidx] = itrLeft->getNodeId();
+                    currentrow[startidx + 1] = itrRight->getNodeId();
+                }
+                output->add(currentrow);
             }
-            if (copyNodes == 2) {
-                currentrow[startidx] = itrRight->getNodeId();
-                currentrow[startidx + 1] = itrLeft->getNodeId();
-            } else if (copyNodes == 1) {
-                currentrow[startidx] = itrLeft->getNodeId();
-                currentrow[startidx + 1] = itrRight->getNodeId();
-            }
-            output->add(currentrow);
             v1 = ~0ul;
+            auto dur1 = std::chrono::system_clock::now() - start1;
+            durationCopy += dur1;
         } else if (v1 < v2) {
             v1 = ~0ul;
         } else {
             v2 = ~0ul;
         }
     }
-    dur = std::chrono::system_clock::now() - start;
-    LOG(INFOL) << "2To1 Join: " << dur.count();
+
+    if (fastCopy && ncopyvars == 1) {
+        output->swap(c1);
+    }
+    if (fastCopy && ncopyvars == 2) {
+        output->swap(c2);
+    }
+
+    //dur = std::chrono::system_clock::now() - start;
+    //LOG(INFOL) << "2To1 TotalJoin: " << dur.count();
+    //LOG(INFOL) << "2To1 Copy: " << durationCopy.count();
 }
 
 void GBRuleExecutor::mergejoin(
@@ -923,16 +1021,29 @@ void GBRuleExecutor::join(
                 assert(copyVarPosRight.size() == 0);
                 int copyTypeNode = 0;
                 if (inputLeft->getProvenanceType() == 2 ||
-                        inputRight->getProvenanceType() == 2)
+                        inputRight->getProvenanceType() == 2) {
                     copyTypeNode = 1;
+                }
                 const uint8_t jv = joinVarPos[0].first;
-                joinTwoOne(
-                        inputLeft,
-                        inputRight,
-                        jv,
-                        copyVarPosLeft,
-                        copyTypeNode,
-                        output);
+
+                if (!copyTypeNode && inputLeft->hasColumnarBackend()
+                        && inputRight->hasColumnarBackend()) {
+                    //I can speed up the join with a join directly at the EDB
+                    //level
+                    joinTwoOne_EDB(inputLeft,
+                            inputRight,
+                            jv,
+                            copyVarPosLeft,
+                            output);
+                } else {
+                    joinTwoOne(
+                            inputLeft,
+                            inputRight,
+                            jv,
+                            copyVarPosLeft,
+                            copyTypeNode,
+                            output);
+                }
             } else if (inputLeft->getNColumns() == 1
                     && inputRight->getNColumns() == 2
                     && joinVarPos.size() == 1) {
@@ -949,13 +1060,26 @@ void GBRuleExecutor::join(
                 if (copyVarPosRight.size() > 0) {
                     cp.push_back(copyVarPosRight[0]);
                 }
-                joinTwoOne(
-                        inputRight,
-                        inputLeft,
-                        jv,
-                        cp,
-                        copyTypeNode,
-                        output);
+
+                if (!copyTypeNode && inputLeft->hasColumnarBackend()
+                        && inputRight->hasColumnarBackend()) {
+                    //I can speed up the join with a join directly at the EDB
+                    //level
+                    joinTwoOne_EDB(
+                            inputRight,
+                            inputLeft,
+                            jv,
+                            cp,
+                            output);
+                } else {
+                    joinTwoOne(
+                            inputRight,
+                            inputLeft,
+                            jv,
+                            cp,
+                            copyTypeNode,
+                            output);
+                }
             } else {
                 mergejoin(inputLeft,
                         nodesLeft,
