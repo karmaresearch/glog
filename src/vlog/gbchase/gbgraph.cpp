@@ -1138,7 +1138,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     return false;
 }
 
-bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
+bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
         std::vector<size_t> &bodyNodeIdxs,
         const Literal &originalRuleHead,
         const std::vector<Literal> &originalRuleBody,
@@ -1146,14 +1146,6 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
         const std::vector<Literal> &rewrittenRuleBody,
         const std::vector<size_t> &rangeRewrittenRuleBody,
         const size_t nodeId) {
-    //Check whether we can identify redundancy by comparing columns in the
-    //EDB layer
-
-    //1st restriction: For now, focus on unary relations
-    if (rewrittenRuleHead->getTupleSize() != 1) {
-        return false;
-    }
-
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
     auto t = rewrittenRuleHead->getTermAtPos(0);
@@ -1310,6 +1302,142 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
                 break;
             }
         }
+    }
+    return false;
+}
+
+bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
+        std::vector<size_t> &bodyNodeIdxs,
+        const Literal &originalRuleHead,
+        const std::vector<Literal> &originalRuleBody,
+        const Literal *rewrittenRuleHead,
+        const std::vector<Literal> &rewrittenRuleBody,
+        const std::vector<size_t> &rangeRewrittenRuleBody,
+        const size_t nodeId) {
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
+    auto t1 = rewrittenRuleHead->getTermAtPos(0);
+    auto t2 = rewrittenRuleHead->getTermAtPos(1);
+    assert(t1.isVariable());
+    assert(t2.isVariable());
+    const uint32_t vId1 = t1.getId();
+    const uint32_t vId2 = t2.getId();
+    const uint32_t originalVId1 = originalRuleHead.getTermAtPos(0).getId();
+    const uint32_t originalVId2 = originalRuleHead.getTermAtPos(1).getId();
+
+    std::vector<
+        std::pair<size_t, std::pair<uint8_t, uint8_t>>> bodyAtomsWithHeadVar;
+    for(size_t i = 0; i < rewrittenRuleBody.size(); ++i) {
+        auto &l = rewrittenRuleBody[i];
+        int pos1 = -1;
+        int pos2 = -1;
+        for(size_t j = 0; j < l.getTupleSize(); ++j) {
+            if (l.getTermAtPos(j).isVariable() &&
+                    l.getTermAtPos(j).getId() == vId1) {
+                pos1 = j;
+            } else if (l.getTermAtPos(j).isVariable() &&
+                    l.getTermAtPos(j).getId() == vId2) {
+                pos2 = j;
+            }
+        }
+        if (pos1 != -1 && pos2 != -1) {
+            bodyAtomsWithHeadVar.push_back(
+                    std::make_pair(i,std::make_pair(pos1, pos2)));
+        }
+    }
+    if (bodyAtomsWithHeadVar.size() == 0)
+        return false;
+
+    //If we can select more body atoms, then we pick the one with the
+    //smallest cardinality
+    size_t selectedBodyAtomIdx = 0;
+    size_t selectedPos1 = 0;
+    size_t selectedPos2 = 0;
+    size_t minCard = ~0ul;
+    //I select the atom with the smallest cardinality
+    for(int i = 0; i < bodyAtomsWithHeadVar.size(); ++i) {
+        auto p = bodyAtomsWithHeadVar[i];
+        auto c = layer->getCardinality(rewrittenRuleBody[p.first]);
+        if (c < minCard) {
+            minCard = c;
+            selectedBodyAtomIdx = p.first;
+            selectedPos1 = p.second.first;
+            selectedPos2 = p.second.second;
+        }
+    }
+
+    //Do a join between the bodyAtom and the node to see whether it's
+    //redundant
+    const auto &bl = rewrittenRuleBody[selectedBodyAtomIdx];
+    auto nodeData = getNodeData(nodeId);
+    assert(bl.getPredicate().getType() == EDB);
+
+    //Check
+    auto itrOld = nodeData->iterator();
+    itrOld->next();
+    Term_t vold1 = itrOld->get(0);
+    Term_t vold2 = itrOld->get(1);
+
+    auto itrNew = layer->getIterator(bl);
+    itrNew->next();
+    Term_t vnew1 = itrNew->getElementAt(selectedPos1);
+    Term_t vnew2 = itrNew->getElementAt(selectedPos2);
+    while (true) {
+        if (vold1 == vnew1 && vold2 == vnew2) {
+            if (itrNew->hasNext()) {
+                itrNew->next();
+                vnew1 = itrNew->getElementAt(selectedPos1);
+                vnew2 = itrNew->getElementAt(selectedPos2);
+            } else {
+                layer->releaseIterator(itrNew);
+                return true; // is redundant
+            }
+        } else if (vold1 < vnew1 || (vold1 == vnew1 && vold2 < vnew2)) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                vold1 = itrOld->get(0);
+                vold2 = itrOld->get(1);
+            } else {
+                break;
+            }
+        } else {
+            //One element in vnew cannot be found. break;
+            break;
+        }
+    }
+    layer->releaseIterator(itrNew);
+    return false;
+}
+
+bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
+        std::vector<size_t> &bodyNodeIdxs,
+        const Literal &originalRuleHead,
+        const std::vector<Literal> &originalRuleBody,
+        const Literal *rewrittenRuleHead,
+        const std::vector<Literal> &rewrittenRuleBody,
+        const std::vector<size_t> &rangeRewrittenRuleBody,
+        const size_t nodeId) {
+    //Check whether we can identify redundancy by comparing columns in the
+    //EDB layer
+
+    if (rewrittenRuleHead->getTupleSize() == 1) {
+        return isRedundant_checkEquivalenceEDBAtoms_one(
+                bodyNodeIdxs,
+                originalRuleHead,
+                originalRuleBody,
+                rewrittenRuleHead,
+                rewrittenRuleBody,
+                rangeRewrittenRuleBody,
+                nodeId);
+    } else if (rewrittenRuleHead->getTupleSize() == 2) {
+        return isRedundant_checkEquivalenceEDBAtoms_two(
+                bodyNodeIdxs,
+                originalRuleHead,
+                originalRuleBody,
+                rewrittenRuleHead,
+                rewrittenRuleBody,
+                rangeRewrittenRuleBody,
+                nodeId);
     }
     return false;
 }

@@ -89,6 +89,24 @@ class GBGraph {
                 const std::vector<size_t> &rangeRewrittenRuleBody,
                 const size_t nodeId);
 
+        bool isRedundant_checkEquivalenceEDBAtoms_one(
+                std::vector<size_t> &bodyNodeIdxs,
+                const Literal &originalRuleHead,
+                const std::vector<Literal> &originalRuleBody,
+                const Literal *rewrittenRuleHead,
+                const std::vector<Literal> &rewrittenRuleBody,
+                const std::vector<size_t> &rangeRewrittenRuleBody,
+                const size_t nodeId);
+
+        bool isRedundant_checkEquivalenceEDBAtoms_two(
+                std::vector<size_t> &bodyNodeIdxs,
+                const Literal &originalRuleHead,
+                const std::vector<Literal> &originalRuleBody,
+                const Literal *rewrittenRuleHead,
+                const std::vector<Literal> &rewrittenRuleBody,
+                const std::vector<size_t> &rangeRewrittenRuleBody,
+                const size_t nodeId);
+
         std::unique_ptr<Literal> createQueryFromNode(
                 std::vector<Literal> &outputQueryBody,
                 std::vector<size_t> &rangeOutputQueryBody,
