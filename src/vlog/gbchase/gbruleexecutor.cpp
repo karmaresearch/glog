@@ -1585,6 +1585,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 intermediateResults = processFirstAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
+                if (bodyNodes[currentBodyNode].size() == 1) {
+                    auto n = bodyNodes[currentBodyNode][0];
+                }
                 firstBodyAtomIsIDB = true;
                 intermediateResults = g.mergeNodes(
                         bodyNodes[currentBodyNode], copyVarPosRight);
@@ -1701,14 +1704,16 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
         //If there was only one body atom, then the vector with the provenance
         //is empty
-        if (trackProvenance && firstBodyAtomIsIDB &&
+/*        if (trackProvenance && firstBodyAtomIsIDB &&
                 bodyAtoms.size() == 1) {
             size_t ni = bodyNodes[0][0];
+            if (g.isTmpNode(ni))
+                ni = intermediateResults->getNodeId();
             //assert(ni == intermediateResults->getNodeId());
             intermediateResultsNodes.push_back(std::shared_ptr<Column>(
                         new CompressedColumn(ni,
                             intermediateResults->getNRows())));
-        }
+        }*/
 
         //Compute the head atoms
         for (auto &head : rule.getHeads()) {

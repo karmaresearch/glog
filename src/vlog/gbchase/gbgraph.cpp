@@ -1269,7 +1269,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                 if (idxBodyAtom != -1) {
                     const Literal &b = originalRuleBody[idxBodyAtom]; //This is
                     //the atom the we should consider for the replacement.
+                    assert(idxBodyAtom < bodyNodeIdxs.size());
                     size_t nodeToReplace = bodyNodeIdxs[idxBodyAtom];
+                    assert(nodeToReplace != ~0ul);
                     //2: Create a temporary node with only the facts that
                     //lead to new derivations
                     assert(retainedColumn->isBackedByVector());

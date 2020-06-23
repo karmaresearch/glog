@@ -491,27 +491,56 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         std::vector<std::shared_ptr<Column>> &provenance) {
     if (provenance.size() == 0) {
-        //Only EDB body atoms
-        std::vector<size_t> provnodes;
-        auto nodeId = g.getNNodes();
-        auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-        g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd, provnodes);
-    } else if (provenance.size() == 1) {
-        std::vector<size_t> provnodes; //Get the provenance
-        if (!provenance[0]->isConstant() || provenance[0]->isEmpty()) {
-            LOG(ERRORL) << "The provenance vector is either non-constant"
-                " or empty. These cases are not supported.";
-            throw 10;
+        //Single EDB or IDB atom
+        if (seg->getProvenanceType() == 2) {
+            //Must split the nodes
+            auto resortedSeg = seg->sortByProv();
+            size_t startidx = 0;
+            auto itr = resortedSeg->iterator();
+            size_t i = 0;
+            size_t currentNode = ~0ul;
+            std::vector<size_t> currentNodeList(1);
+            while (itr->hasNext()) {
+                itr->next();
+                bool hasChanged = i == 0 || currentNode != itr->getNodeId();
+                if (hasChanged) {
+                    if (startidx < i) {
+                        //Create a new node
+                        currentNodeList[0] = currentNode;
+                        auto nodeId = g.getNNodes();
+                        auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
+                        g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd,
+                                currentNodeList);
+                    }
+                    startidx = i;
+                    currentNode = itr->getNodeId();
+                }
+                i++;
+            }
+            //Copy the last segment
+            if (startidx < i) {
+                currentNodeList[0] = currentNode;
+                auto nodeId = g.getNNodes();
+                auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
+                g.addNodeProv(currentPredicate, ruleIdx,
+                        step, dataToAdd, currentNodeList);
+            }
+        } else {
+            std::vector<size_t> provnodes;
+            if (seg->getNodeId() == ~0ul) {
+                //EDB body atom
+#if DEBUG
+                assert(rules[ruleIdx].getBody().size() == 1 &&
+                        rules[ruleIdx].getBody()[0].getPredicate().getType() ==
+                        EDB);
+#endif
+            } else {
+                provnodes.push_back(seg->getNodeId());
+            }
+            auto nodeId = g.getNNodes();
+            auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
+            g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd, provnodes);
         }
-        auto oldNodeId = provenance[0]->first();
-        provnodes.push_back(oldNodeId);
-
-        //There was no join. Must replace the nodeID with a new one
-        //Note at this point calling slice will create a new vector
-        auto nodeId = g.getNNodes();
-        auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-        g.addNodeProv(currentPredicate, ruleIdx,
-                step, dataToAdd, provnodes);
     } else {
         const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
