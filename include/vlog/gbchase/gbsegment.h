@@ -554,7 +554,7 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
             }
             static bool sortSecondTerm(const std::pair<Term_t,Term_t> &a,
                     const std::pair<Term_t, Term_t> &b) {
-                return a.second < b.first;
+                return a.second < b.second;
             }
         public:
             UnaryWithProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
