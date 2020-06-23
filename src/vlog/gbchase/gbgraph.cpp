@@ -560,8 +560,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
     std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
-    const uint8_t extracol = trackProvenance ? 1 : 0;
+    const uint8_t extracol = trackProvenance &&
+        newtuples->getProvenanceType() == 2 ? 1 : 0;
     Term_t row[ncols + extracol];
+    const bool copyNode = newtuples->getProvenanceType() == 2;
 
     //Do outer join
     auto leftItr = existuples->iterator();
@@ -603,6 +605,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 for(int i = 0; i < ncols; ++i) {
                     row[i] = rightItr->get(i);
                 }
+                if (copyNode) {
+                    row[ncols] = rightItr->getNodeId();
+                }
                 inserter->add(row);
             } else {
                 countNew++;
@@ -625,6 +630,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
+                        if (copyNode) {
+                            row[ncols] = rightItr->getNodeId();
+                        }
                         inserter->add(row);
                     }
                     i++;
@@ -639,6 +647,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
+            if (copyNode) {
+                row[ncols] = rightItr->getNodeId();
+            }
             inserter->add(row);
         }
         while (rightItr->hasNext()) {
@@ -646,9 +657,13 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
+            if (copyNode) {
+                row[ncols] = rightItr->getNodeId();
+            }
             inserter->add(row);
         }
-        return inserter->getSegment(0, true, 0, trackProvenance);
+        return inserter->getSegment(newtuples->getNodeId(), true, 0,
+                trackProvenance, copyNode);
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -666,11 +681,15 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
+                        if (copyNode) {
+                            row[ncols] = rightItr->getNodeId();
+                        }
                         inserter->add(row);
                     }
                     i++;
                 }
-                return inserter->getSegment(0, true, 0, trackProvenance);
+                return inserter->getSegment(newtuples->getNodeId(),
+                        true, 0, trackProvenance, copyNode);
             }
         } else {
             //They are all duplicates
@@ -1374,6 +1393,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
 
     //Check
     auto itrOld = nodeData->iterator();
+    if (!itrOld->hasNext()) {
+        LOG(ERRORL) << "Cannot be empty";
+    }
     itrOld->next();
     Term_t vold1 = itrOld->get(0);
     Term_t vold2 = itrOld->get(1);

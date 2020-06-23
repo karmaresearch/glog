@@ -124,9 +124,12 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
         for(int i = 0; i < news->getNColumns(); ++i) {
             newcols.push_back(news->getColumn(i));
         }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, isSorted, sortedField, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(columns, nrows, isSorted,
+                    sortedField, trackProvenance));
     }
 }
 
