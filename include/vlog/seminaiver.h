@@ -130,7 +130,7 @@ class SemiNaiver: public Chase {
 
         virtual FCIterator getTableFromEDBLayer(const Literal & literal);
 
-        virtual long getNLastDerivationsFromList();
+        virtual size_t getNLastDerivationsFromList();
 
         virtual void saveDerivationIntoDerivationList(FCTable *endTable);
 

@@ -78,7 +78,7 @@ void Exporter::extractTriples(std::vector <uint64_t> &all_s,
     }
 
     //How many tuples should I store?
-    long count = 0;
+    int64_t count = 0;
     for (auto it = predicatesToExtract.begin(); it != predicatesToExtract.end();
             ++it) {
         count += sn->getSizeTable(it->id);
@@ -95,7 +95,7 @@ void Exporter::extractTriples(std::vector <uint64_t> &all_s,
             ++it) {
         LOG(DEBUGL) << "Get table for pred " << it->id;
         FCIterator tableItr = sn->getTableItr(it->id);
-        long triple[3];
+        int64_t triple[3];
         triple[0] = it->triple[0];
         triple[1] = it->triple[1];
         triple[2] = it->triple[2];
@@ -229,8 +229,8 @@ void Exporter::copyTable(std::vector<uint64_t> &all_s,
         std::vector<uint64_t> &all_o,
         std::vector<_EDBPredicates>::iterator it,
         std::shared_ptr<const FCInternalTable> intTable,
-        const long nrows,
-        long triple[3]) {
+        const int64_t nrows,
+        int64_t triple[3]) {
 
     uint8_t currentPosToCopy = 0;
     for (int i = 0; i < 3; ++i) {
