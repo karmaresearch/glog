@@ -3,6 +3,34 @@
 #include <vlog/gbchase/gbsegment.h>
 #include <vlog/gbchase/gbsegmentinserter.h>
 
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
+        std::shared_ptr<const TGSegment> tuples,
+        const std::vector<int> &posKnownVariables,
+        bool isSorted) {
+    std::vector<std::shared_ptr<Column>> columns;
+    tuples->projectTo(posKnownVariables, columns);
+    return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
+                tuples->getNRows(), isSorted, 0, trackProvenance));
+}
+
+std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationType typ) {
+    switch (typ) {
+        case DUR_FIRST:
+            return lastDurationFirst;
+        case DUR_MERGE:
+            return lastDurationMergeSort;
+        case DUR_JOIN:
+            return lastDurationJoin;
+        case DUR_HEAD:
+            return lastDurationCreateHead;
+        case DUR_PREP2TO1:
+            return lastDurationPrep2to1;
+    }
+    throw 10;
+}
+
+
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<int> &posKnownVariables) {
@@ -224,6 +252,37 @@ void GBRuleExecutor::addBuiltinFunctions(
     }
 }
 
+void GBRuleExecutor::shouldSortAndRetainEDBSegments(
+        bool &shouldSort,
+        bool &shouldRetainUnique,
+        const Literal &atom,
+        std::vector<int> &copyVarPos) {
+    //Sort should be done if the order of variables does not reflect the one of
+    //the literal (we assume that the relation is sorted left-to-right
+
+    //Watch out, this procedure does not work with repeated variables
+    int nconsts = 0;
+    int nvars = 0;
+    int idxCopyVar = 0;
+    shouldSort = false;
+    for(size_t i = 0; i < atom.getTupleSize(); ++i) {
+        auto t = atom.getTermAtPos(i);
+        if (t.isVariable()) {
+            nvars++;
+            if (idxCopyVar < copyVarPos.size()) {
+                if (copyVarPos[idxCopyVar] == i) {
+                    idxCopyVar++;
+                } else {
+                    shouldSort = true;
+                }
+            }
+        } else {
+            nconsts++;
+        }
+    }
+    shouldRetainUnique = copyVarPos.size() < nvars;
+}
+
 std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         const Literal &atom,
         std::vector<int> &copyVarPos) {
@@ -243,6 +302,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         throw 10;
     }
 
+    bool shouldSort = true;
+    bool shouldRetainUnique = true;
+
     auto &table = edbTables[p];
     std::vector<std::shared_ptr<Column>> columns;
     auto nrows = table->getCardinality(atom);
@@ -253,6 +315,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             columns.push_back(col);
         }
     } else {
+        //e.g., Trident database
         std::vector<uint8_t> presortPos;
         int varIdx = 0;
         for(size_t i = 0; i < atom.getTupleSize(); ++i) {
@@ -272,6 +335,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         }
     }
 
+    shouldSortAndRetainEDBSegments(
+            shouldSort,
+            shouldRetainUnique,
+            atom,
+            copyVarPos);
+
     if (trackProvenance) {
         CompressedColumnBlock b(~0ul, 0, nrows);
         std::vector<CompressedColumnBlock> blocks;
@@ -284,99 +353,25 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     if (copyVarPos.size() != atom.getTupleSize()) {
         //There is a projection. We might have to remove duplicates
-        auto projectedSegment = projectTuples(seg, copyVarPos);
-        auto sortedSegment = projectedSegment->sort();
-        auto uniqueSegment = sortedSegment->unique();
+        auto projectedSegment = projectTuples_structuresharing(
+                seg, copyVarPos,
+                !shouldSort);
+        std::shared_ptr<const TGSegment> sortedSegment;
+        if (shouldSort) {
+            sortedSegment = projectedSegment->sort();
+        } else {
+            sortedSegment = projectedSegment;
+        }
+        std::shared_ptr<const TGSegment> uniqueSegment;
+        if (shouldRetainUnique) {
+            uniqueSegment = sortedSegment->unique();
+        } else {
+            uniqueSegment = sortedSegment;
+        }
         return uniqueSegment;
     } else {
         return seg;
     }
-
-
-
-    /*//Get the columns
-      auto &table = edbTables[p];
-      std::vector<std::shared_ptr<Column>> columns;
-      if (table->useSegments()) {
-      auto seg = table->getSegment();
-      for(int i = 0; i < copyVarPos.size(); ++i) {
-      int pos = copyVarPos[i];
-      auto col = seg->getColumn(pos);
-      columns.push_back(col);
-      }
-      } else {
-      auto size = table->getCardinality(atom);
-      std::vector<uint8_t> presortPos;
-      int copiedVars = 0;
-      int varIdx = 0;
-      for(size_t i = 0; i < atom.getTupleSize(); ++i) {
-      auto term = atom.getTermAtPos(i);
-      auto pos = copyVarPos[copiedVars];
-      if (i == pos) {
-      std::shared_ptr<Column> col;
-      if (term.isVariable()) {
-      col = std::shared_ptr<Column>(
-      new EDBColumn(layer, atom, varIdx, presortPos,
-      false));
-      presortPos.push_back(varIdx);
-      varIdx++;
-      } else {
-      col = std::shared_ptr<Column>(
-      new CompressedColumn(term.getValue(), size));
-      }
-      columns.push_back(col);
-      copiedVars++;
-      if (copiedVars == copyVarPos.size())
-      break;
-      } else if (term.isVariable()) {
-      presortPos.push_back(varIdx);
-      varIdx++;
-      }
-      }
-      }
-      if (copyVarPos.size() != atom.getNVars()) {
-//There was a projection. We might have to remove duplicates
-std::vector<std::unique_ptr<ColumnReader>> readers;
-for(auto c : columns) {
-readers.push_back(c->getReader());
-}
-size_t ncolumns = columns.size();
-auto inserter = GBSegmentInserter::getInserter(ncolumns);
-std::vector<Term_t> prevRow(ncolumns);
-std::vector<Term_t> currentRow(ncolumns);
-bool isFirst = true;
-while (true) {
-bool ok = true;
-for(size_t i = 0; i < readers.size(); ++i) {
-if (!readers[i]->hasNext()) {
-ok = false;
-break;
-} else {
-currentRow[i] = readers[i]->next();
-}
-}
-if (!ok)
-break;
-bool isDuplicate = !isFirst;
-for(size_t i = 0; i < readers.size(); ++i) {
-prevRow[i] = readers[i].get();
-}
-if (!isDuplicate) {
-inserter->addRow(prevRow.get());
-}
-}
-} else {
-    auto nrows = columns[0]->size();
-    if (trackProvenance) {
-        CompressedColumnBlock b(~0ul, 0, nrows);
-        std::vector<CompressedColumnBlock> blocks;
-        blocks.push_back(b);
-        columns.push_back(std::shared_ptr<Column>(
-                    new CompressedColumn(blocks, nrows)));
-    }
-    return std::shared_ptr<const TGSegment>(
-            new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
-}*/
 }
 
 void GBRuleExecutor::nestedloopjoin(
@@ -487,6 +482,178 @@ void GBRuleExecutor::nestedloopjoin(
     }
 }
 
+void GBRuleExecutor::joinTwoOne_EDB(
+        std::shared_ptr<const TGSegment> inputLeft,
+        std::shared_ptr<const TGSegment> inputRight,
+        int joinLeftVarPos,
+        std::vector<int> &copyVarPosLeft,
+        std::unique_ptr<GBSegmentInserter> &output) {
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
+
+    //Get column 1, 2 left
+    auto col1Left = ((TGSegmentLegacy*)inputLeft.get())
+        ->getColumn(0);
+    auto col2Left = ((TGSegmentLegacy*)inputLeft.get())
+        ->getColumn(1);
+
+    //Get column 1 right
+    auto col1Right = ((TGSegmentLegacy*)inputRight.get())
+        ->getColumn(0);
+
+    if (!col1Left->isEDB() || !col2Left->isEDB() || !col1Right->isEDB()) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    const Literal &l1Left = ((EDBColumn*)col1Left.get())->getLiteral();
+    uint8_t pos1 = ((EDBColumn*)col1Left.get())->posColumnInLiteral();
+    std::vector<uint8_t> posColumns1;
+    posColumns1.push_back(pos1);
+
+    const Literal &l2Left = ((EDBColumn*)col2Left.get())->getLiteral();
+    pos1 = ((EDBColumn*)col2Left.get())->posColumnInLiteral();
+    posColumns1.push_back(pos1);
+
+    std::vector<Substitution> subs;
+    if (!l1Left.sameVarSequenceAs(l2Left) ||
+            l2Left.subsumes(subs, l1Left, l2Left) == -1) {
+        //The columns come from different literals. This is not yet
+        //supported
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    const Literal &l1Right = ((EDBColumn*)col1Right.get())->getLiteral();
+    uint8_t pos2 = ((EDBColumn*)col1Right.get())->posColumnInLiteral();
+
+    const uint8_t ncopyvars = copyVarPosLeft.size();
+    if (ncopyvars == 1) {
+        std::vector<Term_t> c1;
+        layer.join(c1,
+                l1Left, posColumns1, joinLeftVarPos, l1Right, pos2,
+                copyVarPosLeft[0]);
+        output->swap(c1);
+    } else if (ncopyvars == 2) {
+        std::vector<std::pair<Term_t,Term_t>> c2;
+        layer.join(c2,
+                l1Left, posColumns1, joinLeftVarPos, l1Right, pos2,
+                copyVarPosLeft[0], copyVarPosLeft[1]);
+        output->swap(c2);
+    } else {
+        LOG(ERRORL) << "Case not supported";
+        throw 10;
+    }
+
+    //dur = std::chrono::system_clock::now() - start;
+    //LOG(INFOL) << "2To1 TotalJoin: " << dur.count();
+    //LOG(INFOL) << "2To1 Copy: " << durationCopy.count();
+}
+
+void GBRuleExecutor::joinTwoOne(
+        std::shared_ptr<const TGSegment> inputLeft,
+        std::shared_ptr<const TGSegment> inputRight,
+        int joinLeftVarPos,
+        std::vector<int> &copyVarPosLeft,
+        const int copyNodes,
+        std::unique_ptr<GBSegmentInserter> &output) {
+    //Preparation
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
+    std::vector<uint8_t> fields1;
+    fields1.push_back(joinLeftVarPos);
+    std::vector<uint8_t> fields2;
+    fields2.push_back(0);
+    inputLeft = inputLeft->sortBy(fields1);
+    std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
+    inputRight = inputRight->sortBy(fields2);
+    std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
+    std::chrono::duration<double, std::milli> dur =
+        std::chrono::system_clock::now() - start;
+    lastDurationPrep2to1 += dur;
+    durationPrep2to1 += dur;
+
+    const uint8_t ncopyvars = copyVarPosLeft.size();
+    const uint8_t varpos1 = copyVarPosLeft[0];
+    const uint8_t varpos2 = ncopyvars == 2 ? copyVarPosLeft[1] : 0;
+
+    const bool fastCopy = copyNodes == 0 &&
+        output->getNBuiltinFunctions() == 0;
+    std::vector<Term_t> c1;
+    std::vector<std::pair<Term_t,Term_t>> c2;
+    Term_t currentrow[4];
+
+    std::chrono::duration<double, std::milli> durationCopy;
+
+    start = std::chrono::system_clock::now();
+    //Join
+    Term_t v1 = ~0ul;
+    Term_t v2 = ~0ul;
+    while (true) {
+        if (v1 == ~0ul) {
+            if (itrLeft->hasNext()) {
+                itrLeft->next();
+                v1 = itrLeft->get(joinLeftVarPos);
+            } else {
+                break;
+            }
+        }
+        if (v2 == ~0ul) {
+            if (itrRight->hasNext()) {
+                itrRight->next();
+                v2 = itrRight->get(0);
+            } else {
+                break;
+            }
+        }
+        if (v1 == v2) {
+            std::chrono::system_clock::time_point start1 =
+                std::chrono::system_clock::now();
+            if (fastCopy) {
+                if (ncopyvars == 1) {
+                    c1.push_back(itrLeft->get(varpos1));
+                } else {
+                    c2.push_back(std::make_pair(itrLeft->get(varpos1),
+                                itrLeft->get(varpos2)));
+                }
+            } else {
+                currentrow[0] = itrLeft->get(varpos1);
+                int startidx = 1;
+                if (ncopyvars == 2) {
+                    currentrow[1] = itrLeft->get(varpos2);
+                    startidx = 2;
+                }
+                if (copyNodes == 2) {
+                    currentrow[startidx] = itrRight->getNodeId();
+                    currentrow[startidx + 1] = itrLeft->getNodeId();
+                } else if (copyNodes == 1) {
+                    currentrow[startidx] = itrLeft->getNodeId();
+                    currentrow[startidx + 1] = itrRight->getNodeId();
+                }
+                output->add(currentrow);
+            }
+            v1 = ~0ul;
+            auto dur1 = std::chrono::system_clock::now() - start1;
+            durationCopy += dur1;
+        } else if (v1 < v2) {
+            v1 = ~0ul;
+        } else {
+            v2 = ~0ul;
+        }
+    }
+
+    if (fastCopy && ncopyvars == 1) {
+        output->swap(c1);
+    }
+    if (fastCopy && ncopyvars == 2) {
+        output->swap(c2);
+    }
+
+    //dur = std::chrono::system_clock::now() - start;
+    //LOG(INFOL) << "2To1 TotalJoin: " << dur.count();
+    //LOG(INFOL) << "2To1 Copy: " << durationCopy.count();
+}
+
 void GBRuleExecutor::mergejoin(
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
@@ -547,7 +714,8 @@ void GBRuleExecutor::mergejoin(
         }
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
-    durationMergeSort += std::chrono::system_clock::now() - startS;
+    lastDurationMergeSort += std::chrono::system_clock::now() - startS;
+    durationMergeSort += lastDurationMergeSort;
 
 #if NDEBUG
     size_t joinLeftSize = inputLeft->getNRows();
@@ -846,16 +1014,82 @@ void GBRuleExecutor::join(
                 copyVarPosLeft,
                 output);
     } else {
-
         if (mergeJoinPossible) {
-            mergejoin(inputLeft,
-                    nodesLeft,
-                    inputRight,
-                    nodesRight,
-                    joinVarPos,
-                    copyVarPosLeft,
-                    copyVarPosRight,
-                    output);
+            /*if (inputLeft->getNColumns() == 2
+                    && inputRight->getNColumns() == 1
+                    && joinVarPos.size() == 1) {
+                assert(copyVarPosRight.size() == 0);
+                int copyTypeNode = 0;
+                if (inputLeft->getProvenanceType() == 2 ||
+                        inputRight->getProvenanceType() == 2) {
+                    copyTypeNode = 1;
+                }
+                const uint8_t jv = joinVarPos[0].first;
+
+                if (!copyTypeNode && inputLeft->hasColumnarBackend()
+                        && inputRight->hasColumnarBackend()) {
+                    //I can speed up the join with a join directly at the EDB
+                    //level
+                    joinTwoOne_EDB(inputLeft,
+                            inputRight,
+                            jv,
+                            copyVarPosLeft,
+                            output);
+                } else {
+                    joinTwoOne(
+                            inputLeft,
+                            inputRight,
+                            jv,
+                            copyVarPosLeft,
+                            copyTypeNode,
+                            output);
+                }
+            } else if (inputLeft->getNColumns() == 1
+                    && inputRight->getNColumns() == 2
+                    && joinVarPos.size() == 1) {
+                int copyTypeNode = 0;
+                if (inputLeft->getProvenanceType() == 2 ||
+                        inputRight->getProvenanceType() == 2)
+                    copyTypeNode = 2;
+                const uint8_t jv = joinVarPos[0].second;
+                std::vector<int> cp;
+                if (copyVarPosLeft.size() == 1) {
+                    cp.push_back(jv);
+                }
+                assert(copyVarPosRight.size() < 2);
+                if (copyVarPosRight.size() > 0) {
+                    cp.push_back(copyVarPosRight[0]);
+                }
+
+                if (!copyTypeNode && inputLeft->hasColumnarBackend()
+                        && inputRight->hasColumnarBackend()) {
+                    //I can speed up the join with a join directly at the EDB
+                    //level
+                    joinTwoOne_EDB(
+                            inputRight,
+                            inputLeft,
+                            jv,
+                            cp,
+                            output);
+                } else {
+                    joinTwoOne(
+                            inputRight,
+                            inputLeft,
+                            jv,
+                            cp,
+                            copyTypeNode,
+                            output);
+                }
+            } else {*/
+                mergejoin(inputLeft,
+                        nodesLeft,
+                        inputRight,
+                        nodesRight,
+                        joinVarPos,
+                        copyVarPosLeft,
+                        copyVarPosRight,
+                        output);
+            //}
         } else {
             nestedloopjoin(inputLeft,
                     nodesLeft,
@@ -879,16 +1113,52 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
         auto &bodyAtom = bodyAtoms[0];
         auto th = head.getTuple();
         auto tb = bodyAtom.getTuple();
-        int sortedFields = 0;
-        for(int i = 0; i < th.getSize() && i < tb.getSize(); ++i) {
-            if (th.get(i).getId() != tb.get(i).getId()) {
-                break;
-            }
-            sortedFields++;
+
+        std::set<uint32_t> varsInHead;
+        for(int i = 0; i < th.getSize(); ++i) {
+            if (th.get(i).isVariable())
+                varsInHead.insert(th.get(i).getId());
         }
-        shouldSort = !(sortedFields == th.getSize()) ||
+        std::vector<uint32_t> listVarsInBody;
+        std::set<uint32_t> varsInBody;
+        for(int i = 0; i < tb.getSize(); ++i) {
+            if (tb.get(i).isVariable()) {
+                if (!varsInBody.count(tb.get(i).getId())) {
+                    varsInBody.insert(tb.get(i).getId());
+                    listVarsInBody.push_back(tb.get(i).getId());
+                }
+            }
+        }
+        size_t nsharedvars = 0;
+        for(auto v : varsInBody)
+            if (varsInHead.count(v))
+                nsharedvars++;
+        shouldDelDupl = nsharedvars != varsInBody.size();
+
+
+        uint32_t prevVar = -1;
+        size_t posInBody = 0;
+        bool sortOk = true;
+        for(int i = 0; i < th.getSize(); ++i) {
+            if (th.get(i).isVariable() && th.get(i).getId() != prevVar) {
+                if (varsInBody.count(th.get(i).getId())) {
+                    if (listVarsInBody[posInBody] !=
+                            th.get(i).getId()) {
+                        sortOk = false;
+                        break;
+                    } else {
+                        posInBody++;
+                        if (posInBody == listVarsInBody.size())
+                            break;
+                    }
+                    prevVar = th.get(i).getId();
+                }
+            }
+        }
+        shouldSort = (!sortOk) ||
             (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
-        shouldDelDupl = th.getSize() < tb.getSize();
+
+
     } else {
         shouldSort = shouldDelDupl = true;
     }
@@ -1209,13 +1479,42 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             " with empty frontier variables set";
         throw 10;
     }
-    LOG(DEBUGL) << "Execute rule " << rule.tostring(program, &layer);
+    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
+
+    lastDurationFirst = std::chrono::duration<double, std::milli>(0);
+    lastDurationMergeSort = std::chrono::duration<double, std::milli>(0);
+    lastDurationJoin = std::chrono::duration<double, std::milli>(0);
+    lastDurationCreateHead = std::chrono::duration<double, std::milli>(0);
+    lastDurationPrep2to1 = std::chrono::duration<double, std::milli>(0);
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
     //Maybe rearrange the body atoms? Don't forget to also re-arrange the body
     //nodes
+
+#ifdef DEBUG
+    //Check the cardinalities (this is not needed at the moment)
+    size_t currentIDBBodyAtom = 0;
+    std::vector<size_t> cardinalities;
+    for(size_t i = 0; i < bodyAtoms.size(); ++i) {
+        const Literal &currentBodyAtom = bodyAtoms[i];
+        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
+        size_t c = 0;
+        size_t nnodes = 1;
+        if (isEDB) {
+            c = layer.getCardinality(currentBodyAtom);
+        } else {
+            for(auto i : bodyNodes[currentIDBBodyAtom]) {
+                c += g.getNodeData(i)->getNRows();
+            }
+            nnodes = bodyNodes[currentIDBBodyAtom].size();
+            currentIDBBodyAtom++;
+        }
+        cardinalities.push_back(c);
+        LOG(INFOL) << "Cardinality " << c << " nnodes " << nnodes;
+    }
+#endif
 
     std::vector<size_t> varsIntermediate;
     std::shared_ptr<const TGSegment> intermediateResults;
@@ -1293,11 +1592,12 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            durationFirst += end - start;
+            lastDurationFirst += end - start;
+            durationFirst += lastDurationFirst;
 
             if (!builtinFunctions.empty()) {
                 LOG(ERRORL) << "Builtin functions are not supported if they"
-                    "use variables in one body atom";
+                    " use variables in one body atom";
                 throw 10;
             }
 
@@ -1307,7 +1607,14 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 break;
             }
         } else {
-            const uint8_t extraColumns = trackProvenance ? 2 : 0;
+            std::vector<size_t> &nodesRight =
+                !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
+            uint8_t extraColumns = 0;
+            bool multipleComb = intermediateResults->getProvenanceType() == 2 ||
+                nodesRight.size() > 1;
+            if (trackProvenance && multipleComb) {
+                extraColumns = 2;
+            }
             std::unique_ptr<GBSegmentInserter> newIntermediateResults =
                 GBSegmentInserter::getInserter(copyVarPosLeft.size() +
                         copyVarPosRight.size() + extraColumns);
@@ -1320,7 +1627,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             //and the new collection
             join(intermediateResults,
                     i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
-                    !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes,
+                    nodesRight,
                     currentBodyAtom,
                     joinVarPos,
                     copyVarPosLeft,
@@ -1329,7 +1636,10 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            durationJoin += end - start;
+            std::chrono::duration<double, std::milli> durJoin = end - start;
+            //LOG(INFOL) << "Join " << durJoin.count();
+            lastDurationJoin += durJoin;
+            durationJoin += durJoin;
 
             //If empty then stop
             if (newIntermediateResults->isEmpty()) {
@@ -1338,18 +1648,42 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
 
             if (trackProvenance) {
-                //Process the output of nodes
-                newIntermediateResults->postprocessJoin(
-                        intermediateResultsNodes);
+                if (multipleComb) {
+                    //Process the output of nodes
+                    newIntermediateResults->postprocessJoin(
+                            intermediateResultsNodes);
+                    intermediateResults = newIntermediateResults->getSegment(
+                            ~0ul, false, 0, trackProvenance, true);
+                } else {
+                    //Add two columns in intermediateResultsNodes
+                    intermediateResultsNodes.push_back(std::shared_ptr<Column>(
+                                new CompressedColumn(
+                                    intermediateResults->getNodeId(),
+                                    newIntermediateResults->getNRows())));
+                    size_t secondNodeId = ~0ul;
+                    if (nodesRight.size() == 1) {
+                        secondNodeId = g.getNodeData(nodesRight[0])->getNodeId();
+                    }
+                    assert(!g.isTmpNode(secondNodeId));
+                    intermediateResultsNodes.push_back(std::shared_ptr<Column>(
+                                new CompressedColumn(
+                                    secondNodeId,
+                                    newIntermediateResults->getNRows())));
+                    intermediateResults = newIntermediateResults->getSegment(
+                            ~0ul, false, 0, trackProvenance, false);
+                }
+            } else {
+                intermediateResults = newIntermediateResults->getSegment(
+                        ~0ul, false, 0, trackProvenance, false);
             }
-            intermediateResults = newIntermediateResults->getSegment(
-                    ~0ul, false, 0, trackProvenance);
             currentBodyNode++;
         }
         varsIntermediate = newVarsIntermediateResults;
     }
 
     //Filter out the derivations produced by the rule
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
     auto nonempty = !(intermediateResults == NULL ||
             intermediateResults->isEmpty());
     std::vector<GBRuleOutput> output;
@@ -1365,9 +1699,18 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             uniqueTuples = true;
         }
 
+        //If there was only one body atom, then the vector with the provenance
+        //is empty
+        if (trackProvenance && firstBodyAtomIsIDB &&
+                bodyAtoms.size() == 1) {
+            size_t ni = bodyNodes[0][0];
+            //assert(ni == intermediateResults->getNodeId());
+            intermediateResultsNodes.push_back(std::shared_ptr<Column>(
+                        new CompressedColumn(ni,
+                            intermediateResults->getNRows())));
+        }
+
         //Compute the head atoms
-        std::chrono::steady_clock::time_point start =
-            std::chrono::steady_clock::now();
         for (auto &head : rule.getHeads()) {
             bool shouldSort = true, shouldDelDupl = true;
             shouldSortDelDupls(head, bodyAtoms, bodyNodes,
@@ -1378,8 +1721,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     shouldDelDupl);
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
-            auto dur = end - start;
-            durationCreateHead += dur;
+            lastDurationCreateHead += end - start;
+            durationCreateHead += lastDurationCreateHead;
             GBRuleOutput o;
             o.segment = results;
             o.nodes = intermediateResultsNodes;
@@ -1395,4 +1738,5 @@ void GBRuleExecutor::printStats() {
     LOG(INFOL) << "Time mergesort (ms): " << durationMergeSort.count();
     LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
     LOG(INFOL) << "Time head (ms): " << durationCreateHead.count();
+    LOG(INFOL) << "Time preparation join2to1 (ms): " << durationPrep2to1.count();
 }

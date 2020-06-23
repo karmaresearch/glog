@@ -227,7 +227,7 @@ class EDBLayer {
                     } else if (table.type == "MDLITE") {
                         addMDLiteTable(table);
 #endif
-                    } else if (table.type == "CSV") {
+                    } else if (table.type == "CSV" || table.type == "INMEMORY") {
                         addInmemoryTable(table, edbconfpath);
 #ifdef SPARQL
                     } else if (table.type == "SPARQL") {
@@ -321,6 +321,18 @@ class EDBLayer {
 
         bool supportsCheckIn(const Literal &l);
 
+        void join(std::vector<Term_t> &out, const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft);
+
+        void join(std::vector<std::pair<Term_t,Term_t>> &out,
+                const Literal &l1, std::vector<uint8_t> &posInL1,
+                const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft1,
+                const uint8_t copyVarPosLeft2);
+
         std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const Literal &l2,
@@ -332,8 +344,12 @@ class EDBLayer {
                 const Literal &l2,
                 std::vector<uint8_t> &posInL2);
 
+        std::vector<std::pair<Term_t, Term_t>> checkNewIn(const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
+
         std::shared_ptr<Column> checkIn(
-                std::vector<Term_t> &values,
+                const std::vector<Term_t> &values,
                 const Literal &l2,
                 uint8_t posInL2,
                 size_t &sizeOutput);

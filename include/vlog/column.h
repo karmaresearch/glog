@@ -113,6 +113,15 @@ class Column {
                 std::shared_ptr<Column> subsumer,
                 std::shared_ptr<Column> subsumed);
 
+        static bool subsumes(
+                const Column* subsumer,
+                const Column* subsumed);
+
+        static bool antijoin(
+                std::shared_ptr<const Column> a,
+                std::shared_ptr<const Column> b,
+                ColumnWriter &writer);
+
         virtual ~Column() {
         }
 };
@@ -260,6 +269,10 @@ class ColumnWriter {
         }
 
         bool isEmpty() const { return _size == 0; }
+
+        std::vector<Term_t> &getValues() {
+            return values;
+        }
 
         size_t size() const { return _size; }
 
@@ -437,6 +450,9 @@ class InmemoryColumn final : public Column {
             return values;
         }
 
+        void swap(std::vector<Term_t> &v) {
+            values.swap(v);
+        }
 
         bool isEDB() const {
             return false;

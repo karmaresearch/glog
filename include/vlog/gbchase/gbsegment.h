@@ -114,6 +114,10 @@ class TGSegment {
         virtual void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const = 0;
 
+        virtual bool hasColumnarBackend() const {
+            return false;
+        }
+
         //0 = no provenance, 1 = all tuples come from the same node
         //2 = tuples from different nodes
         virtual int getProvenanceType() const = 0;
@@ -156,6 +160,14 @@ class TGSegmentLegacy : public TGSegment {
 
         virtual std::string getName() const {
             return "TGSegmentLegacy";
+        }
+
+        bool hasColumnarBackend() const {
+            return true;
+        }
+
+        std::shared_ptr<const Column> getColumn(size_t idx) const {
+            return columns[idx];
         }
 
         std::shared_ptr<TGSegment> slice(const size_t nodeId,
@@ -218,8 +230,11 @@ struct ProvSorter {
         const size_t ba = a * ncols;
         const size_t bb = b * ncols;
         for(int i = 0; i < ncols; ++i) {
-            if (tuples[ba] < tuples[bb])
+            if (tuples[ba + i] < tuples[bb + i])
                 return true;
+            else if (tuples[ba + i] > tuples[bb + i]) {
+                return false;
+            }
         }
         return false;
     }
@@ -320,8 +335,17 @@ class TGSegmentImpl : public TGSegment {
         }
 
         std::shared_ptr<TGSegment> sort() const {
+            //std::chrono::system_clock::time_point start =
+            //    std::chrono::system_clock::now();
             auto t = std::vector<K>(*TGSegmentImpl<S,K,I,CP>::tuples.get());
+            //std::chrono::duration<double> dur = std::chrono::system_clock::now() - start;
+            //LOG(INFOL) << "SORT 1 " << dur.count() * 1000 << "ms";
+
+            //start = std::chrono::system_clock::now();
             std::sort(t.begin(), t.end());
+            //dur = std::chrono::system_clock::now() - start;
+            //LOG(INFOL) << "SORT 2 " << dur.count() * 1000 << "ms";
+
             return std::shared_ptr<TGSegment>(new S(t, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, 0));
         }
 

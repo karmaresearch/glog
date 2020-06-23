@@ -11,6 +11,18 @@ class Segment;
 
 class EDBTable {
     public:
+        virtual void join(std::vector<Term_t> &out, const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft);
+
+        virtual void join(std::vector<std::pair<Term_t,Term_t>> &out,
+                const Literal &l1, std::vector<uint8_t> &posInL1,
+                const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft1,
+                const uint8_t copyVarPosLeft2);
+
         virtual std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const Literal &l2,
@@ -21,8 +33,13 @@ class EDBTable {
                 const Literal &l2,
                 std::vector<uint8_t> &posInL2);
 
+        virtual std::vector<std::pair<Term_t, Term_t>> checkNewIn(
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
+
         virtual std::shared_ptr<Column> checkIn(
-                std::vector<Term_t> &values,
+                const std::vector<Term_t> &values,
                 const Literal &l2,
                 uint8_t posInL2,
                 size_t &sizeOutput);

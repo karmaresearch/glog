@@ -59,9 +59,11 @@ void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "Possible commands:" << endl;
     cout << "help\t\t produce help message." << endl;
     cout << "mat\t\t perform a full materialization." << endl;
-    cout << "mat_tg\t\t perform a full materialization guided by a trigger graph." << endl;
+    cout << "mat_tg\t\t perform a full materialization guided by a trigger graph (old code)." << endl;
     cout << "trigger\t\t create a trigger graph from a given program." << endl;
     cout << "gbchase\t\t launch the graph-based chase." << endl;
+    cout << "tgchase_static\t\t perform a full materialization guided by a trigger graph computed statically (new version)." << endl;
+    cout << "tgchase\t\t perform a full materialization guided by a trigger graph computed on-the-fly (new version)." << endl;
     cout << "query\t\t execute a SPARQL query." << endl;
     cout << "queryLiteral\t\t execute a Literal query." << endl;
     cout << "server\t\t starts in server mode." << endl;
@@ -94,7 +96,7 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
     if (cmd != "help" && cmd != "query" && cmd != "lookup" && cmd != "load" && cmd != "queryLiteral"
             && cmd != "mat" && cmd != "mat_tg" && cmd != "rulesgraph" && cmd != "server" && cmd != "gentq" &&
             cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger"
-            && cmd != "gbchase") {
+            && cmd != "gbchase" && cmd != "tgchase_static" && cmd != "tgchase") {
         printErrorMsg("The command \"" + cmd + "\" is unknown.");
         return false;
     }
@@ -372,6 +374,9 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
     cmdline_options.add<string>("l","logLevel", "info",
             "Set the log level (accepted values: trace, debug, info, warning, error, fatal). Default is info.", false);
 
+    cmdline_options.add<string>("p","profiler", "",
+            "File to store useful information to profile the execution of the rules.", false);
+
     cmdline_options.add<string>("e", "edb", "default",
             "Path to the edb conf file. Default is 'edb.conf' in the same directory as the exec file.",false);
     cmdline_options.add<int>("","sleep", 0, "sleep <arg> seconds before starting the run. Useful for attaching profiler.",false);
@@ -508,7 +513,9 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
     LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
 }
 
-void launchGBChase(int argc,
+void launchGBChase(
+        std::string cmd,
+        int argc,
         const char** argv,
         std::string pathExec,
         EDBLayer &db,
@@ -522,8 +529,25 @@ void launchGBChase(int argc,
         return;
     }
 
-    //Prepare the materialization
-    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p);
+    //Obtain the chase procedure
+    GBChaseAlgorithm tc = GBChaseAlgorithm::GBCHASE;
+    std::string param1 = "";
+    if (cmd == "tgchase_static") {
+        param1 = vm["trigger_paths"].as<std::string>();
+        tc = GBChaseAlgorithm::TGCHASE_STATIC;
+        if (!Utils::exists(param1)) {
+            LOG(ERRORL) << "The path specified with the param --trigger_paths ("
+                << param1 << ") does not exist";
+            throw 10;
+        }
+    } else if (cmd == "tgchase") {
+        tc = GBChaseAlgorithm::TGCHASE_DYNAMIC;
+    }
+    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc, param1);
+
+    if (vm["profiler"].as<std::string>() != "") {
+        sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
+    }
 
 #ifdef WEBINTERFACE
     //Start the web interface if requested
@@ -560,7 +584,7 @@ void launchGBChase(int argc,
     }
 #endif
 
-    LOG(INFOL) << "Starting graph-based chase";
+    LOG(INFOL) << "Starting graph-based chase (" << cmd << ")";
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
@@ -843,6 +867,10 @@ void launchFullMat(int argc,
 #endif
         if (vm["printRepresentationSize"].as<bool>()) {
             printRepresentationSize(sn);
+        }
+
+        if (vm["profiler"].as<std::string>() != "") {
+            sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
         }
 
         if (vm["dred"].empty()) {
@@ -1424,11 +1452,13 @@ int main(int argc, const char** argv) {
         launchTriggeredMat(argc, argv, full_path, *layer, vm,
                 vm["rules"].as<string>(), vm["trigger_paths"].as<string>());
         delete layer;
-    } else if (cmd == "gbchase") {
+    } else if (cmd == "gbchase" || cmd == "tgchase_static" ||
+            cmd == "tgchase") {
         EDBConf conf(edbFile);
         conf.setRootPath(Utils::parentDir(edbFile));
         EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
-        launchGBChase(argc, argv, full_path, *layer, vm, vm["rules"].as<string>());
+        launchGBChase(cmd, argc, argv, full_path, *layer, vm,
+                vm["rules"].as<string>());
         delete layer;
     } else if (cmd == "trigger") {
         EDBConf conf(edbFile);

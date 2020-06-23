@@ -24,7 +24,19 @@ class GBSegmentInserter {
             this->fns = fns;
         }
 
+        size_t getNBuiltinFunctions() const {
+            return fns.size();
+        }
+
         void add(Term_t *row);
+
+        virtual void swap(std::vector<Term_t> &t) {
+            throw 10;
+        }
+
+        virtual void swap(std::vector<std::pair<Term_t, Term_t>> &t) {
+            throw 10;
+        }
 
         virtual bool isEmpty() const = 0;
 
@@ -33,7 +45,8 @@ class GBSegmentInserter {
         virtual std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance) = 0;
+                bool trackProvenance,
+                bool lastColumnIsNode = false) = 0;
 
         virtual void postprocessJoin(std::vector<std::shared_ptr<Column>>
                 &intermediateResultsNodes) = 0;
@@ -53,6 +66,10 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
 
         bool isEmpty() const {
             return tuples.empty();
+        }
+
+        void swap(K &t) {
+            tuples.swap(t);
         }
 
         virtual size_t getNRows() const {
@@ -78,10 +95,20 @@ class GBSegmentInserterUnary : public GBSegmentInserterImpl<std::vector<Term_t>>
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance) {
-            assert(trackProvenance == false);
-            return std::shared_ptr<const TGSegment>(
-                    new UnaryTGSegment(tuples, nodeId, isSorted, sortedField));
+                bool trackProvenance,
+                bool lastColumnIsNode = false) {
+            if (trackProvenance) {
+                assert(lastColumnIsNode == false); //Otherwise
+                //the arity is zero
+                return std::shared_ptr<const TGSegment>(
+                        new UnaryWithConstProvTGSegment(tuples, nodeId, isSorted,
+                            sortedField));
+
+            } else {
+                return std::shared_ptr<const TGSegment>(
+                        new UnaryTGSegment(tuples, nodeId, isSorted,
+                            sortedField));
+            }
         }
 };
 
@@ -106,24 +133,36 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance) {
+                bool trackProvenance,
+                bool lastColumnIsNode = false) {
             if (trackProvenance) {
-                if (secondFieldConstant) {
-                    std::vector<Term_t> t;
-                    for(auto tuple : tuples) {
-                        t.push_back(tuple.first);
+                //lsatColumnIsNode indicates whether the second column contains
+                //nodes instead of terms
+                if (lastColumnIsNode) {
+                    if (secondFieldConstant) {
+                        std::vector<Term_t> t;
+                        for(auto tuple : tuples) {
+                            t.push_back(tuple.first);
+                        }
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryWithConstProvTGSegment(
+                                    t, nodeId, isSorted, sortedField));
+                    } else {
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryWithProvTGSegment(tuples, ~0ul,
+                                    isSorted,
+                                    sortedField));
                     }
-                    return std::shared_ptr<const TGSegment>(
-                            new UnaryWithConstProvTGSegment(
-                                t, nodeId, isSorted, sortedField));
                 } else {
                     return std::shared_ptr<const TGSegment>(
-                            new UnaryWithProvTGSegment(tuples, ~0ul, isSorted,
+                            new BinaryWithConstProvTGSegment(tuples, ~0ul,
+                                isSorted,
                                 sortedField));
                 }
             } else {
                 return std::shared_ptr<const TGSegment>(
-                        new BinaryTGSegment(tuples, nodeId, isSorted, sortedField));
+                        new BinaryTGSegment(tuples, nodeId,
+                            isSorted, sortedField));
             }
         }
 };
@@ -160,15 +199,10 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance) {
+                bool trackProvenance,
+                bool lastColumnIsNode = false) {
 
             if (!isFinal) {
-                if (trackProvenance) {
-                    //In this case, the system should have called
-                    //postprocessJoin
-                    LOG(ERRORL) << "This should not happen";
-                    throw 10;
-                }
                 for(int i = 0; i < card; ++i) {
                     columns.push_back(writers[i].getColumn());
                 }
@@ -177,6 +211,11 @@ class GBSegmentInserterNAry : public GBSegmentInserter
 
             auto ncols = columns.size();
             if (ncols == 2) {
+                //In this case, we had the original vector with three
+                //columns. One for terms, the other two for nodes. Then,
+                //the last two columns have been replaced. Thus,
+                //lastColumnIsNode == true and trackProvenance == true
+                assert(lastColumnIsNode == true);
                 auto &col1 = columns[0]->getVectorRef();
                 size_t nrows = col1.size();
                 if (trackProvenance) {
@@ -197,19 +236,27 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                             out[i].second = itrProv->next();
                         }
                         return std::shared_ptr<const TGSegment>(
-                                new UnaryWithProvTGSegment(out, ~0ul, isSorted, sortedField));
+                                new UnaryWithProvTGSegment(out, ~0ul,
+                                    isSorted, sortedField));
                     }
                 } else {
-                    auto &col2 = columns[1]->getVectorRef();
-                    std::vector<std::pair<Term_t, Term_t>> out(nrows);
-                    for(size_t i = 0; i < nrows; ++i) {
-                        out[i].first = col1[i];
-                        out[i].second = col2[i];
-                    }
-                    return std::shared_ptr<const TGSegment>(
-                            new BinaryTGSegment(out, nodeId, isSorted, sortedField));
+                    //This case should not happen
+                    throw 10;
+                    /*auto &col2 = columns[1]->getVectorRef();
+                      std::vector<std::pair<Term_t, Term_t>> out(nrows);
+                      for(size_t i = 0; i < nrows; ++i) {
+                      out[i].first = col1[i];
+                      out[i].second = col2[i];
+                      }
+                      return std::shared_ptr<const TGSegment>(
+                      new BinaryTGSegment(out, nodeId, isSorted,
+                      sortedField));
+                      */
                 }
-            } else if (ncols == 3 && trackProvenance) {
+            } else if (ncols == 3 && trackProvenance && lastColumnIsNode) {
+                //Another special case. We had two columns with terms
+                //and two columns with nodes. The last two were replaced by
+                //a single one
                 auto &col1 = columns[0]->getVectorRef();
                 auto &col2 = columns[1]->getVectorRef();
                 bool constantNodeVal = columns[2]->isConstant();
@@ -240,9 +287,21 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 }
             } else {
                 if (trackProvenance) {
-                    return std::shared_ptr<const TGSegment>(
-                            new TGSegmentLegacy(columns, addedRows, isSorted,
-                                sortedField, true));
+                    if (lastColumnIsNode) {
+                        return std::shared_ptr<const TGSegment>(
+                                new TGSegmentLegacy(columns, addedRows, isSorted,
+                                    sortedField, true));
+                    } else {
+                        //In this case, I must add a special column with a
+                        //constant node because all the columns in ``columns''
+                        //contain terms
+                        auto newcolumns = columns;
+                        columns.push_back(std::shared_ptr<Column>(
+                                    new CompressedColumn(nodeId, addedRows)));
+                        return std::shared_ptr<const TGSegment>(
+                                new TGSegmentLegacy(newcolumns, addedRows,
+                                    isSorted, sortedField, true));
+                    }
                 } else {
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(columns, addedRows, isSorted,
@@ -255,7 +314,6 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 &intermediateResultsNodes) {
             //Take out the last two columns
             assert(card > 2);
-            assert(!columns[0]);
             for(int i = 0; i < card - 2; ++i) {
                 columns.push_back(writers[i].getColumn());
             }
@@ -264,7 +322,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             std::vector<CompressedColumnBlock> blocks;
             blocks.push_back(b);
             columns.push_back(std::shared_ptr<Column>(
-                    new CompressedColumn(blocks, addedRows)));
+                        new CompressedColumn(blocks, addedRows)));
 
             //Save the columns with the mappings to the nodes
             auto col1 = writers[card - 2].getColumn();

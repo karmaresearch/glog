@@ -1,17 +1,24 @@
 #include <vlog/gbchase/gbchase.h>
 #include <vlog/gbchase/gbsegmentcache.h>
 
-GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain) :
+GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
+        bool trackProvenance,
+        bool filterQueryCont) :
     layer(layer),
     program(program),
-    trackProvenance(false),
-    g(trackProvenance, useCacheRetain),
+    trackProvenance(trackProvenance),
+    filterQueryCont(filterQueryCont),
+    g(trackProvenance, useCacheRetain, filterQueryCont),
     executor(trackProvenance, g, layer, program) {
         if (!program->stratify(stratification, nStratificationClasses)) {
             LOG(ERRORL) << "Program could not be stratified";
             throw std::runtime_error("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+        rules = program->getAllRules();
+        if (trackProvenance) {
+            g.setRulesProgramLayer(rules.data(), program, &layer);
+        }
     }
 
 Program *GBChase::getProgram() {
@@ -123,12 +130,120 @@ void GBChase::prepareRuleExecutionPlans(
                 continue;
             }
 
-            LOG(DEBUGL) << "Pushing node for rule " << rule.tostring();
-            newnodes.emplace_back();
-            GBRuleInput &newnode = newnodes.back();
-            newnode.ruleIdx = ruleIdx;
-            newnode.step = step;
-            newnode.incomingEdges = acceptableNodes;
+            if (filterQueryCont) {
+                size_t nCombinations = 1;
+                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                    nCombinations = nCombinations * acceptableNodes[i].size();
+                }
+                size_t filteredCombinations = 0;
+                std::vector<int> processedCombs(acceptableNodes.size());
+                std::vector<size_t> currentComb(acceptableNodes.size());
+                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                    processedCombs[i] = -1;
+                }
+                size_t currentIdx = 0;
+
+                std::map<size_t, std::vector<size_t>> replacements;
+
+                //Check all combinations
+                while (true) {
+                    if (processedCombs[currentIdx] ==
+                            acceptableNodes[currentIdx].size() - 1) {
+                        //Go back one level
+                        if (currentIdx == 0) {
+                            break;
+                        } else {
+                            processedCombs[currentIdx] = -1;
+                            currentIdx--;
+                        }
+                    } else {
+                        processedCombs[currentIdx]++;
+                        auto idx = processedCombs[currentIdx];
+                        currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
+                        //Am I at the last? Then check
+                        if (currentIdx == acceptableNodes.size() - 1) {
+                            //Do the check!
+                            if (g.isRedundant(ruleIdx, currentComb)) {
+                                filteredCombinations++;
+                            } else {
+                                //Take the tmp nodes into account
+                                for(int i = 0; i < currentComb.size(); ++i) {
+                                    auto nodeId = currentComb[i];
+                                    if (g.isTmpNode(nodeId)) {
+                                        auto originalNode = acceptableNodes[
+                                            i][processedCombs[i]];
+                                        if (!replacements.count(originalNode)) {
+                                            replacements.insert(
+                                                    std::make_pair(originalNode,
+                                                        std::vector<size_t>()));
+                                        }
+                                        replacements[originalNode].push_back(
+                                                nodeId);
+                                        currentComb[i] = originalNode;
+                                    }
+                                }
+                            }
+                        } else {
+                            currentIdx++;
+                        }
+                    }
+                }
+
+                if (filteredCombinations == nCombinations) {
+                    //All combinations are redundant, skip
+                } else {
+                    if (filteredCombinations != 0) {
+                        LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
+                            << filteredCombinations << " " << nCombinations <<
+                            " rule " << ruleIdx;
+                    }
+                    if (!replacements.empty()) {
+                        std::map<size_t, size_t> finalReplacementMap;
+                        for(auto &p : replacements) {
+                            assert(p.second.size() > 0);
+                            if (p.second.size() == 1) {
+                                finalReplacementMap.insert(std::make_pair(
+                                            p.first, p.second[0]));
+                            } else {
+                                size_t idx = 0;
+                                size_t card = ~0ul;
+                                for(size_t i = 0; i < p.second.size(); ++i) {
+                                    auto nodeId = p.second[i];
+                                    if (g.getNodeSize(nodeId) < card) {
+                                        idx = i;
+                                        card = g.getNodeSize(nodeId);
+                                    }
+                                }
+                                finalReplacementMap.insert(std::make_pair(
+                                            p.first, p.second[idx]));
+                            }
+                        }
+                        //Do the replacement
+                        for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                            for(size_t j = 0; j < acceptableNodes[i].size();
+                                    ++j) {
+                                auto n = acceptableNodes[i][j];
+                                if (finalReplacementMap.count(n)) {
+                                    acceptableNodes[i][j] =
+                                        finalReplacementMap[n];
+                                }
+                            }
+                        }
+                    }
+
+                    newnodes.emplace_back();
+                    GBRuleInput &newnode = newnodes.back();
+                    newnode.ruleIdx = ruleIdx;
+                    newnode.step = step;
+                    newnode.incomingEdges = acceptableNodes;
+                }
+            } else {
+                newnodes.emplace_back();
+                GBRuleInput &newnode = newnodes.back();
+                newnode.ruleIdx = ruleIdx;
+                newnode.step = step;
+                newnode.incomingEdges = acceptableNodes;
+            }
         }
     }
 }
@@ -237,10 +352,10 @@ size_t GBChase::executeRulesInStratum(
 }
 
 void GBChase::run() {
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
-    rules = program->getAllRules();
 
     for (int currentStrat = 0;
             currentStrat < nStratificationClasses;
@@ -262,11 +377,17 @@ void GBChase::run() {
             step++;
             LOG(INFOL) << "Step " << step;
             currentIteration = step;
+            g.cleanTmpNodes();
             nnodes = g.getNNodes();
             size_t derivedTuples = executeRulesInStratum(rulesInStratum,
                     currentStrat, stepStratum, step);
         } while (g.getNNodes() != nnodes);
+        g.cleanTmpNodes();
     }
+
+    std::chrono::duration<double, std::milli> dur =
+        std::chrono::system_clock::now() - start;
+    LOG(INFOL) << "Runtime chase: " << dur.count();
 
     SegmentCache::getInstance().clear();
     executor.printStats();
@@ -289,20 +410,34 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     currentRule = rule.tostring();
 #endif
 
+#ifdef DEBUG
+    LOG(INFOL) << "Executing rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
+#endif
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+
+    size_t nders = 0;
+    size_t nders_un = 0;
+
     auto &heads = rule.getHeads();
     int headIdx = 0;
     currentPredicate = heads[headIdx].getPredicate().getId();
     auto outputsRule = executor.executeRule(rule, node);
     bool nonempty = false;
+
+    std::chrono::system_clock::time_point starth =
+        std::chrono::system_clock::now();
     for (GBRuleOutput &outputRule : outputsRule) {
         currentPredicate = heads[headIdx++].getPredicate().getId();
         auto derivations = outputRule.segment;
+        nders_un += derivations->getNRows();
         auto derivationNodes = outputRule.nodes;
-        const bool shouldCleanDuplicates = cleanDuplicates && !outputRule.uniqueTuples;
+        const bool shouldCleanDuplicates = cleanDuplicates &&
+            !outputRule.uniqueTuples;
         nonempty |= !(derivations == NULL || derivations->isEmpty());
         if (nonempty) {
             //Keep only the new derivations
             std::shared_ptr<const TGSegment> retainedTuples;
+            size_t oldNodeId = derivations->getNodeId();
             if (shouldCleanDuplicates) {
                 retainedTuples = g.retain(currentPredicate, derivations);
             } else {
@@ -310,6 +445,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             }
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
+                nders += retainedTuples->getNRows();
                 if (rule.isEGD()) {
                     g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
                 } else {
@@ -319,13 +455,35 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                                 retainedTuples, derivationNodes);
                     } else {
                         //Add a single node
-                        g.addNode(currentPredicate, node.ruleIdx,
+                        g.addNodeNoProv(currentPredicate, node.ruleIdx,
                                 node.step, retainedTuples);
                     }
                 }
             }
         }
     }
+
+    if (shouldStoreStats()) {
+        std::chrono::duration<double, std::milli> retainRuntime =
+            std::chrono::system_clock::now() - starth;
+        std::chrono::duration<double, std::milli> totalRuntime =
+            std::chrono::system_clock::now() - start;
+
+        StatsRule stats;
+        stats.step = node.step;
+        stats.idRule = node.ruleIdx;
+        stats.nderivations_final = nders;
+        stats.nderivations_unfiltered = nders_un;
+        stats.timems = totalRuntime.count();
+        stats.timems_first = executor.getDuration(DurationType::DUR_FIRST).count();
+        stats.timems_merge = executor.getDuration(DurationType::DUR_MERGE).count();
+        stats.timems_join = executor.getDuration(DurationType::DUR_JOIN).count();
+        stats.timems_createhead = executor.getDuration(DurationType::DUR_HEAD).count();
+        stats.timems_retain = retainRuntime.count();
+        saveStatistics(stats);
+
+    }
+
     return nonempty;
 }
 
@@ -333,11 +491,27 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         std::vector<std::shared_ptr<Column>> &provenance) {
     if (provenance.size() == 0) {
+        //Only EDB body atoms
+        std::vector<size_t> provnodes;
+        auto nodeId = g.getNNodes();
+        auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
+        g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd, provnodes);
+    } else if (provenance.size() == 1) {
+        std::vector<size_t> provnodes; //Get the provenance
+        if (!provenance[0]->isConstant() || provenance[0]->isEmpty()) {
+            LOG(ERRORL) << "The provenance vector is either non-constant"
+                " or empty. These cases are not supported.";
+            throw 10;
+        }
+        auto oldNodeId = provenance[0]->first();
+        provnodes.push_back(oldNodeId);
+
         //There was no join. Must replace the nodeID with a new one
         //Note at this point calling slice will create a new vector
         auto nodeId = g.getNNodes();
         auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-        g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+        g.addNodeProv(currentPredicate, ruleIdx,
+                step, dataToAdd, provnodes);
     } else {
         const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
@@ -348,9 +522,16 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                 if (j == 0) {
                     provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
                 } else {
-                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->getValue(provRowIdx);
-                    if (j > 1)
-                        provRowIdx = provenance[(j-1)*2]->getValue(provRowIdx);
+                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
+                        getValue(provRowIdx);
+                    if (j > 1) {
+                        auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
+                        if (tmp == ~0ul) {
+                            provRowIdx = 0;
+                        } else {
+                            provRowIdx = tmp;
+                        }
+                    }
                 }
             }
         }
@@ -363,7 +544,7 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         for(size_t i = 0; i < nrows; ++i) {
             bool hasChanged = i == 0;
             for(size_t j = 0; j < nnodes && !hasChanged; ++j) {
-                const size_t m = i * nnodes + j;
+                const size_t m = providxs[i] * nnodes + j;
                 if (currentNodeList[j] != provnodes[m]) {
                     hasChanged = true;
                 }
@@ -373,11 +554,12 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
                     //Create a new node
                     auto nodeId = g.getNNodes();
                     auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                    g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+                    g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd,
+                            currentNodeList);
                 }
                 startidx = i;
                 for(size_t j = 0; j < nnodes; ++j) {
-                    const size_t m = i * nnodes + j;
+                    const size_t m = providxs[i] * nnodes + j;
                     currentNodeList[j] = provnodes[m];
                 }
             }
@@ -386,7 +568,8 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         if (startidx < nrows) {
             auto nodeId = g.getNNodes();
             auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
-            g.addNode(currentPredicate, ruleIdx, step, dataToAdd);
+            g.addNodeProv(currentPredicate, ruleIdx,
+                    step, dataToAdd, currentNodeList);
         }
     }
 }

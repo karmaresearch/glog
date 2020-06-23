@@ -1049,12 +1049,72 @@ std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
     return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2);
 }
 
+std::vector<std::pair<Term_t, Term_t>> EDBLayer::checkNewIn(const Literal &l1,
+        std::vector<uint8_t> &posInL1,
+        const std::vector<std::pair<Term_t, Term_t>> &existing) {
+    if (!dbPredicates.count(l1.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l1.getPredicate().getId());
+    return p->second.manager->checkNewIn(l1, posInL1, existing);
+}
+
+void EDBLayer::join(
+        std::vector<Term_t> &out, const Literal &l1,
+        std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+        const Literal &l2, const uint8_t posInL2,
+        const uint8_t copyVarPosLeft) {
+
+    if (!dbPredicates.count(l1.getPredicate().getId()) ||
+            ! dbPredicates.count(l2.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    auto p = dbPredicates.find(l1.getPredicate().getId());
+    auto p2 = dbPredicates.find(l2.getPredicate().getId());
+
+    if (p->second.manager != p2->second.manager) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    return p->second.manager->join(out, l1, posInL1, joinLeftVarPos,
+            l2, posInL2, copyVarPosLeft);
+}
+
+void EDBLayer::join(
+        std::vector<std::pair<Term_t,Term_t>> &out, const Literal &l1,
+        std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+        const Literal &l2, const uint8_t posInL2,
+        const uint8_t copyVarPosLeft1,
+        const uint8_t copyVarPosLeft2) {
+
+    if (!dbPredicates.count(l1.getPredicate().getId()) ||
+            ! dbPredicates.count(l2.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    auto p = dbPredicates.find(l1.getPredicate().getId());
+    auto p2 = dbPredicates.find(l2.getPredicate().getId());
+
+    if (p->second.manager != p2->second.manager) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+
+    return p->second.manager->join(out, l1, posInL1, joinLeftVarPos,
+            l2, posInL2, copyVarPosLeft1, copyVarPosLeft2);
+}
+
 bool EDBLayer::supportsCheckIn(const Literal &l) {
     return dbPredicates.count(l.getPredicate().getId());
 }
 
 std::shared_ptr<Column> EDBLayer::checkIn(
-        std::vector<Term_t> &values,
+        const std::vector<Term_t> &values,
         const Literal &l,
         uint8_t posInL,
         size_t &sizeOutput) {
@@ -1448,6 +1508,31 @@ Term_t EDBMemIterator::getElementAt(const uint8_t p) {
     }
 }
 
+void EDBTable::join(std::vector<Term_t> &out, const Literal &l1,
+        std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+        const Literal &l2, const uint8_t posInL2,
+        const uint8_t copyVarPosLeft) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+void EDBTable::join(std::vector<std::pair<Term_t,Term_t>> &out,
+        const Literal &l1, std::vector<uint8_t> &posInL1,
+        const uint8_t joinLeftVarPos,
+        const Literal &l2, const uint8_t posInL2,
+        const uint8_t copyVarPosLeft1,
+        const uint8_t copyVarPosLeft2) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+std::vector<std::pair<Term_t, Term_t>> EDBTable::checkNewIn(const Literal &l1,
+        std::vector<uint8_t> &posInL1,
+        const std::vector<std::pair<Term_t, Term_t>> &existing) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
 std::vector<std::shared_ptr<Column>> EDBTable::checkNewIn(const Literal &l1,
         std::vector<uint8_t> &posInL1,
         const Literal &l2,
@@ -1610,7 +1695,7 @@ std::vector<std::shared_ptr<Column>> EDBTable::checkNewIn(
 }
 
 std::shared_ptr<Column> EDBTable::checkIn(
-        std::vector<Term_t> &values,
+        const std::vector<Term_t> &values,
         const Literal &l,
         uint8_t posInL,
         size_t &sizeOutput) {

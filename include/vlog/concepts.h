@@ -39,18 +39,18 @@ inline std::string fields2str(const std::vector<uint8_t> &fields) {
 /*** TERMS ***/
 class VTerm {
     private:
-        uint8_t id; //ID != 0 => variable. ID==0 => const value
+        uint32_t id; //ID != 0 => variable. ID==0 => const value
         uint64_t value;
     public:
         VTerm() : id(0), value(0) {}
-        VTerm(const uint8_t id, const uint64_t value) : id(id), value(value) {}
-        uint8_t getId() const {
+        VTerm(const uint32_t id, const uint64_t value) : id(id), value(value) {}
+        uint32_t getId() const {
             return id;
         }
         uint64_t getValue() const {
             return value;
         }
-        void setId(const uint8_t i) {
+        void setId(const uint32_t i) {
             id = i;
         }
         void setValue(const uint64_t v) {
@@ -187,8 +187,10 @@ class Predicate {
         const uint8_t card;
 
     public:
-        Predicate(const Predicate &pred) : id(pred.id), type(pred.type), adornment(pred.adornment), card(pred.card) {
-        }
+        Predicate(const Predicate &pred) :
+            id(pred.id), type(pred.type),
+            adornment(pred.adornment), card(pred.card) {
+            }
 
         Predicate(const Predicate p, const uint8_t adornment) : id(p.id),
         type(p.type), adornment(adornment), card(p.card) {
@@ -247,11 +249,28 @@ class Predicate {
 
 /*** SUBSTITUTIONS ***/
 struct Substitution {
-    uint8_t origin;
+    uint32_t origin;
     VTerm destination;
     Substitution() {}
-    Substitution(uint8_t origin, VTerm destination) : origin(origin), destination(destination) {}
+    Substitution(uint32_t origin, VTerm destination) : origin(origin), destination(destination) {}
 };
+
+/*class TermMapping {
+    private:
+        bool e;
+        std::vector<Substitution> subs;
+    public:
+        TermMapping(bool exist, std::vector<Substitution> &subs) : e(exist),
+        subs(subs) {}
+
+        bool exist() const {
+            return e;
+        }
+
+        const std::vector<Substitution> getSubs() const {
+            return subs;
+        }
+};*/
 
 VLIBEXP std::vector<Substitution> concat(std::vector<Substitution>&, std::vector<Substitution>&);
 VLIBEXP std::vector<Substitution> inverse_concat(std::vector<Substitution>&, std::vector<Substitution>&);
@@ -265,9 +284,11 @@ class Literal {
         const VTuple tuple;
         const bool negated;
     public:
-        Literal(const Predicate pred, const VTuple tuple) : pred(pred), tuple(tuple), negated(false) {}
+        Literal(const Predicate pred, const VTuple tuple) :
+            pred(pred), tuple(tuple), negated(false) {}
 
-        Literal(const Predicate pred, const VTuple tuple, bool negated) : pred(pred), tuple(tuple), negated(negated) {}
+        Literal(const Predicate pred, const VTuple tuple, bool negated) :
+            pred(pred), tuple(tuple), negated(negated) {}
 
         Predicate getPredicate() const {
             return pred;
@@ -296,6 +317,8 @@ class Literal {
         bool isNegated() const {
             return negated;
         }
+
+        //TermMapping mgu(Literal &l);
 
         //L. do we need this function?
         //static int mgu(Substitution *substitutions, const Literal &l, const Literal &m);
@@ -396,8 +419,6 @@ class Rule {
         }
 
         Literal getFirstHead() const {
-            // if (heads.size() > 1)
-            //     LOG(WARNL) << "This method should be called only if we handle multiple heads properly...";
             return heads[0];
         }
 
@@ -466,6 +487,8 @@ class Rule {
         void checkRule() const;
 
         Rule normalizeVars() const;
+
+        Rule rewriteWithFreshVars(uint32_t &counter) const;
 
         std::string tostring() const;
         std::string tostring(Program *program, EDBLayer *db) const;

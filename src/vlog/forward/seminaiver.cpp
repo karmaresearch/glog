@@ -1363,22 +1363,24 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
 
     t_iter.stop();
 
-    std::chrono::duration<double> totalDuration =
+    std::chrono::duration<double, std::milli> totalDuration =
         std::chrono::system_clock::now() - startRule;
-    double td = totalDuration.count() * 1000;
+    double td = totalDuration.count();
+
+    if (shouldStoreStats()) {
+        StatsRule stats;
+        stats.step = iteration;
+        stats.idRule = ruleDetails.ruleid;
+        if (!newDerivations) {
+            stats.nderivations_final = 0;
+        } else {
+            stats.nderivations_final = getNLastDerivationsFromList();
+        }
+        stats.timems = td;
+        saveStatistics(stats);
+    }
 
 #ifdef WEBINTERFACE
-    StatsRule stats;
-    stats.iteration = iteration;
-    stats.idRule = ruleDetails.ruleid;
-    if (!newDerivations) {
-        stats.derivation = 0;
-    } else {
-        stats.derivation = getNLastDerivationsFromList();
-    }
-    //Jacopo: td is not existing anymore...
-    stats.timems = (long)td;
-    saveStatistics(stats);
     currentPredicate = -1;
     currentRule = "";
 #endif

@@ -7,6 +7,7 @@
 #include <vlog/seminaiver.h>
 #include <vlog/seminaiver_trigger.h>
 #include <vlog/gbchase/gbchase.h>
+#include <vlog/gbchase/tgchase.h>
 #include <vlog/consts.h>
 
 #include <trident/kb/kb.h>
@@ -35,14 +36,9 @@ class Reasoner {
 
         const uint64_t threshold;
 
-        void cleanBindings(std::vector<Term_t> &bindings, std::vector<uint8_t> * posJoins,
+        void cleanBindings(std::vector<Term_t> &bindings,
+                std::vector<uint8_t> * posJoins,
                 TupleTable *input);
-
-        /*TupleTable *getVerifiedBindings(QSQQuery &query,
-          std::vector<uint8_t> * posJoins,
-          std::vector<Term_t> *possibleValuesJoins,
-          EDBLayer &layer, Program &program, DictMgmt *dict,
-          bool returnOnlyVars);*/
 
         FCBlock getBlockFromQuery(Literal constantsQuery, Literal &boundQuery,
                 std::vector<uint8_t> *posJoins,
@@ -131,7 +127,9 @@ class Reasoner {
 
         VLIBEXP static std::shared_ptr<GBChase> getGBChase(
                 EDBLayer &layer,
-                Program *p);
+                Program *p,
+                GBChaseAlgorithm typeChase = GBChaseAlgorithm::GBCHASE,
+                std::string param1 = "");
 
         int getNumberOfIDBPredicates(Literal&, Program&);
 

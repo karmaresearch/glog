@@ -11,134 +11,173 @@
 #include <kognac/factory.h>
 
 class SeqColumnWriter : public SequenceWriter {
-private:
-    ColumnWriter *writer;
-public:
-    SeqColumnWriter(ColumnWriter *w) : writer(w) {
-    }
+    private:
+        ColumnWriter *writer;
+    public:
+        SeqColumnWriter(ColumnWriter *w) : writer(w) {
+        }
 
-    void add(const uint64_t v) {
-        writer->add(v);
-    }
+        void add(const uint64_t v) {
+            writer->add(v);
+        }
 };
 
 class TridentTable: public EDBTable {
 
-private:
+    private:
 
-    KB *kb;
-    Querier *q;
-    DictMgmt *dict;
-    Factory<TridentIterator> kbItrFactory;
-    std::mutex mutex;
-    bool multithreaded;
-    EDBLayer *layer;
+        KB *kb;
+        Querier *q;
+        DictMgmt *dict;
+        Factory<TridentIterator> kbItrFactory;
+        std::mutex mutex;
+        bool multithreaded;
+        EDBLayer *layer;
 
-    TridentIterator *getTridentIter();
+        TridentIterator *getTridentIter();
 
-    std::vector<std::shared_ptr<Column>> performAntiJoin(const Literal &l1,
-                                      std::vector<uint8_t> &pos1, const Literal &l2,
-                                      std::vector<uint8_t> &pos2);
+        std::vector<std::shared_ptr<Column>> performAntiJoin(const Literal &l1,
+                std::vector<uint8_t> &pos1, const Literal &l2,
+                std::vector<uint8_t> &pos2);
 
+        std::vector<std::pair<Term_t, Term_t>> performAntiJoin(const Literal &l1,
+                std::vector<uint8_t> &pos1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
 
-    std::vector<std::shared_ptr<Column>> performAntiJoin(
-                                          std::vector<std::shared_ptr<Column>>
-                                          &valuesToCheck,
-                                          const Literal &l,
-                                          std::vector<uint8_t> &pos);
+        std::vector<std::shared_ptr<Column>> performAntiJoin(
+                std::vector<std::shared_ptr<Column>>
+                &valuesToCheck,
+                const Literal &l,
+                std::vector<uint8_t> &pos);
 
-    void getQueryFromEDBRelation0(QSQQuery *query, TupleTable *outputTable);
+        void getQueryFromEDBRelation0(QSQQuery *query, TupleTable *outputTable);
 
-    void getQueryFromEDBRelation12(QSQQuery *query, TupleTable *outputTable,
-                                   std::vector<uint8_t> *posToFilter,
-                                   std::vector<Term_t> *valuesToFilter);
+        void getQueryFromEDBRelation12(QSQQuery *query, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    void getQueryFromEDBRelation12(VTerm s, VTerm p, VTerm o, TupleTable *outputTable,
-                                   std::vector<uint8_t> *posToFilter,
-                                   std::vector<std::pair<uint64_t, uint64_t>> *pairs,
-                                   std::vector<int> &posVarsToReturn,
-                                   std::vector<std::pair<int, int>> &joins,
-                                   std::vector<std::vector<int>> &posToCopy);
+        void getQueryFromEDBRelation12(VTerm s, VTerm p, VTerm o, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<std::pair<uint64_t, uint64_t>> *pairs,
+                std::vector<int> &posVarsToReturn,
+                std::vector<std::pair<int, int>> &joins,
+                std::vector<std::vector<int>> &posToCopy);
 
-    void getQueryFromEDBRelation3(QSQQuery *query, TupleTable *outputTable,
-                                  std::vector<Term_t> *valuesToFilter);
+        void getQueryFromEDBRelation3(QSQQuery *query, TupleTable *outputTable,
+                std::vector<Term_t> *valuesToFilter);
 
+        void join(std::vector<Term_t> &out1,
+                std::vector<std::pair<Term_t,Term_t>> &out2,
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const std::vector<uint8_t> copyVarPosLeft);
 
-public:
-    TridentTable(std::string kbDir, bool multithreaded, EDBLayer *layer) : layer(layer) {
-        KBConfig config;
-        kb = new KB(kbDir.c_str(), true, false, true, config);
-        q = kb->query();
-        dict = kb->getDictMgmt();
-        this->multithreaded = multithreaded;
-    }
+    public:
+        TridentTable(std::string kbDir, bool multithreaded, EDBLayer *layer) : layer(layer) {
+            KBConfig config;
+            kb = new KB(kbDir.c_str(), true, false, true, config);
+            q = kb->query();
+            dict = kb->getDictMgmt();
+            this->multithreaded = multithreaded;
+        }
 
-    std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
-                                      std::vector<uint8_t> &posInL1,
-                                      const Literal &l2,
-                                      std::vector<uint8_t> &posInL2);
+        void join(std::vector<Term_t> &out, const Literal &l1,
+                std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft) {
+            std::vector<std::pair<Term_t, Term_t>> unused;
+            std::vector<uint8_t> pos;
+            pos.push_back(copyVarPosLeft);
+            join(out, unused, l1, posInL1, joinLeftVarPos,
+                    l2, posInL2, pos);
+        }
 
-    std::vector<std::shared_ptr<Column>> checkNewIn(
-                                          std::vector <
-                                          std::shared_ptr<Column >> &checkValues,
-                                          const Literal &l2,
-                                          std::vector<uint8_t> &posInL2);
+        void join(std::vector<std::pair<Term_t,Term_t>> &out,
+                const Literal &l1, std::vector<uint8_t> &posInL1,
+                const uint8_t joinLeftVarPos,
+                const Literal &l2, const uint8_t posInL2,
+                const uint8_t copyVarPosLeft1,
+                const uint8_t copyVarPosLeft2) {
+            std::vector<Term_t> unused;
+            std::vector<uint8_t> pos;
+            pos.push_back(copyVarPosLeft1);
+            pos.push_back(copyVarPosLeft2);
+            join(unused, out, l1, posInL1, joinLeftVarPos,
+                    l2, posInL2, pos);
+        }
 
-    std::shared_ptr<Column> checkIn(
-        std::vector<Term_t> &values,
-        const Literal &l2,
-        uint8_t posInL2,
-        size_t &sizeOutput);
+        std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const Literal &l2,
+                std::vector<uint8_t> &posInL2);
 
-    //execute the query on the knowledge base
-    void query(QSQQuery *query, TupleTable *outputTable,
-               std::vector<uint8_t> *posToFilter,
-               std::vector<Term_t> *valuesToFilter);
+        std::vector<std::shared_ptr<Column>> checkNewIn(
+                std::vector <
+                std::shared_ptr<Column >> &checkValues,
+                const Literal &l2,
+                std::vector<uint8_t> &posInL2);
 
-    Querier *getQuerier() {
-        return q;
-    }
+        std::vector<std::pair<Term_t, Term_t>> checkNewIn(
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
 
-    KB *getKB() {
-        return kb;
-    }
+        std::shared_ptr<Column> checkIn(
+                const std::vector<Term_t> &values,
+                const Literal &l2,
+                uint8_t posInL2,
+                size_t &sizeOutput);
 
-    size_t estimateCardinality(const Literal &query);
+        //execute the query on the knowledge base
+        void query(QSQQuery *query, TupleTable *outputTable,
+                std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    size_t getCardinality(const Literal &query);
+        Querier *getQuerier() {
+            return q;
+        }
 
-    size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
+        KB *getKB() {
+            return kb;
+        }
 
-    bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
-                 std::vector<Term_t> *valuesToFilter);
+        size_t estimateCardinality(const Literal &query);
 
-    EDBIterator *getIterator(const Literal &query);
+        size_t getCardinality(const Literal &query);
 
-    EDBIterator *getSortedIterator(const Literal &query,
-                                   const std::vector<uint8_t> &fields);
+        size_t getCardinalityColumn(const Literal &query, uint8_t posColumn);
 
-    bool getDictNumber(const char *text, const size_t sizeText,
-                       uint64_t &id);
+        bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
+                std::vector<Term_t> *valuesToFilter);
 
-    bool getDictText(const uint64_t id, char *text);
+        EDBIterator *getIterator(const Literal &query);
 
-    bool getDictText(const uint64_t id, std::string &text);
+        EDBIterator *getSortedIterator(const Literal &query,
+                const std::vector<uint8_t> &fields);
 
-    uint8_t getArity() const {
-        // Moved this manifest constant from edb importer to here       RFHH
-        return 3;
-    }
+        bool getDictNumber(const char *text, const size_t sizeText,
+                uint64_t &id);
 
-    uint64_t getNTerms();
+        bool getDictText(const uint64_t id, char *text);
 
-    uint64_t getSize();
+        bool getDictText(const uint64_t id, std::string &text);
 
-    void releaseIterator(EDBIterator *itr);
+        uint8_t getArity() const {
+            // Moved this manifest constant from edb importer to here       RFHH
+            return 3;
+        }
 
-    ~TridentTable() {
-        delete q;
-        delete kb;
-    }
+        uint64_t getNTerms();
+
+        uint64_t getSize();
+
+        void releaseIterator(EDBIterator *itr);
+
+        ~TridentTable() {
+            delete q;
+            delete kb;
+        }
 
 };
 

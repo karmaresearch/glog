@@ -41,31 +41,67 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
     }
-    auto nfields = columns.size();
-    auto nfieldsTocheck = trackProvenance ? nfields - 1 : -1; //-1 means check all fields
-    auto oldcols(columns);
-    std::shared_ptr<Segment> s = std::shared_ptr<Segment>(new Segment(nfields, oldcols));
-    auto retained = SegmentInserter::unique(s, nfieldsTocheck);
+
+    size_t nfields = 0;
+    size_t nfieldsToCheck = 0;
+    std::vector<std::shared_ptr<Column>> oldcols;
+    if (trackProvenance && columns.back()->isConstant()) {
+        nfields = columns.size() - 1;
+        nfieldsToCheck = -1;
+        for(int i = 0; i < columns.size() - 1; ++i)
+            oldcols.push_back(columns[i]);
+    } else {
+        nfields = columns.size();
+        nfieldsToCheck = trackProvenance ? nfields - 1 : -1; //-1 means check all fields
+        oldcols = columns;
+    }
+
+    std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
+            new Segment(nfields, oldcols));
+    auto retained = SegmentInserter::unique(s, nfieldsToCheck);
+
     std::vector<std::shared_ptr<Column>> newcols;
     for(int i = 0; i < retained->getNColumns(); ++i) {
         newcols.push_back(retained->getColumn(i));
     }
-    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, retained->getNRows(), true, sortedField, trackProvenance));
+    size_t nrows = retained->getNRows();
+    if (trackProvenance && columns.back()->isConstant()) {
+        newcols.push_back(std::shared_ptr<Column>(new CompressedColumn(
+                        getNodeId(), nrows)));
+    }
+
+    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols,
+                nrows, true, sortedField, trackProvenance));
 }
 
 std::shared_ptr<TGSegment> TGSegmentLegacy::sort() const {
     if (!isSorted || sortedField != 0) {
         auto nfields = columns.size();
-        auto oldcols(columns);
-        Segment s(nfields, oldcols);
-        auto news = s.sortBy(NULL);
         std::vector<std::shared_ptr<Column>> newcols;
-        for(int i = 0; i < news->getNColumns(); ++i) {
-            newcols.push_back(news->getColumn(i));
+        if (trackProvenance && columns.back()->isConstant()) {
+            std::vector<std::shared_ptr<Column>> oldcols;
+            for(int i = 0; i < columns.size() - 1; ++i) {
+                oldcols.push_back(columns[i]);
+            }
+            Segment s(columns.size() - 1, oldcols);
+            auto news = s.sortBy(NULL);
+            for(int i = 0; i < news->getNColumns(); ++i) {
+                newcols.push_back(news->getColumn(i));
+            }
+            newcols.push_back(columns.back());
+        } else {
+            auto oldcols(columns);
+            Segment s(nfields, oldcols);
+            auto news = s.sortBy(NULL);
+            for(int i = 0; i < news->getNColumns(); ++i) {
+                newcols.push_back(news->getColumn(i));
+            }
         }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
 }
 
@@ -88,9 +124,12 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
         for(int i = 0; i < news->getNColumns(); ++i) {
             newcols.push_back(news->getColumn(i));
         }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, isSorted, sortedField, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(columns, nrows, isSorted,
+                    sortedField, trackProvenance));
     }
 }
 
@@ -135,14 +174,14 @@ void TGSegmentLegacy::appendTo(uint8_t colPos,
         std::vector<std::pair<Term_t, Term_t>> &out) const {
     assert(trackProvenance);
     auto &c1 = columns[colPos];
-    auto &v1 = c1->getVectorRef();
+    auto itr1 = c1->getReader();
     auto &c2 = columns[columns.size() - 1]; //Last column is the provenance
     auto itrProv = c2->getReader();
-    auto nrows = v1.size();
+    auto nrows = c1->size();
     for(size_t i = 0; i < nrows; ++i) {
         if (!itrProv->hasNext())
             throw 10;
-        out.push_back(std::make_pair(v1[i], itrProv->next()));
+        out.push_back(std::make_pair(itr1->next(), itrProv->next()));
     }
 }
 
@@ -166,14 +205,14 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
     auto &c1 = columns[colPos1];
     auto &c2 = columns[colPos2];
     auto &c3 = columns[2];
-    auto &v1 = c1->getVectorRef();
-    auto &v2 = c2->getVectorRef();
+    auto itr1 = c1->getReader();
+    auto itr2 = c2->getReader();
     auto itrProv = c3->getReader();
-    auto nrows = v1.size();
+    auto nrows = c1->size();
     for(size_t i = 0; i < nrows; ++i) {
         BinWithProv v;
-        v.first = v1[i];
-        v.second = v2[i];
+        v.first = itr1->next();
+        v.second = itr2->next();
         if (!itrProv->hasNext()) {
             throw 10;
         }
@@ -236,7 +275,7 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
 int TGSegmentLegacy::getProvenanceType() const {
     if (trackProvenance) {
         assert(columns.size() > 0);
-        if (columns.back()->isConstant()) {
+        if (columns.back()->isEmpty() || columns.back()->isConstant()) {
             return 1;
         } else {
             return 2;
@@ -249,8 +288,7 @@ int TGSegmentLegacy::getProvenanceType() const {
 size_t TGSegmentLegacy::getNodeId() const {
     if (trackProvenance) {
         assert(columns.size() > 0);
-        assert(columns.back()->size() > 0);
-        if (columns.back()->isConstant()) {
+        if (!columns.back()->isEmpty() && columns.back()->isConstant()) {
             return columns.back()->first();
         } else {
             return ~0ul;

@@ -12,7 +12,7 @@ std::vector<std::pair<std::string, std::vector<StatsSizeIDB>>> Chase::getSizeIDB
             while (!itr.isEmpty()) {
                 std::shared_ptr<const FCInternalTable> t = itr.getCurrentTable();
                 StatsSizeIDB s;
-                s.iteration = itr.getCurrentIteration();
+                s.step = itr.getCurrentIteration();
                 s.idRule = itr.getRule()->ruleid;
                 s.derivation = t->getNRows();
                 stats.push_back(s);
@@ -33,9 +33,9 @@ std::vector<StatsRule> Chase::getOutputNewIterations() {
     size_t sizeVector = statsRuleExecution.size();
     for (int i = 0; i < sizeVector; ++i) {
         StatsRule el = statsRuleExecution[i];
-        if (el.iteration >= nextIteration && el.iteration < cIt) {
+        if (el.step >= nextIteration && el.step < cIt) {
             out.push_back(el);
-            statsLastIteration = el.iteration;
+            statsLastIteration = el.step;
         }
     }
     return out;
@@ -59,6 +59,27 @@ void Chase::stopRun() {
 #ifdef WEBINTERFACE
     running = false;
 #endif
+    if (shouldStoreStats()) {
+        assert(profilerPath != "");
+        std::ofstream ofs(profilerPath);
+        ofs << "STEP,RULEID,TIME_MS,TIME_MS_FIRST,TIME_MS_MERGE,TIME_MS_JOIN,TIME_MS_HEAD,TIME_MS_RETAIN,NDER_TOTAL,NDER_UNFIL,NDER_UNIQUE" << std::endl;
+        size_t idx = 0;
+        for (auto &s : statsRuleExecution) {
+            ofs << idx++ << ",";
+            ofs << s.step << ",";
+            ofs <<s.idRule << ",";
+            ofs << s.timems << ",";
+            ofs << s.timems_first << ",";
+            ofs << s.timems_merge << ",";
+            ofs << s.timems_join << ",";
+            ofs << s.timems_createhead << ",";
+            ofs << s.timems_retain << ",";
+            ofs << s.nderivations_final << ",";
+            ofs << s.nderivations_unfiltered << ",";
+            ofs << s.nderivations_unique << std::endl;
+        }
+        ofs.close();
+    }
 }
 
 std::chrono::system_clock::time_point Chase::getStartingTimeMs() {

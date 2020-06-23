@@ -17,8 +17,6 @@
 long cmpRow(std::vector<uint8_t> *posJoins, const Term_t *row1, const uint64_t *row2) {
     for (int i = 0; i < posJoins->size(); ++i) {
         long r = (row1[i] - row2[(*posJoins)[i]]);
-        // LOG(DEBUGL) << "cmpRow: i = " << i << ", row1[i] = " << row1[i]
-        //     << ", row2[(*posJoins)[i]] = " << row2[(*posJoins)[i]] << ", r = " << r;
         if (r != 0) {
             return r;
         }
@@ -32,13 +30,6 @@ void Reasoner::cleanBindings(std::vector<Term_t> &possibleValuesJoins, std::vect
         if (possibleValuesJoins.size() / sizeBindings == input->getNRows()) {
             possibleValuesJoins.clear();
         } else {
-            /*
-               uint8_t posJoinsCopy[sizeBindings];
-               for (int j = sizeBindings - 1; j >= 0; j--) {
-               posJoinsCopy[j] = posJoins->at(j);
-               }
-               */
-
             std::vector<Term_t> outputBindings;
 
             //I assume input and bindings are already sorted
@@ -71,140 +62,10 @@ void Reasoner::cleanBindings(std::vector<Term_t> &possibleValuesJoins, std::vect
             while (idxBindings < possibleValuesJoins.size()) {
                 outputBindings.push_back(possibleValuesJoins[idxBindings++]);
             }
-
-
-            /*
-               for (int i = input->getNRows() - 1; i >= 0; i--) {
-               const Term_t *rowToRemove = input->getRow(i);
-            //Go through the bindings
-            for (std::vector<Term_t>::reverse_iterator itr = possibleValuesJoins.rbegin();
-            itr != possibleValuesJoins.rend();) {
-            bool same = true;
-            for (int j = sizeBindings - 1; j >= 0; j--) {
-            if (same && rowToRemove[posJoinsCopy[j]] != *itr) {
-            same = false;
-            }
-            itr++;
-            }
-            //Remove the row
-            if (same) {
-            possibleValuesJoins.erase(itr.base(), itr.base() + sizeBindings);
-            break;
-            }
-            }
-            }*/
             possibleValuesJoins.swap(outputBindings);
         }
     }
 }
-
-//Function no longer used
-/*TupleTable *Reasoner::getVerifiedBindings(QSQQuery &query,
-  std::vector<uint8_t> *posJoins,
-  std::vector<Term_t> *possibleValuesJoins,
-  EDBLayer &layer, Program &program, DictMgmt *dict,
-  bool returnOnlyVars) {
-
-  QSQR evaluator(layer, &program);
-  TupleTable *output = NULL;
-
-  std::vector<Rule> *originalRules = program.getAllRulesByPredicate(query.getLiteral()->getPredicate().getId());
-
-//Create a smaller program
-Program clonedProgram = program.clone();
-std::vector<Rule> *clonedRules = clonedProgram.getAllRulesByPredicate(query.getLiteral()->getPredicate().getId());
-//Clean any rule with IDB predicates
-while (clonedRules->size() > 0) {
-if (clonedRules->back().getNIDBPredicates() != 0)
-clonedRules->pop_back();
-else
-break;
-}
-
-//Execute the smaller program
-evaluator.deallocateAllRules();
-evaluator.cleanAllInputs();
-evaluator.setProgram(&clonedProgram);
-#ifdef LINEAGE
-std::vector<LineageInfo> info;
-output = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins, possibleValuesJoins,
-returnOnlyVars, info);
-#else
-output = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins, possibleValuesJoins,
-returnOnlyVars);
-#endif
-if (output != NULL) {
-cleanBindings(*possibleValuesJoins, posJoins, output);
-if (possibleValuesJoins->size() == 0) {
-return output;
-}
-}
-
-//First execute all simple rules with one IDB in a sequence
-for (std::vector<Rule>::iterator itr = originalRules->begin(); itr != originalRules->end(); ++itr) {
-if (itr->getNIDBPredicates() == 0) {
-continue;
-} else if (itr->getNIDBPredicates() > 1 || possibleValuesJoins->size() == 0) {
-break;
-}
-
-//Add the rule
-evaluator.deallocateAllRules();
-clonedRules->push_back(*itr);
-
-//Launch only the single rule
-#ifdef LINEAGE
-std::vector<LineageInfo> info;
-TupleTable *tmpTable = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins,
-possibleValuesJoins, returnOnlyVars, info);
-#else
-TupleTable *tmpTable = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins,
-possibleValuesJoins, returnOnlyVars);
-#endif
-
-if (tmpTable != NULL) {
-//Clean the bindings
-cleanBindings(*possibleValuesJoins, posJoins, tmpTable);
-
-//Add the temporary bindings to the table
-if (output == NULL) {
-output = tmpTable;
-} else {
-output->addAll(tmpTable);
-delete tmpTable;
-}
-}
-
-//Remove the rule
-clonedRules->pop_back();
-}
-
-if (possibleValuesJoins->size() > 0) {
-    evaluator.deallocateAllRules();
-    evaluator.setProgram(&program);
-
-#ifdef LINEAGE
-    std::vector<LineageInfo> info;
-    TupleTable *tmpTable = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins,
-            possibleValuesJoins, returnOnlyVars, info);
-#else
-    TupleTable *tmpTable = evaluator.evaluateQuery(QSQR_EVAL, &query, posJoins,
-            possibleValuesJoins, returnOnlyVars);
-#endif
-
-    if (output == NULL) {
-        //Replace container
-        output = tmpTable;
-    } else {
-        //Add all the data
-        if (tmpTable != NULL) {
-            output->addAll(tmpTable);
-            delete tmpTable;
-        }
-    }
-}
-return output;
-}*/
 
 size_t Reasoner::estimate(Literal &query, std::vector<uint8_t> *posBindings,
         std::vector<Term_t> *valueBindings, EDBLayer &layer,
@@ -968,7 +829,6 @@ TupleIterator *Reasoner::getTopDownIterator(Literal &query,
     } else {
         return new TupleTableItr(pFinalTable);
     }
-
 }
 
 std::shared_ptr<SemiNaiver> Reasoner::getSemiNaiver(EDBLayer &layer,
@@ -1001,7 +861,20 @@ std::shared_ptr<TriggerSemiNaiver> Reasoner::getTriggeredSemiNaiver(EDBLayer &la
 
 std::shared_ptr<GBChase> Reasoner::getGBChase(
         EDBLayer &layer,
-        Program *p) {
-    std::shared_ptr<GBChase> sn(new GBChase(layer, p));
-    return sn;
+        Program *p,
+        GBChaseAlgorithm typeChase,
+        std::string param1) {
+    if (typeChase == GBChaseAlgorithm::GBCHASE) {
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, false, false));
+        return sn;
+    } else if (typeChase == GBChaseAlgorithm::TGCHASE_STATIC) {
+        std::shared_ptr<GBChase> sn(new TGChaseStatic(layer, p, param1));
+        return sn;
+    } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC) {
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, true, true));
+        return sn;
+    } else {
+        LOG(ERRORL) << "Type of chase is not supported";
+        throw 10;
+    }
 }
