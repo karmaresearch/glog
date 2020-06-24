@@ -254,6 +254,8 @@ class GBGraph {
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
+            LOG(INFOL) << "Time query containment (ms): " <<
+                durationQueryContain.count();
         }
 };
 

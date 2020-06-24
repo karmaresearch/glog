@@ -62,7 +62,7 @@ void Chase::stopRun() {
     if (shouldStoreStats()) {
         assert(profilerPath != "");
         std::ofstream ofs(profilerPath);
-        ofs << "STEP,RULEID,TIME_MS,TIME_MS_FIRST,TIME_MS_MERGE,TIME_MS_JOIN,TIME_MS_HEAD,TIME_MS_RETAIN,NDER_TOTAL,NDER_UNFIL,NDER_UNIQUE" << std::endl;
+        ofs << "STEP,RULEID,TIME_MS,TIME_MS_FIRST,TIME_MS_MERGE,TIME_MS_JOIN,TIME_MS_HEAD,TIME_MS_RETAIN,NDER_TOTAL,NDER_UNFIL,NDER_UNIQUE,N_BDY_ATOMS" << std::endl;
         size_t idx = 0;
         for (auto &s : statsRuleExecution) {
             ofs << idx++ << ",";
@@ -76,7 +76,8 @@ void Chase::stopRun() {
             ofs << s.timems_retain << ",";
             ofs << s.nderivations_final << ",";
             ofs << s.nderivations_unfiltered << ",";
-            ofs << s.nderivations_unique << std::endl;
+            ofs << s.nderivations_unique << ",";
+            ofs << s.nbdyatoms << std::endl;
         }
         ofs.close();
     }

@@ -30,6 +30,13 @@ std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationTy
     throw 10;
 }
 
+std::string GBRuleExecutor::getStat(StatType typ) {
+    switch (typ) {
+        case N_BDY_ATOMS:
+            return bdyAtoms;
+    }
+    throw 10;
+}
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
@@ -1016,79 +1023,79 @@ void GBRuleExecutor::join(
     } else {
         if (mergeJoinPossible) {
             /*if (inputLeft->getNColumns() == 2
-                    && inputRight->getNColumns() == 1
-                    && joinVarPos.size() == 1) {
-                assert(copyVarPosRight.size() == 0);
-                int copyTypeNode = 0;
-                if (inputLeft->getProvenanceType() == 2 ||
-                        inputRight->getProvenanceType() == 2) {
-                    copyTypeNode = 1;
-                }
-                const uint8_t jv = joinVarPos[0].first;
+              && inputRight->getNColumns() == 1
+              && joinVarPos.size() == 1) {
+              assert(copyVarPosRight.size() == 0);
+              int copyTypeNode = 0;
+              if (inputLeft->getProvenanceType() == 2 ||
+              inputRight->getProvenanceType() == 2) {
+              copyTypeNode = 1;
+              }
+              const uint8_t jv = joinVarPos[0].first;
 
-                if (!copyTypeNode && inputLeft->hasColumnarBackend()
-                        && inputRight->hasColumnarBackend()) {
-                    //I can speed up the join with a join directly at the EDB
-                    //level
-                    joinTwoOne_EDB(inputLeft,
-                            inputRight,
-                            jv,
-                            copyVarPosLeft,
-                            output);
-                } else {
-                    joinTwoOne(
-                            inputLeft,
-                            inputRight,
-                            jv,
-                            copyVarPosLeft,
-                            copyTypeNode,
-                            output);
-                }
+              if (!copyTypeNode && inputLeft->hasColumnarBackend()
+              && inputRight->hasColumnarBackend()) {
+            //I can speed up the join with a join directly at the EDB
+            //level
+            joinTwoOne_EDB(inputLeft,
+            inputRight,
+            jv,
+            copyVarPosLeft,
+            output);
+            } else {
+            joinTwoOne(
+            inputLeft,
+            inputRight,
+            jv,
+            copyVarPosLeft,
+            copyTypeNode,
+            output);
+            }
             } else if (inputLeft->getNColumns() == 1
-                    && inputRight->getNColumns() == 2
-                    && joinVarPos.size() == 1) {
-                int copyTypeNode = 0;
-                if (inputLeft->getProvenanceType() == 2 ||
-                        inputRight->getProvenanceType() == 2)
-                    copyTypeNode = 2;
-                const uint8_t jv = joinVarPos[0].second;
-                std::vector<int> cp;
-                if (copyVarPosLeft.size() == 1) {
-                    cp.push_back(jv);
-                }
-                assert(copyVarPosRight.size() < 2);
-                if (copyVarPosRight.size() > 0) {
-                    cp.push_back(copyVarPosRight[0]);
-                }
+            && inputRight->getNColumns() == 2
+            && joinVarPos.size() == 1) {
+            int copyTypeNode = 0;
+            if (inputLeft->getProvenanceType() == 2 ||
+            inputRight->getProvenanceType() == 2)
+            copyTypeNode = 2;
+            const uint8_t jv = joinVarPos[0].second;
+            std::vector<int> cp;
+            if (copyVarPosLeft.size() == 1) {
+            cp.push_back(jv);
+            }
+            assert(copyVarPosRight.size() < 2);
+            if (copyVarPosRight.size() > 0) {
+            cp.push_back(copyVarPosRight[0]);
+            }
 
-                if (!copyTypeNode && inputLeft->hasColumnarBackend()
-                        && inputRight->hasColumnarBackend()) {
-                    //I can speed up the join with a join directly at the EDB
-                    //level
-                    joinTwoOne_EDB(
-                            inputRight,
-                            inputLeft,
-                            jv,
-                            cp,
-                            output);
-                } else {
-                    joinTwoOne(
-                            inputRight,
-                            inputLeft,
-                            jv,
-                            cp,
-                            copyTypeNode,
-                            output);
-                }
+            if (!copyTypeNode && inputLeft->hasColumnarBackend()
+            && inputRight->hasColumnarBackend()) {
+            //I can speed up the join with a join directly at the EDB
+            //level
+            joinTwoOne_EDB(
+            inputRight,
+            inputLeft,
+            jv,
+            cp,
+            output);
+            } else {
+            joinTwoOne(
+            inputRight,
+            inputLeft,
+            jv,
+            cp,
+            copyTypeNode,
+            output);
+            }
             } else {*/
-                mergejoin(inputLeft,
-                        nodesLeft,
-                        inputRight,
-                        nodesRight,
-                        joinVarPos,
-                        copyVarPosLeft,
-                        copyVarPosRight,
-                        output);
+            mergejoin(inputLeft,
+                    nodesLeft,
+                    inputRight,
+                    nodesRight,
+                    joinVarPos,
+                    copyVarPosLeft,
+                    copyVarPosRight,
+                    output);
             //}
         } else {
             nestedloopjoin(inputLeft,
@@ -1487,6 +1494,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     lastDurationJoin = std::chrono::duration<double, std::milli>(0);
     lastDurationCreateHead = std::chrono::duration<double, std::milli>(0);
     lastDurationPrep2to1 = std::chrono::duration<double, std::milli>(0);
+    bdyAtoms = "";
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -1513,6 +1521,19 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         }
         cardinalities.push_back(c);
         LOG(INFOL) << "Cardinality " << c << " nnodes " << nnodes;
+    }
+
+    currentIDBBodyAtom = 0;
+    for(size_t i = 0; i < bodyAtoms.size(); ++i) {
+        const Literal &currentBodyAtom = bodyAtoms[i];
+        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
+        if (isEDB) {
+            bdyAtoms += "-1 ";
+        } else {
+            auto nnodes = bodyNodes[currentIDBBodyAtom].size();
+            bdyAtoms += std::to_string(nnodes) + " ";
+            currentIDBBodyAtom++;
+        }
     }
 #endif
 
@@ -1585,9 +1606,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 intermediateResults = processFirstAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
-                if (bodyNodes[currentBodyNode].size() == 1) {
-                    auto n = bodyNodes[currentBodyNode][0];
-                }
+                //if (bodyNodes[currentBodyNode].size() == 1) {
+                //    auto n = bodyNodes[currentBodyNode][0];
+                //}
                 firstBodyAtomIsIDB = true;
                 intermediateResults = g.mergeNodes(
                         bodyNodes[currentBodyNode], copyVarPosRight);
@@ -1704,15 +1725,15 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
         //If there was only one body atom, then the vector with the provenance
         //is empty
-/*        if (trackProvenance && firstBodyAtomIsIDB &&
-                bodyAtoms.size() == 1) {
-            size_t ni = bodyNodes[0][0];
-            if (g.isTmpNode(ni))
-                ni = intermediateResults->getNodeId();
-            //assert(ni == intermediateResults->getNodeId());
-            intermediateResultsNodes.push_back(std::shared_ptr<Column>(
-                        new CompressedColumn(ni,
-                            intermediateResults->getNRows())));
+        /*        if (trackProvenance && firstBodyAtomIsIDB &&
+                  bodyAtoms.size() == 1) {
+                  size_t ni = bodyNodes[0][0];
+                  if (g.isTmpNode(ni))
+                  ni = intermediateResults->getNodeId();
+        //assert(ni == intermediateResults->getNodeId());
+        intermediateResultsNodes.push_back(std::shared_ptr<Column>(
+        new CompressedColumn(ni,
+        intermediateResults->getNRows())));
         }*/
 
         //Compute the head atoms

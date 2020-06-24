@@ -135,107 +135,116 @@ void GBChase::prepareRuleExecutionPlans(
                 for(size_t i = 0; i < acceptableNodes.size(); ++i) {
                     nCombinations = nCombinations * acceptableNodes[i].size();
                 }
-                size_t filteredCombinations = 0;
-                std::vector<int> processedCombs(acceptableNodes.size());
-                std::vector<size_t> currentComb(acceptableNodes.size());
-                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
-                    processedCombs[i] = -1;
-                }
-                size_t currentIdx = 0;
-
-                std::map<size_t, std::vector<size_t>> replacements;
-
-                //Check all combinations
-                while (true) {
-                    if (processedCombs[currentIdx] ==
-                            acceptableNodes[currentIdx].size() - 1) {
-                        //Go back one level
-                        if (currentIdx == 0) {
-                            break;
-                        } else {
-                            processedCombs[currentIdx] = -1;
-                            currentIdx--;
-                        }
-                    } else {
-                        processedCombs[currentIdx]++;
-                        auto idx = processedCombs[currentIdx];
-                        currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
-                        //Am I at the last? Then check
-                        if (currentIdx == acceptableNodes.size() - 1) {
-                            //Do the check!
-                            if (g.isRedundant(ruleIdx, currentComb)) {
-                                filteredCombinations++;
-                            } else {
-                                //Take the tmp nodes into account
-                                for(int i = 0; i < currentComb.size(); ++i) {
-                                    auto nodeId = currentComb[i];
-                                    if (g.isTmpNode(nodeId)) {
-                                        auto originalNode = acceptableNodes[
-                                            i][processedCombs[i]];
-                                        if (!replacements.count(originalNode)) {
-                                            replacements.insert(
-                                                    std::make_pair(originalNode,
-                                                        std::vector<size_t>()));
-                                        }
-                                        replacements[originalNode].push_back(
-                                                nodeId);
-                                        currentComb[i] = originalNode;
-                                    }
-                                }
-                            }
-                        } else {
-                            currentIdx++;
-                        }
-                    }
-                }
-
-                if (filteredCombinations == nCombinations) {
-                    //All combinations are redundant, skip
-                } else {
-                    if (filteredCombinations != 0) {
-                        LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
-                            << filteredCombinations << " " << nCombinations <<
-                            " rule " << ruleIdx;
-                    }
-                    if (!replacements.empty()) {
-                        std::map<size_t, size_t> finalReplacementMap;
-                        for(auto &p : replacements) {
-                            assert(p.second.size() > 0);
-                            if (p.second.size() == 1) {
-                                finalReplacementMap.insert(std::make_pair(
-                                            p.first, p.second[0]));
-                            } else {
-                                size_t idx = 0;
-                                size_t card = ~0ul;
-                                for(size_t i = 0; i < p.second.size(); ++i) {
-                                    auto nodeId = p.second[i];
-                                    if (g.getNodeSize(nodeId) < card) {
-                                        idx = i;
-                                        card = g.getNodeSize(nodeId);
-                                    }
-                                }
-                                finalReplacementMap.insert(std::make_pair(
-                                            p.first, p.second[idx]));
-                            }
-                        }
-                        //Do the replacement
-                        for(size_t i = 0; i < acceptableNodes.size(); ++i) {
-                            for(size_t j = 0; j < acceptableNodes[i].size();
-                                    ++j) {
-                                auto n = acceptableNodes[i][j];
-                                if (finalReplacementMap.count(n)) {
-                                    acceptableNodes[i][j] =
-                                        finalReplacementMap[n];
-                                }
-                            }
-                        }
-                    }
-
+                if (nCombinations > 10) {
+                    //The combinations are too many to test...
                     newnodes.emplace_back();
                     GBRuleInput &newnode = newnodes.back();
                     newnode.ruleIdx = ruleIdx;
                     newnode.step = step;
                     newnode.incomingEdges = acceptableNodes;
+                } else {
+                    size_t filteredCombinations = 0;
+                    std::vector<int> processedCombs(acceptableNodes.size());
+                    std::vector<size_t> currentComb(acceptableNodes.size());
+                    for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                        processedCombs[i] = -1;
+                    }
+                    size_t currentIdx = 0;
+
+                    std::map<size_t, std::vector<size_t>> replacements;
+
+                    //Check all combinations
+                    while (true) {
+                        if (processedCombs[currentIdx] ==
+                                acceptableNodes[currentIdx].size() - 1) {
+                            //Go back one level
+                            if (currentIdx == 0) {
+                                break;
+                            } else {
+                                processedCombs[currentIdx] = -1;
+                                currentIdx--;
+                            }
+                        } else {
+                            processedCombs[currentIdx]++;
+                            auto idx = processedCombs[currentIdx];
+                            currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
+                            //Am I at the last? Then check
+                            if (currentIdx == acceptableNodes.size() - 1) {
+                                //Do the check!
+                                if (g.isRedundant(ruleIdx, currentComb)) {
+                                    filteredCombinations++;
+                                } else {
+                                    //Take the tmp nodes into account
+                                    for(int i = 0; i < currentComb.size(); ++i) {
+                                        auto nodeId = currentComb[i];
+                                        if (g.isTmpNode(nodeId)) {
+                                            auto originalNode = acceptableNodes[
+                                                i][processedCombs[i]];
+                                            if (!replacements.count(originalNode)) {
+                                                replacements.insert(
+                                                        std::make_pair(originalNode,
+                                                            std::vector<size_t>()));
+                                            }
+                                            replacements[originalNode].push_back(
+                                                    nodeId);
+                                            currentComb[i] = originalNode;
+                                        }
+                                    }
+                                }
+                            } else {
+                                currentIdx++;
+                            }
+                        }
+                    }
+
+                    if (filteredCombinations == nCombinations) {
+                        //All combinations are redundant, skip
+                    } else {
+                        if (filteredCombinations != 0) {
+                            LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
+                                << filteredCombinations << " " << nCombinations <<
+                                " rule " << ruleIdx;
+                        }
+                        if (!replacements.empty()) {
+                            std::map<size_t, size_t> finalReplacementMap;
+                            for(auto &p : replacements) {
+                                assert(p.second.size() > 0);
+                                if (p.second.size() == 1) {
+                                    finalReplacementMap.insert(std::make_pair(
+                                                p.first, p.second[0]));
+                                } else {
+                                    size_t idx = 0;
+                                    size_t card = ~0ul;
+                                    for(size_t i = 0; i < p.second.size(); ++i) {
+                                        auto nodeId = p.second[i];
+                                        if (g.getNodeSize(nodeId) < card) {
+                                            idx = i;
+                                            card = g.getNodeSize(nodeId);
+                                        }
+                                    }
+                                    finalReplacementMap.insert(std::make_pair(
+                                                p.first, p.second[idx]));
+                                }
+                            }
+                            //Do the replacement
+                            for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                                for(size_t j = 0; j < acceptableNodes[i].size();
+                                        ++j) {
+                                    auto n = acceptableNodes[i][j];
+                                    if (finalReplacementMap.count(n)) {
+                                        acceptableNodes[i][j] =
+                                            finalReplacementMap[n];
+                                    }
+                                }
+                            }
+                        }
+
+                        newnodes.emplace_back();
+                        GBRuleInput &newnode = newnodes.back();
+                        newnode.ruleIdx = ruleIdx;
+                        newnode.step = step;
+                        newnode.incomingEdges = acceptableNodes;
+                    }
                 }
             } else {
                 newnodes.emplace_back();
@@ -381,6 +390,7 @@ void GBChase::run() {
             nnodes = g.getNNodes();
             size_t derivedTuples = executeRulesInStratum(rulesInStratum,
                     currentStrat, stepStratum, step);
+            g.printStats();
         } while (g.getNNodes() != nnodes);
         g.cleanTmpNodes();
     }
@@ -413,6 +423,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #ifdef DEBUG
     LOG(INFOL) << "Executing rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
+
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
 
     size_t nders = 0;
@@ -480,6 +491,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         stats.timems_join = executor.getDuration(DurationType::DUR_JOIN).count();
         stats.timems_createhead = executor.getDuration(DurationType::DUR_HEAD).count();
         stats.timems_retain = retainRuntime.count();
+        stats.nbdyatoms = executor.getStat(StatType::N_BDY_ATOMS);
         saveStatistics(stats);
 
     }

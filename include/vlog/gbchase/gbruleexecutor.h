@@ -26,8 +26,9 @@ struct GBRuleOutput {
     GBRuleOutput() : uniqueTuples(false) {}
 };
 
-typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD, DUR_PREP2TO1 } DurationType;
-
+typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD,
+    DUR_PREP2TO1 } DurationType;
+typedef enum { N_BDY_ATOMS } StatType;
 
 
 class GBRuleExecutor {
@@ -43,6 +44,7 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> lastDurationJoin;
         std::chrono::duration<double, std::milli> lastDurationCreateHead;
         std::chrono::duration<double, std::milli> lastDurationPrep2to1;
+        std::string bdyAtoms;
 
 
         Program *program; //used only for debugging purposes
@@ -171,6 +173,7 @@ class GBRuleExecutor {
             lastDurationJoin(0),
             lastDurationCreateHead(0),
             lastDurationFirst(0),
+            bdyAtoms(""),
             program(program),
             trackProvenance(trackProvenance),
             g(g), layer(layer) {
@@ -179,6 +182,8 @@ class GBRuleExecutor {
         std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
 
         std::chrono::duration<double, std::milli> getDuration(DurationType typ);
+
+        std::string getStat(StatType typ);
 
         void printStats();
 };

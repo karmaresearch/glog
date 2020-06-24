@@ -1039,6 +1039,9 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
 
 bool GBGraph::isRedundant(size_t ruleIdx,
         std::vector<size_t> &bodyNodeIdxs) {
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
+
     //Get the rule
     const Rule &rule = allRules[ruleIdx];
 
@@ -1139,6 +1142,8 @@ bool GBGraph::isRedundant(size_t ruleIdx,
             LOG(INFOL) << "Found MATCH for " << headNodeLiteral.tostring(
                     program, layer) << match;
 #endif
+            auto dur = std::chrono::steady_clock::now() - start;
+            durationQueryContain += dur;
             return true;
         }
 
@@ -1150,12 +1155,22 @@ bool GBGraph::isRedundant(size_t ruleIdx,
                     outputQueryBody,
                     rangesOutputQueryBody,
                     nodeId)) {
+            auto dur = std::chrono::steady_clock::now() - start;
+            durationQueryContain += dur;
             return true;
         }
 
     }
+    auto dur = std::chrono::steady_clock::now() - start;
+    durationQueryContain += dur;
     return false;
 }
+
+struct __coord {
+    size_t bodyAtomIdx;
+    int posVarInLiteral;
+    int posVar;
+};
 
 bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
         std::vector<size_t> &bodyNodeIdxs,
@@ -1172,13 +1187,20 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     const uint32_t vId = t.getId();
     const uint32_t originalVId = originalRuleHead.getTermAtPos(0).getId();
 
-    std::vector<std::pair<size_t, uint8_t>> bodyAtomsWithHeadVar;
+    std::vector<__coord> bodyAtomsWithHeadVar;
     for(size_t i = 0; i < rewrittenRuleBody.size(); ++i) {
         auto &l = rewrittenRuleBody[i];
+        int varIdx = 0;
         for(size_t j = 0; j < l.getTupleSize(); ++j) {
-            if (l.getTermAtPos(j).isVariable() &&
-                    l.getTermAtPos(j).getId() == vId) {
-                bodyAtomsWithHeadVar.push_back(std::make_pair(i,j));
+            if (l.getTermAtPos(j).isVariable()) {
+                if (l.getTermAtPos(j).getId() == vId) {
+                    __coord c;
+                    c.bodyAtomIdx = i;
+                    c.posVarInLiteral = j;
+                    c.posVar = varIdx;
+                    bodyAtomsWithHeadVar.push_back(c);
+                }
+                varIdx++;
             }
         }
     }
@@ -1187,25 +1209,30 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     //smallest cardinality
     size_t selectedBodyAtomIdx = 0;
     size_t selectedPos = 0;
+    size_t selectedPosInLiteral = 0;
     if (bodyAtomsWithHeadVar.size() != 1) {
         //I select the atom with the smallest cardinality
         size_t minCard = ~0ul;
         for(int i = 0; i < bodyAtomsWithHeadVar.size(); ++i) {
             auto p = bodyAtomsWithHeadVar[i];
             auto c = layer->getCardinalityColumn(
-                    rewrittenRuleBody[p.first], p.second);
+                    rewrittenRuleBody[p.bodyAtomIdx], p.posVarInLiteral);
             if (c < minCard) {
                 minCard = c;
-                selectedBodyAtomIdx = p.first;
-                selectedPos = p.second;
+                selectedBodyAtomIdx = p.bodyAtomIdx;
+                selectedPos = p.posVar;
+                selectedPosInLiteral = p.posVarInLiteral;
             }
         }
+    } else {
+        selectedPos = bodyAtomsWithHeadVar[0].posVar;
+        selectedPosInLiteral = bodyAtomsWithHeadVar[0].posVarInLiteral;
     }
 
     //Do a join between the bodyAtom and the node to see whether it's
     //redundant
     const auto &bl = rewrittenRuleBody[selectedBodyAtomIdx];
-    size_t card = layer->getCardinalityColumn(bl, selectedPos);
+    size_t card = layer->getCardinalityColumn(bl, selectedPosInLiteral);
     auto nodeData = getNodeData(nodeId);
     if (nodeData->hasColumnarBackend()) {
         auto colNode = ((TGSegmentLegacy*)nodeData.get())->getColumn(0);
@@ -1233,8 +1260,8 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                     getVectorRef();
                 retainedColumn = layer->checkIn(
                         v,
-                        rewrittenRuleBody[p.first],
-                        p.second,
+                        rewrittenRuleBody[p.bodyAtomIdx],
+                        p.posVar,
                         sizeOutput);
                 if (retainedColumn->isEmpty())
                     break;

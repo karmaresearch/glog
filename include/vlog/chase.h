@@ -24,6 +24,7 @@ struct StatsRule {
     double timems_join;
     double timems_createhead;
     double timems_retain;
+    std::string nbdyatoms;
 
     StatsRule() : idRule(-1), step(0), nderivations_final(-1),
     nderivations_unfiltered(-1), nderivations_unique(-1),
