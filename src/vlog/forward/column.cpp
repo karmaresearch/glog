@@ -250,6 +250,15 @@ bool EDBColumn::isEmptyRemovals() const {
     return size() == 0;
 }
 
+size_t EDBColumn::countHits(const std::vector<Term_t> &terms) const {
+    size_t sizeOutput = 0;
+    return layer.checkIn(
+            terms,
+            l,
+            posColumn,
+            sizeOutput)->size();
+}
+
 size_t EDBColumn::estimateSize() const {
     QSQQuery query(l);
     if (!unq) {

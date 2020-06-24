@@ -37,6 +37,12 @@ class TGSegment {
 
         virtual std::shared_ptr<TGSegment> unique() const = 0;
 
+        virtual size_t countHits(const std::vector<Term_t> &terms,
+                int column) const {
+            LOG(ERRORL) << "(Hits) Not implemented";
+            throw 10;
+        }
+
         virtual std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const {
@@ -214,6 +220,9 @@ class TGSegmentLegacy : public TGSegment {
         int getProvenanceType() const;
 
         size_t getNodeId() const;
+
+        size_t countHits(const std::vector<Term_t> &terms,
+                int column) const;
 
         ~TGSegmentLegacy();
 };
@@ -543,6 +552,18 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<UnaryWithConstProv
                 out.push_back(p);
             }
         }
+
+        size_t countHits(const std::vector<Term_t> &terms,
+                int column) const {
+            assert(column == 0);
+            size_t c = 0;
+            for(auto &t : terms) {
+                if (std::binary_search(tuples->begin(),
+                            tuples->end(), t))
+                        c++;
+            }
+            return c;
+        }
 };
 
 class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
@@ -554,7 +575,8 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
             }
             static bool sortSecondTerm(const std::pair<Term_t,Term_t> &a,
                     const std::pair<Term_t, Term_t> &b) {
-                return a.second < b.second;
+                return a.second < b.second || (a.second == b.second &&
+                        a.first < b.first);
             }
         public:
             UnaryWithProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,

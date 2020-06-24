@@ -70,6 +70,11 @@ class Column {
             throw 10; //Should be used only on subclasses that supports this
         }
 
+        virtual size_t countHits(const std::vector<Term_t> &terms) const {
+            LOG(ERRORL) << "Not supported";
+            throw 10;
+        }
+
         virtual bool isIn(const Term_t t) const = 0;
 
         virtual std::unique_ptr<ColumnReader> getReader() const = 0;
@@ -815,6 +820,8 @@ class EDBColumn final : public Column {
         bool containsDuplicates() const {
             return !unq;
         }
+
+        size_t countHits(const std::vector<Term_t> &terms) const;
 
         bool isIn(const Term_t t) const;
 

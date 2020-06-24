@@ -135,7 +135,7 @@ void GBChase::prepareRuleExecutionPlans(
                 for(size_t i = 0; i < acceptableNodes.size(); ++i) {
                     nCombinations = nCombinations * acceptableNodes[i].size();
                 }
-                if (nCombinations > 10) {
+                if (acceptableNodes.size() > 1 && nCombinations > 10) {
                     //The combinations are too many to test...
                     newnodes.emplace_back();
                     GBRuleInput &newnode = newnodes.back();
@@ -201,9 +201,9 @@ void GBChase::prepareRuleExecutionPlans(
                         //All combinations are redundant, skip
                     } else {
                         if (filteredCombinations != 0) {
-                            LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
-                                << filteredCombinations << " " << nCombinations <<
-                                " rule " << ruleIdx;
+                            //LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
+                            //    << filteredCombinations << " " << nCombinations <<
+                            //    " rule " << ruleIdx;
                         }
                         if (!replacements.empty()) {
                             std::map<size_t, size_t> finalReplacementMap;

@@ -319,6 +319,11 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv() const {
                 trackProvenance));
 }
 
+size_t TGSegmentLegacy::countHits(const std::vector<Term_t> &terms,
+        int column) const {
+    return columns[column]->countHits(terms);
+}
+
 TGSegmentLegacy::~TGSegmentLegacy() {
     //std::cout << "Deleting " <<  (void*)this << std::endl;
 }
