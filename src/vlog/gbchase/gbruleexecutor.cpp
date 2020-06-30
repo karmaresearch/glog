@@ -31,10 +31,10 @@ std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationTy
 }
 
 std::string GBRuleExecutor::getStat(StatType typ) {
-    /*switch (typ) {
+    switch (typ) {
         case N_BDY_ATOMS:
             return bdyAtoms;
-    }*/
+    }
     throw 10;
 }
 

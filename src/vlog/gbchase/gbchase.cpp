@@ -144,6 +144,7 @@ void GBChase::prepareRuleExecutionPlans(
                     newnode.incomingEdges = acceptableNodes;
                 } else {
                     size_t filteredCombinations = 0;
+                    size_t redundantFreeCombinations = 0;
                     std::vector<int> processedCombs(acceptableNodes.size());
                     std::vector<size_t> currentComb(acceptableNodes.size());
                     for(size_t i = 0; i < acceptableNodes.size(); ++i) {
@@ -151,6 +152,7 @@ void GBChase::prepareRuleExecutionPlans(
                     }
                     size_t currentIdx = 0;
 
+                    //Remember temporary nodes
                     std::map<size_t, std::vector<size_t>> replacements;
 
                     //Check all combinations
@@ -171,7 +173,9 @@ void GBChase::prepareRuleExecutionPlans(
                             //Am I at the last? Then check
                             if (currentIdx == acceptableNodes.size() - 1) {
                                 //Do the check!
-                                if (g.isRedundant(ruleIdx, currentComb)) {
+                                bool rFree = false;
+                                if (g.isRedundant(ruleIdx, currentComb,
+                                            rFree)) {
                                     filteredCombinations++;
                                 } else {
                                     //Take the tmp nodes into account
@@ -191,6 +195,9 @@ void GBChase::prepareRuleExecutionPlans(
                                         }
                                     }
                                 }
+                                if (rFree) {
+                                    redundantFreeCombinations++;
+                                }
                             } else {
                                 currentIdx++;
                             }
@@ -205,6 +212,7 @@ void GBChase::prepareRuleExecutionPlans(
                             //    << filteredCombinations << " " << nCombinations <<
                             //    " rule " << ruleIdx;
                         }
+                        //Use the temporary nodes
                         if (!replacements.empty()) {
                             std::map<size_t, size_t> finalReplacementMap;
                             for(auto &p : replacements) {
@@ -244,6 +252,11 @@ void GBChase::prepareRuleExecutionPlans(
                         newnode.ruleIdx = ruleIdx;
                         newnode.step = step;
                         newnode.incomingEdges = acceptableNodes;
+                        if (redundantFreeCombinations == nCombinations) {
+                            newnode.retainFree = true;
+                        } else {
+                            newnode.retainFree = false;
+                        }
                     }
                 }
             } else {
@@ -421,10 +434,12 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #endif
 
 #ifdef DEBUG
-    LOG(INFOL) << "Executing rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
+    LOG(INFOL) << "Executing rule " << node.ruleIdx << " "
+        << rule.tostring(program, &layer);
 #endif
 
-    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
 
     size_t nders = 0;
     size_t nders_un = 0;
@@ -449,7 +464,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             //Keep only the new derivations
             std::shared_ptr<const TGSegment> retainedTuples;
             size_t oldNodeId = derivations->getNodeId();
-            if (shouldCleanDuplicates) {
+            if (shouldCleanDuplicates && !node.retainFree) {
                 retainedTuples = g.retain(currentPredicate, derivations);
             } else {
                 retainedTuples = derivations;

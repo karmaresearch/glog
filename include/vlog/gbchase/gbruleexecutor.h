@@ -14,8 +14,9 @@
 struct GBRuleInput {
     size_t ruleIdx;
     size_t step;
+    bool retainFree;
     std::vector<std::vector<size_t>> incomingEdges;
-    GBRuleInput() : ruleIdx(0), step(0) {}
+    GBRuleInput() : ruleIdx(0), step(0), retainFree(false) {}
 };
 
 struct GBRuleOutput {
@@ -44,7 +45,7 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> lastDurationJoin;
         std::chrono::duration<double, std::milli> lastDurationCreateHead;
         //std::chrono::duration<double, std::milli> lastDurationPrep2to1;
-        //std::string bdyAtoms;
+        std::string bdyAtoms;
 
 
         Program *program; //used only for debugging purposes
@@ -173,7 +174,7 @@ class GBRuleExecutor {
             lastDurationJoin(0),
             lastDurationCreateHead(0),
             lastDurationFirst(0),
-            //bdyAtoms(""),
+            bdyAtoms(""),
             program(program),
             trackProvenance(trackProvenance),
             g(g), layer(layer) {

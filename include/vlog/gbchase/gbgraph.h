@@ -81,6 +81,7 @@ class GBGraph {
         bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
 
         bool isRedundant_checkEquivalenceEDBAtoms(
+                bool &retainFree,
                 std::vector<size_t> &bodyNodeIdxs,
                 const Literal &originalRuleHead,
                 const std::vector<Literal> &originalRuleBody,
@@ -90,6 +91,7 @@ class GBGraph {
                 const size_t nodeId);
 
         bool isRedundant_checkEquivalenceEDBAtoms_one(
+                bool &retainFree,
                 std::vector<size_t> &bodyNodeIdxs,
                 const Literal &originalRuleHead,
                 const std::vector<Literal> &originalRuleBody,
@@ -99,6 +101,7 @@ class GBGraph {
                 const size_t nodeId);
 
         bool isRedundant_checkEquivalenceEDBAtoms_two(
+                bool &retainFree,
                 std::vector<size_t> &bodyNodeIdxs,
                 const Literal &originalRuleHead,
                 const std::vector<Literal> &originalRuleBody,
@@ -250,7 +253,8 @@ class GBGraph {
         uint64_t mergeNodesWithPredicateIntoOne(PredId_t predId);
 
         bool isRedundant(size_t ruleIdx,
-                std::vector<size_t> &bodyNodeIdx);
+                std::vector<size_t> &bodyNodeIdx,
+                bool &retainFree);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
