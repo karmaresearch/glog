@@ -8,6 +8,7 @@
 class Column;
 class EDBIterator;
 class Segment;
+class TGSegment;
 
 class EDBTable {
     public:
@@ -37,6 +38,17 @@ class EDBTable {
                 const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const std::vector<std::pair<Term_t, Term_t>> &existing);
+
+        virtual std::vector<Term_t> checkNewIn(
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                const Literal &l2,
+                int posInL2);
+
+        virtual std::vector<Term_t> checkNewIn(
+                const Literal &l1,
+                int posInL1,
+                std::shared_ptr<const TGSegment> oldSeg);
 
         virtual std::shared_ptr<Column> checkIn(
                 const std::vector<Term_t> &values,

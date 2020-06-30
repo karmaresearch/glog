@@ -78,6 +78,7 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples);
 
+        /*** Implemented in gbgraph_redundant.cpp ***/
         bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
 
         bool isRedundant_checkEquivalenceEDBAtoms(
@@ -100,6 +101,34 @@ class GBGraph {
                 const std::vector<size_t> &rangeRewrittenRuleBody,
                 const size_t nodeId);
 
+        void isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
+                std::vector<Term_t> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld);
+
+        void isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
+                std::vector<Term_t> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld);
+
+        void isRedundant_checkEquivalenceEDBAtoms_one_mem_edb(
+                std::vector<Term_t> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld);
+
+        void isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(
+                std::vector<Term_t> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld);
+
         bool isRedundant_checkEquivalenceEDBAtoms_two(
                 bool &retainFree,
                 std::vector<size_t> &bodyNodeIdxs,
@@ -109,6 +138,7 @@ class GBGraph {
                 const std::vector<Literal> &rewrittenRuleBody,
                 const std::vector<size_t> &rangeRewrittenRuleBody,
                 const size_t nodeId);
+        /*** END Implemented in gbgraph_redundant.cpp ***/
 
         std::unique_ptr<Literal> createQueryFromNode(
                 std::vector<Literal> &outputQueryBody,

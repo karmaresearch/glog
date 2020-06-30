@@ -123,6 +123,17 @@ class TridentTable: public EDBTable {
                 std::vector<uint8_t> &posInL1,
                 const std::vector<std::pair<Term_t, Term_t>> &existing);
 
+        std::vector<Term_t> checkNewIn(
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                const Literal &l2,
+                int posInL2);
+
+        std::vector<Term_t> checkNewIn(
+                const Literal &l1,
+                int posInL1,
+                std::shared_ptr<const TGSegment> oldSeg);
+
         std::shared_ptr<Column> checkIn(
                 const std::vector<Term_t> &values,
                 const Literal &l2,

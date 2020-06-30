@@ -1,3 +1,6 @@
+#include <vlog/gbchase/gbsegmentitr.h>
+#include <vlog/gbchase/gbsegment.h>
+
 #include <vlog/trident/tridenttable.h>
 
 #include <trident/sparql/sparqloperators.h>
@@ -1162,6 +1165,182 @@ void TridentTable::join(std::vector<Term_t> &out1,
 
     LOG(ERRORL) << "Not supported";
     throw 10;
+}
+
+std::vector<Term_t> TridentTable::checkNewIn(
+        const Literal &l1,
+        int posInL1,
+        std::shared_ptr<const TGSegment> oldSeg) {
+    std::vector<uint8_t> fieldToSort;
+    VTuple t1 = l1.getTuple();
+    fieldToSort.clear();
+    uint8_t posInLit = l1.getPosVars()[posInL1];
+    fieldToSort.push_back(posInLit);
+    TridentTupleItr itr1;
+    itr1.init(q, &t1, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    int level = 0; //key
+    if (l1.getNVars() == 2) {
+        level = 1; //first column
+    } else {
+        assert(l1.getNVars() == 1);
+        level = 2; // second column
+    }
+
+    //Do some checks
+    if (l1.getNVars() == 0 || l1.getNVars() == 3) {
+        LOG(ERRORL) << "These cases are not supported.";
+        throw 10;
+    }
+
+    //Work with the physical iterators... a dirty hack but much faster
+    NewColumnTable *itrNew = (NewColumnTable*)itr1.getPhysicalIterator();
+    std::vector<Term_t> out;
+
+    auto itrOld = oldSeg->iterator();
+    Term_t vold = ~0ul;
+    Term_t vnew = ~0ul;
+
+    size_t processedTerms = 0;
+    size_t existingTerms = 0;
+
+    while (true) {
+        if (vold == ~0ul) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                vold = itrOld->get(0);
+            } else {
+                break;
+            }
+        }
+        if (vnew == ~0ul) {
+            if (itrNew->hasNext()) {
+                itrNew->next();
+                if (level == 1)
+                    vnew = itrNew->getValue1();
+                else if (level == 2)
+                    vnew = itrNew->getValue2();
+                else
+                    vnew = itrNew->getKey();
+            } else {
+                break;
+            }
+        }
+        if (vold == vnew) {
+            existingTerms++;
+            processedTerms++;
+            vnew = ~0ul;
+        } else if (vold < vnew) {
+            vold = ~0ul;
+        } else {
+            out.push_back(vnew);
+            processedTerms++;
+            vnew = ~0ul;
+        }
+    }
+    if (vnew != ~0ul)
+        out.push_back(vnew);
+    while (itrNew->hasNext()) {
+        itrNew->next();
+        if (level == 1)
+            vnew = itrNew->getValue1();
+        else if (level == 2)
+            vnew = itrNew->getValue2();
+        else
+            vnew = itrNew->getKey();
+        out.push_back(vnew);
+    }
+    //Sorting and retaining the unique should not be necessary here
+    return out;
+}
+
+std::vector<Term_t> TridentTable::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew,
+        const Literal &l2,
+        int posInL2) {
+    std::vector<uint8_t> fieldToSort;
+    VTuple t2 = l2.getTuple();
+    fieldToSort.clear();
+    uint8_t posInLit = l2.getPosVars()[posInL2];
+    fieldToSort.push_back(posInLit);
+    TridentTupleItr itr2;
+    itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    int level = 0; //key
+    if (l2.getNVars() == 2) {
+        level = 1; //first column
+    } else {
+        assert(l2.getNVars() == 1);
+        level = 2; // second column
+    }
+
+    //Do some checks
+    if (l2.getNVars() == 0 || l2.getNVars() == 3) {
+        LOG(ERRORL) << "These cases are not supported.";
+        throw 10;
+    }
+
+    //Work with the physical iterators... a dirty hack but much faster
+    NewColumnTable *itrOld = (NewColumnTable*)itr2.getPhysicalIterator();
+    std::vector<Term_t> out;
+
+    if (posNew != 0) {
+        std::vector<uint8_t> pos;
+        pos.push_back(posNew);
+        newSeg = newSeg->sortBy(pos);
+    }
+    auto itrNew = newSeg->iterator();
+    Term_t vold = ~0ul;
+    Term_t vnew = ~0ul;
+
+    size_t processedTerms = 0;
+    size_t existingTerms = 0;
+
+    while (true) {
+        if (vold == ~0ul) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                if (level == 1)
+                    vold = itrOld->getValue1();
+                else if (level == 2)
+                    vold = itrOld->getValue2();
+                else
+                    vold = itrOld->getKey();
+
+            } else {
+                break;
+            }
+        }
+        if (vnew == ~0ul) {
+            if (itrNew->hasNext()) {
+                itrNew->next();
+                vnew = itrNew->get(posNew);
+            } else {
+                break;
+            }
+        }
+        if (vold == vnew) {
+            existingTerms++;
+            processedTerms++;
+            vnew = ~0ul;
+        } else if (vold < vnew) {
+            vold = ~0ul;
+        } else {
+            out.push_back(vnew);
+            processedTerms++;
+            vnew = ~0ul;
+        }
+    }
+    if (vnew != ~0ul)
+        out.push_back(vnew);
+    while (itrNew->hasNext()) {
+        itrNew->next();
+        out.push_back(itrNew->get(posNew));
+    }
+    auto newend = std::unique(out.begin(), out.end());
+    out.erase(newend, out.end());
+    return out;
 }
 
 std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(

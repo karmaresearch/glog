@@ -29,6 +29,7 @@
 class Column;
 class SemiNaiver;       // Why cannot I break the software hierarchy? RFHH
 class EDBFCInternalTable;
+class TGSegment;
 
 using RemoveLiteralOf = std::unordered_map<PredId_t, const EDBRemoveLiterals *>;
 
@@ -343,6 +344,17 @@ class EDBLayer {
                 std::shared_ptr<Column >> &checkValues,
                 const Literal &l2,
                 std::vector<uint8_t> &posInL2);
+
+        std::vector<Term_t> checkNewIn(
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                const Literal &l2,
+                int posInL2);
+
+        std::vector<Term_t> checkNewIn(
+                const Literal &l1,
+                int posInL1,
+                std::shared_ptr<const TGSegment> oldSeg);
 
         std::vector<std::pair<Term_t, Term_t>> checkNewIn(const Literal &l1,
                 std::vector<uint8_t> &posInL1,

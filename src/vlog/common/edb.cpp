@@ -1049,6 +1049,31 @@ std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
     return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2);
 }
 
+std::vector<Term_t> EDBLayer::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew,
+        const Literal &l2,
+        int posInL2) {
+    if (!dbPredicates.count(l2.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l2.getPredicate().getId());
+    return p->second.manager->checkNewIn(newSeg, posNew, l2, posInL2);
+}
+
+std::vector<Term_t> EDBLayer::checkNewIn(
+        const Literal &l1,
+        int posInL1,
+        std::shared_ptr<const TGSegment> oldSeg) {
+    if (!dbPredicates.count(l1.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l1.getPredicate().getId());
+    return p->second.manager->checkNewIn(l1, posInL1, oldSeg);
+}
+
 std::vector<std::pair<Term_t, Term_t>> EDBLayer::checkNewIn(const Literal &l1,
         std::vector<uint8_t> &posInL1,
         const std::vector<std::pair<Term_t, Term_t>> &existing) {
@@ -1522,6 +1547,23 @@ void EDBTable::join(std::vector<std::pair<Term_t,Term_t>> &out,
         const Literal &l2, const uint8_t posInL2,
         const uint8_t copyVarPosLeft1,
         const uint8_t copyVarPosLeft2) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+std::vector<Term_t> EDBTable::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew,
+        const Literal &l2,
+        int posInL2) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+std::vector<Term_t> EDBTable::checkNewIn(
+        const Literal &l1,
+        int posInL1,
+        std::shared_ptr<const TGSegment> oldSeg) {
     LOG(ERRORL) << "Not supported";
     throw 10;
 }
