@@ -24,17 +24,17 @@ std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationTy
             return lastDurationJoin;
         case DUR_HEAD:
             return lastDurationCreateHead;
-        case DUR_PREP2TO1:
-            return lastDurationPrep2to1;
+        //case DUR_PREP2TO1:
+        //    return lastDurationPrep2to1;
     }
     throw 10;
 }
 
 std::string GBRuleExecutor::getStat(StatType typ) {
-    switch (typ) {
+    /*switch (typ) {
         case N_BDY_ATOMS:
             return bdyAtoms;
-    }
+    }*/
     throw 10;
 }
 
@@ -577,8 +577,8 @@ void GBRuleExecutor::joinTwoOne(
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
     std::chrono::duration<double, std::milli> dur =
         std::chrono::system_clock::now() - start;
-    lastDurationPrep2to1 += dur;
-    durationPrep2to1 += dur;
+    //lastDurationPrep2to1 += dur;
+    //durationPrep2to1 += dur;
 
     const uint8_t ncopyvars = copyVarPosLeft.size();
     const uint8_t varpos1 = copyVarPosLeft[0];
@@ -1493,8 +1493,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     lastDurationMergeSort = std::chrono::duration<double, std::milli>(0);
     lastDurationJoin = std::chrono::duration<double, std::milli>(0);
     lastDurationCreateHead = std::chrono::duration<double, std::milli>(0);
-    lastDurationPrep2to1 = std::chrono::duration<double, std::milli>(0);
-    bdyAtoms = "";
+    //lastDurationPrep2to1 = std::chrono::duration<double, std::milli>(0);
+    //bdyAtoms = "";
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -1764,5 +1764,5 @@ void GBRuleExecutor::printStats() {
     LOG(INFOL) << "Time mergesort (ms): " << durationMergeSort.count();
     LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
     LOG(INFOL) << "Time head (ms): " << durationCreateHead.count();
-    LOG(INFOL) << "Time preparation join2to1 (ms): " << durationPrep2to1.count();
+    //LOG(INFOL) << "Time preparation join2to1 (ms): " << durationPrep2to1.count();
 }

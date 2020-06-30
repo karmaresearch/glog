@@ -130,7 +130,8 @@ void GBGraph::addNodeProv(PredId_t predid,
                 incomingEdges);
 
 #ifdef DEBUG
-        LOG(INFOL) << "Node " << nodeId << " created with rule " << allRules[ruleIdx].tostring(program, layer);
+        LOG(INFOL) << "Node " << nodeId << " created with rule " <<
+            allRules[ruleIdx].tostring(program, layer);
         LOG(INFOL) << "     QH: " << queryHead->tostring(program, layer);
         std::string nodes = "";
         for(auto i : incomingEdges) {
@@ -1039,6 +1040,9 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
 
 bool GBGraph::isRedundant(size_t ruleIdx,
         std::vector<size_t> &bodyNodeIdxs) {
+
+    return false;
+
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
 
