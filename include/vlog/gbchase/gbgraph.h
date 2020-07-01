@@ -60,7 +60,8 @@ class GBGraph {
         Program *program;
 
         std::chrono::duration<double, std::milli> durationRetain;
-        std::chrono::duration<double, std::milli> durationQueryContain;
+        std::chrono::duration<double, std::milli> durationQueryContain1;
+        std::chrono::duration<double, std::milli> durationQueryContain2;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -138,6 +139,43 @@ class GBGraph {
                 const std::vector<Literal> &rewrittenRuleBody,
                 const std::vector<size_t> &rangeRewrittenRuleBody,
                 const size_t nodeId);
+
+        void isRedundant_checkEquivalenceEDBAtoms_two_mem_mem(
+                std::vector<std::pair<Term_t,Term_t>> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld1,
+                int posOld2);
+
+        void isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(
+                std::vector<std::pair<Term_t,Term_t>> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld1,
+                int posOld2);
+
+        void isRedundant_checkEquivalenceEDBAtoms_two_edb_mem(
+                std::vector<std::pair<Term_t,Term_t>> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld1,
+                int posOld2);
+
+        void isRedundant_checkEquivalenceEDBAtoms_two_mem_edb(
+                std::vector<std::pair<Term_t,Term_t>> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld1,
+                int posOld2);
+
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
         std::unique_ptr<Literal> createQueryFromNode(
@@ -176,7 +214,9 @@ class GBGraph {
             cacheRetainEnabled(cacheRetainEnabled),
             queryContEnabled(useQueryContainmentForRedundancyElim),
             durationRetain(0),
-            durationQueryContain(0), allRules(NULL),
+            durationQueryContain1(0),
+            durationQueryContain2(0),
+            allRules(NULL),
             layer(NULL), program(NULL) {
                 counterNullValues = RULE_SHIFT(1);
                 counterFreshVarsQueryCont = 1 << 20;
@@ -288,8 +328,10 @@ class GBGraph {
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();
-            LOG(INFOL) << "Time query containment (ms): " <<
-                durationQueryContain.count();
+            LOG(INFOL) << "Time query containment (unary) (ms): " <<
+                durationQueryContain1.count();
+            LOG(INFOL) << "Time query containment (binary) (ms): " <<
+                durationQueryContain2.count();
         }
 };
 

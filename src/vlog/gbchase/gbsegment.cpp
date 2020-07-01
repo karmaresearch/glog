@@ -324,6 +324,31 @@ size_t TGSegmentLegacy::countHits(const std::vector<Term_t> &terms,
     return columns[column]->countHits(terms);
 }
 
+size_t TGSegmentLegacy::countHits(const std::vector<std::pair<
+        Term_t,Term_t>> &terms,
+        int column1, int column2) const {
+    auto c1 = getColumn(column1);
+    auto c2 = getColumn(column2);
+    if (c1->isEDB() && c2->isEDB()) {
+        EDBColumn *ec1 = (EDBColumn*)c1.get();
+        EDBColumn *ec2 = (EDBColumn*)c2.get();
+        const Literal &l1 = ec1->getLiteral();
+        const Literal &l2 = ec2->getLiteral();
+        std::vector<Substitution> subs;
+        if (!l1.sameVarSequenceAs(l2) ||
+                l1.subsumes(subs, l1, l2) == -1) {
+            //The columns come from different literals. This is not supported
+            throw 10;
+        }
+        EDBLayer &layer = ec1->getEDBLayer();
+        auto v = layer.checkNewIn(terms, l1, ec1->posColumnInLiteral(),
+                ec2->posColumnInLiteral());
+        return terms.size() - v.size();
+    }
+    LOG(ERRORL) << "Not implemented";
+    throw 10;
+}
+
 TGSegmentLegacy::~TGSegmentLegacy() {
     //std::cout << "Deleting " <<  (void*)this << std::endl;
 }

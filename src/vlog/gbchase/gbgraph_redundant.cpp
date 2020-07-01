@@ -39,6 +39,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     if (!areNodesWithPredicate(predId)) {
         return false;
     }
+    const bool isHeadUnary = h.getTupleSize() == 1;
 
 #ifdef DEBUG
     LOG(INFOL) << "Original rule " << rule.tostring(program, layer);
@@ -131,8 +132,10 @@ bool GBGraph::isRedundant(size_t ruleIdx,
 #endif
             std::chrono::duration<double, std::milli> dur =
                 std::chrono::steady_clock::now() - start;
-            //LOG(WARNL) << "2) Rule " << ruleIdx << " DUR: " << dur.count();
-            durationQueryContain += dur;
+            if (isHeadUnary)
+                durationQueryContain1 += dur;
+            else
+                durationQueryContain2 += dur;
             retainFree = true;
             return true;
         }
@@ -150,8 +153,10 @@ bool GBGraph::isRedundant(size_t ruleIdx,
             retainFree = true;
             std::chrono::duration<double, std::milli> dur =
                 std::chrono::steady_clock::now() - start;
-            //LOG(WARNL) << "1) Rule " << ruleIdx << " DUR: " << dur.count();
-            durationQueryContain += dur;
+            if (isHeadUnary)
+                durationQueryContain1 += dur;
+            else
+                durationQueryContain2 += dur;
 
             return true;
         }
@@ -161,15 +166,18 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     }
     std::chrono::duration<double, std::milli> dur =
         std::chrono::steady_clock::now() - start;
-    //LOG(WARNL) << "3) Rule " << ruleIdx << " DUR: " << dur.count();
-    durationQueryContain += dur;
+    if (isHeadUnary)
+        durationQueryContain1 += dur;
+    else
+        durationQueryContain2 += dur;
     return false;
 }
 
 struct __coord {
     size_t bodyAtomIdx;
     int posVarInLiteral;
-    int posVar;
+    int posVarInLiteral2;
+    int posVar; //Not used
     size_t card;
     size_t nhits;
     size_t probedhits;
@@ -454,6 +462,179 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
     out.erase(newend, out.end());
 }
 
+void GBGraph::isRedundant_checkEquivalenceEDBAtoms_two_mem_mem(
+        std::vector<std::pair<Term_t,Term_t>> &out,
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        std::shared_ptr<const TGSegment> oldSeg,
+        int posOld1,
+        int posOld2) {
+    if (posNew1 != 0) {
+        std::vector<uint8_t> pos;
+        pos.push_back(posNew1);
+        pos.push_back(posNew2);
+        newSeg = newSeg->sortBy(pos);
+    }
+    auto itrNew = newSeg->iterator();
+    auto itrOld = newSeg->iterator();
+
+    Term_t vold1 = ~0ul;
+    Term_t vold2 = ~0ul;
+    Term_t vnew1 = ~0ul;
+    Term_t vnew2 = ~0ul;
+    while (true) {
+        if (vold1 == ~0ul) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                vold1 = itrOld->get(0);
+                vold2 = itrOld->get(1);
+            } else {
+                break;
+            }
+        }
+        if (vnew1 == ~0ul) {
+            if (itrNew->hasNext()) {
+                itrNew->next();
+                vnew1 = itrNew->get(posNew1);
+                vnew2 = itrNew->get(posNew2);
+            } else {
+                break;
+            }
+        }
+        if (vold1 == vnew1 && vold2 == vnew2) {
+            vnew1 = vnew2 = ~0ul;
+        } else if (vold1 < vnew1 || (vold1 == vnew1 && vold2 < vnew2)) {
+            vold1 = vold2 = ~0ul;
+        } else {
+            out.push_back(std::make_pair(vnew1, vnew2));
+            vnew1 = vnew2 = ~0ul;
+        }
+    }
+    if (vnew1 != ~0ul)
+        out.push_back(std::make_pair(vnew1, vnew2));
+    while (itrNew->hasNext()) {
+        itrNew->next();
+        vnew1 = itrNew->get(posNew1);
+        vnew2 = itrNew->get(posNew2);
+        out.push_back(std::make_pair(vnew1, vnew2));
+    }
+}
+
+void GBGraph::isRedundant_checkEquivalenceEDBAtoms_two_mem_edb(
+        std::vector<std::pair<Term_t,Term_t>> &out,
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        std::shared_ptr<const TGSegment> oldSeg,
+        int posOld1,
+        int posOld2) {
+
+    //Old
+    auto oldColNode1 = ((TGSegmentLegacy*)oldSeg.get())->getColumn(0);
+    assert(oldColNode1->isEDB());
+    auto oldColNode2 = ((TGSegmentLegacy*)oldSeg.get())->getColumn(1);
+    assert(oldColNode2->isEDB());
+
+    //Check the columns come from the same literal
+    const Literal &l3 = ((EDBColumn*)oldColNode1.get())->getLiteral();
+    const Literal &l4 = ((EDBColumn*)oldColNode2.get())->getLiteral();
+    std::vector<Substitution> subs;
+    if (!l3.sameVarSequenceAs(l3) ||
+            l3.subsumes(subs, l3, l4) == -1) {
+        //The columns come from different literals. This is not supported
+        throw 10;
+    }
+
+    int posInL2_1 = ((EDBColumn*)oldColNode1.get())->posColumnInLiteral();
+    int posInL2_2 = ((EDBColumn*)oldColNode2.get())->posColumnInLiteral();
+    auto retainedValues = layer->checkNewIn(
+            newSeg, posNew1, posNew2,
+            ((EDBColumn*)oldColNode2.get())->getLiteral(),
+            posInL2_1, posInL2_2);
+    out.swap(retainedValues);
+}
+
+void GBGraph::isRedundant_checkEquivalenceEDBAtoms_two_edb_mem(
+        std::vector<std::pair<Term_t,Term_t>> &out,
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        std::shared_ptr<const TGSegment> oldSeg,
+        int posOld1,
+        int posOld2) {
+    LOG(WARNL) << "Not implemented";
+    throw 10;
+}
+
+void GBGraph::isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(
+        std::vector<std::pair<Term_t,Term_t>> &out,
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        std::shared_ptr<const TGSegment> oldSeg,
+        int posOld1,
+        int posOld2) {
+    //New
+    assert(newSeg->getNColumns() >= 2);
+    auto newColNode1 = ((TGSegmentLegacy*)newSeg.get())->getColumn(posNew1);
+    assert(newColNode1->isEDB());
+    auto newColNode2 = ((TGSegmentLegacy*)newSeg.get())->getColumn(posNew2);
+    assert(newColNode2->isEDB());
+
+    //Check the columns come from the same literal
+    const Literal &l1 = ((EDBColumn*)newColNode1.get())->getLiteral();
+    const Literal &l2 = ((EDBColumn*)newColNode2.get())->getLiteral();
+    std::vector<Substitution> subs;
+    if (!l1.sameVarSequenceAs(l2) ||
+            l1.subsumes(subs, l1, l2) == -1) {
+        //The columns come from different literals. This is not supported
+        throw 10;
+    }
+
+    std::vector<uint8_t> posInL1;
+    posInL1.push_back(((EDBColumn*)newColNode1.get())->posColumnInLiteral());
+    posInL1.push_back(((EDBColumn*)newColNode2.get())->posColumnInLiteral());
+
+    //Old
+    auto oldColNode1 = ((TGSegmentLegacy*)oldSeg.get())->getColumn(0);
+    assert(oldColNode1->isEDB());
+    auto oldColNode2 = ((TGSegmentLegacy*)oldSeg.get())->getColumn(1);
+    assert(oldColNode2->isEDB());
+
+    //Check the columns come from the same literal
+    const Literal &l3 = ((EDBColumn*)oldColNode1.get())->getLiteral();
+    const Literal &l4 = ((EDBColumn*)oldColNode2.get())->getLiteral();
+    subs.clear();
+    if (!l3.sameVarSequenceAs(l3) ||
+            l3.subsumes(subs, l3, l4) == -1) {
+        //The columns come from different literals. This is not supported
+        throw 10;
+    }
+
+    std::vector<uint8_t> posInL2;
+    posInL2.push_back(((EDBColumn*)oldColNode1.get())->posColumnInLiteral());
+    posInL2.push_back(((EDBColumn*)oldColNode2.get())->posColumnInLiteral());
+
+    std::shared_ptr<Column> retainedColumn1, retainedColumn2;
+    auto retainedValues = layer->checkNewIn(
+            ((EDBColumn*)newColNode1.get())->getLiteral(),
+            posInL1,
+            ((EDBColumn*)oldColNode2.get())->getLiteral(),
+            posInL2);
+    retainedColumn1 = retainedValues[0];
+    retainedColumn2 = retainedValues[1];
+    assert(retainedColumn1->isBackedByVector());
+    assert(retainedColumn2->isBackedByVector());
+
+    const auto &v1 = retainedColumn1->getVectorRef();
+    const auto &v2 = retainedColumn2->getVectorRef();
+    assert(v1.size() == v2.size());
+    for(size_t i = 0; i < v1.size(); ++i) {
+        out.push_back(std::make_pair(v1[i], v2[i]));
+    }
+}
+
 bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         bool &retainFree,
         std::vector<size_t> &bodyNodeIdxs,
@@ -465,19 +646,21 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         const size_t nodeId) {
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
-    auto t1 = rewrittenRuleHead->getTermAtPos(0);
-    auto t2 = rewrittenRuleHead->getTermAtPos(1);
-    assert(t1.isVariable());
-    assert(t2.isVariable());
-    const uint32_t vId1 = t1.getId();
-    const uint32_t vId2 = t2.getId();
-    const uint32_t originalVId1 = originalRuleHead.getTermAtPos(0).getId();
-    const uint32_t originalVId2 = originalRuleHead.getTermAtPos(1).getId();
 
-    std::vector<
-        std::pair<size_t, std::pair<uint8_t, uint8_t>>> bodyAtomsWithHeadVar;
-    for(size_t i = 0; i < rewrittenRuleBody.size(); ++i) {
-        auto &l = rewrittenRuleBody[i];
+    //Existing tuples
+    auto nodeData = getNodeData(nodeId);
+    //Ignore if node is too small
+    if (nodeData->getNRows() < 1000) {
+        retainFree = false;
+        return false;
+    }
+
+    const uint32_t vId1 = originalRuleHead.getTermAtPos(0).getId();
+    const uint32_t vId2 = originalRuleHead.getTermAtPos(1).getId();
+
+    std::vector<__coord> bodyAtomsWithHeadVar;
+    for(size_t i = 0; i < originalRuleBody.size(); ++i) {
+        auto &l = originalRuleBody[i];
         int pos1 = -1;
         int pos2 = -1;
         for(size_t j = 0; j < l.getTupleSize(); ++j) {
@@ -490,75 +673,89 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
             }
         }
         if (pos1 != -1 && pos2 != -1) {
-            bodyAtomsWithHeadVar.push_back(
-                    std::make_pair(i,std::make_pair(pos1, pos2)));
+            __coord c;
+            c.bodyAtomIdx = i;
+            c.posVarInLiteral = pos1;
+            c.posVarInLiteral2 = pos2;
+            bodyAtomsWithHeadVar.push_back(c);
         }
     }
     if (bodyAtomsWithHeadVar.size() == 0)
         return false;
 
     //If we can select more body atoms, then we pick the one with the
-    //smallest cardinality
-    size_t selectedBodyAtomIdx = 0;
-    size_t selectedPos1 = 0;
-    size_t selectedPos2 = 0;
-    size_t minCard = ~0ul;
-    //I select the atom with the smallest cardinality
+    //smallest cardinality and highest hit ratio
+    std::vector<std::pair<Term_t,Term_t>> termsToLookup;
     for(int i = 0; i < bodyAtomsWithHeadVar.size(); ++i) {
-        auto p = bodyAtomsWithHeadVar[i];
-        auto c = layer->getCardinality(rewrittenRuleBody[p.first]);
-        if (c < minCard) {
-            minCard = c;
-            selectedBodyAtomIdx = p.first;
-            selectedPos1 = p.second.first;
-            selectedPos2 = p.second.second;
+        termsToLookup.clear();
+        auto &p = bodyAtomsWithHeadVar[i];
+        auto nodeIdx = bodyNodeIdxs[p.bodyAtomIdx];
+        p.card = getNodeSize(nodeIdx);
+
+        //The numbers are too small to try it
+        if (p.card < 1000) {
+            retainFree = false;
+            return false;
         }
-    }
 
-    //Do a join between the bodyAtom and the node to see whether it's
-    //redundant
-    const auto &bl = rewrittenRuleBody[selectedBodyAtomIdx];
-    auto nodeData = getNodeData(nodeId);
-    assert(bl.getPredicate().getType() == EDB);
-
-    //Check
-    auto itrOld = nodeData->iterator();
-    if (!itrOld->hasNext()) {
-        LOG(ERRORL) << "Cannot be empty";
-    }
-    itrOld->next();
-    Term_t vold1 = itrOld->get(0);
-    Term_t vold2 = itrOld->get(1);
-
-    auto itrNew = layer->getIterator(bl);
-    itrNew->next();
-    Term_t vnew1 = itrNew->getElementAt(selectedPos1);
-    Term_t vnew2 = itrNew->getElementAt(selectedPos2);
-    while (true) {
-        if (vold1 == vnew1 && vold2 == vnew2) {
-            if (itrNew->hasNext()) {
-                itrNew->next();
-                vnew1 = itrNew->getElementAt(selectedPos1);
-                vnew2 = itrNew->getElementAt(selectedPos2);
-            } else {
-                layer->releaseIterator(itrNew);
-                return true; // is redundant
-            }
-        } else if (vold1 < vnew1 || (vold1 == vnew1 && vold2 < vnew2)) {
-            if (itrOld->hasNext()) {
-                itrOld->next();
-                vold1 = itrOld->get(0);
-                vold2 = itrOld->get(1);
-            } else {
-                break;
-            }
-        } else {
-            //One element in vnew cannot be found. break;
-            break;
+        //std::chrono::steady_clock::time_point starth =
+        //    std::chrono::steady_clock::now();
+        //Try to join up to 20 elements
+        auto itr = getNodeData(nodeIdx)->iterator();
+        size_t maxCount = 20;
+        size_t currentCount = 0;
+        while (itr->hasNext() && currentCount++ < maxCount) {
+            itr->next();
+            Term_t valueToLookup1 = itr->get(p.posVarInLiteral);
+            Term_t valueToLookup2 = itr->get(p.posVarInLiteral2);
+            termsToLookup.push_back(std::make_pair(valueToLookup1,
+                        valueToLookup2));
         }
+        p.nhits = nodeData->countHits(termsToLookup, 0, 1);
+        //std::chrono::duration<double, std::milli> dur =
+        //    std::chrono::steady_clock::now() - start;
+        //LOG(WARNL) << "TIME HITS " << dur.count();
+        p.probedhits = termsToLookup.size();
     }
-    layer->releaseIterator(itrNew);
-    return false;
+    std::sort(bodyAtomsWithHeadVar.begin(), bodyAtomsWithHeadVar.end());
+    size_t selectedBodyAtomIdx = bodyAtomsWithHeadVar[0].bodyAtomIdx;
+    size_t selectedPos1 = bodyAtomsWithHeadVar[0].posVarInLiteral;
+    size_t selectedPos2 = bodyAtomsWithHeadVar[0].posVarInLiteral2;
+
+    if (bodyAtomsWithHeadVar[0].nhits < 18) {
+        //Too many terms are new (no hits). Avoid to do the check
+        retainFree = false;
+        return false;
+    }
+
+    //New
+    auto newNodeData = getNodeData(bodyNodeIdxs[selectedBodyAtomIdx]);
+
+    std::vector<std::pair<Term_t, Term_t>> retainedTerms;
+    if (newNodeData->hasColumnarBackend() && nodeData->hasColumnarBackend()) {
+        isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(retainedTerms,
+                newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
+    } else if (nodeData->hasColumnarBackend()) {
+        isRedundant_checkEquivalenceEDBAtoms_two_mem_edb(retainedTerms,
+                newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
+    } else if (newNodeData->hasColumnarBackend()) {
+        isRedundant_checkEquivalenceEDBAtoms_two_edb_mem(retainedTerms,
+                newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
+    } else {
+        isRedundant_checkEquivalenceEDBAtoms_two_mem_mem(retainedTerms,
+                newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
+    }
+
+    //std::chrono::duration<double, std::milli> dur =
+    //    std::chrono::steady_clock::now() - start;
+
+    if (retainedTerms.empty()) {
+        retainFree = true;
+        return true;
+    } else {
+        retainFree = false;
+        return false;
+    }
 }
 
 bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(

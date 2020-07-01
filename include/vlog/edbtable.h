@@ -45,10 +45,24 @@ class EDBTable {
                 const Literal &l2,
                 int posInL2);
 
+        virtual std::vector<std::pair<Term_t, Term_t>> checkNewIn(
+                const std::vector<std::pair<Term_t, Term_t>> &terms,
+                const Literal &l2,
+                int posInL2_1,
+                int posInL2_2);
+
         virtual std::vector<Term_t> checkNewIn(
                 const Literal &l1,
                 int posInL1,
                 std::shared_ptr<const TGSegment> oldSeg);
+
+        virtual std::vector<std::pair<Term_t,Term_t>> checkNewIn(
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                const Literal &l2,
+                int posInL2_1,
+                int posInL2_2);
 
         virtual std::shared_ptr<Column> checkIn(
                 const std::vector<Term_t> &values,

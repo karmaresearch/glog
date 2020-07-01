@@ -1049,6 +1049,35 @@ std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
     return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2);
 }
 
+std::vector<std::pair<Term_t,Term_t>> EDBLayer::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
+    if (!dbPredicates.count(l2.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l2.getPredicate().getId());
+    return p->second.manager->checkNewIn(newSeg, posNew1, posNew2,
+            l2, posInL2_1, posInL2_2);
+}
+
+std::vector<std::pair<Term_t,Term_t>> EDBLayer::checkNewIn(
+        const std::vector<std::pair<Term_t, Term_t>> &terms,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
+    if (!dbPredicates.count(l2.getPredicate().getId())) {
+        LOG(ERRORL) << "Not supported";
+        throw 10;
+    }
+    auto p = dbPredicates.find(l2.getPredicate().getId());
+    return p->second.manager->checkNewIn(terms, l2, posInL2_1, posInL2_2);
+}
+
 std::vector<Term_t> EDBLayer::checkNewIn(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
@@ -1556,6 +1585,26 @@ std::vector<Term_t> EDBTable::checkNewIn(
         int posNew,
         const Literal &l2,
         int posInL2) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+std::vector<std::pair<Term_t,Term_t>> EDBTable::checkNewIn(
+        const std::vector<std::pair<Term_t, Term_t>> &terms,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+}
+
+std::vector<std::pair<Term_t,Term_t>> EDBTable::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
     LOG(ERRORL) << "Not supported";
     throw 10;
 }

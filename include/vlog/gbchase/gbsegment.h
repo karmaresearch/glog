@@ -43,6 +43,13 @@ class TGSegment {
             throw 10;
         }
 
+        virtual size_t countHits(const std::vector<
+                std::pair<Term_t,Term_t>> &terms,
+                int column1, int column2) const {
+            LOG(ERRORL) << "(Hits) Not implemented";
+            throw 10;
+        }
+
         virtual std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const {
@@ -223,6 +230,10 @@ class TGSegmentLegacy : public TGSegment {
 
         size_t countHits(const std::vector<Term_t> &terms,
                 int column) const;
+
+        size_t countHits(const std::vector<
+                std::pair<Term_t,Term_t>> &terms,
+                int column1, int column2) const;
 
         ~TGSegmentLegacy();
 };
@@ -773,6 +784,19 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<BinaryWithConstP
                     out.push_back(std::make_pair(t.second, t.second));
                 }
             }
+        }
+
+        size_t countHits(const std::vector<
+                std::pair<Term_t,Term_t>> &terms,
+                int column1, int column2) const {
+                       assert(column == 0);
+            size_t c = 0;
+            for(auto &t : terms) {
+                if (std::binary_search(tuples->begin(),
+                            tuples->end(), t))
+                        c++;
+            }
+            return c;
         }
 };
 

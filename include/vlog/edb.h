@@ -360,6 +360,20 @@ class EDBLayer {
                 std::vector<uint8_t> &posInL1,
                 const std::vector<std::pair<Term_t, Term_t>> &existing);
 
+        std::vector<std::pair<Term_t,Term_t>> checkNewIn(
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew1,
+                int posNew2,
+                const Literal &l2,
+                int posInL2_1,
+                int posInL2_2);
+
+        std::vector<std::pair<Term_t,Term_t>> checkNewIn(
+                const std::vector<std::pair<Term_t, Term_t>> &terms,
+                const Literal &l2,
+                int posInL2_1,
+                int posInL2_2);
+
         std::shared_ptr<Column> checkIn(
                 const std::vector<Term_t> &values,
                 const Literal &l2,

@@ -1254,6 +1254,75 @@ std::vector<Term_t> TridentTable::checkNewIn(
     return out;
 }
 
+std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(
+        const std::vector<std::pair<Term_t, Term_t>> &terms,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
+    std::vector<uint8_t> fieldToSort;
+    VTuple t2 = l2.getTuple();
+    fieldToSort.clear();
+    uint8_t posInLit = l2.getPosVars()[posInL2_1];
+    fieldToSort.push_back(posInLit);
+    posInLit = l2.getPosVars()[posInL2_2];
+    fieldToSort.push_back(posInLit);
+    TridentTupleItr itr2;
+    itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    //Do some checks
+    if (l2.getNVars() != 2) {
+        LOG(ERRORL) << "These cases are not supported.";
+        throw 10;
+    }
+
+    //Work with the physical iterators... a dirty hack but much faster
+    NewColumnTable *itrOld = (NewColumnTable*)itr2.getPhysicalIterator();
+    std::vector<std::pair<Term_t, Term_t>> out;
+
+    Term_t vold1 = ~0ul;
+    Term_t vold2 = ~0ul;
+    Term_t vnew1 = ~0ul;
+    Term_t vnew2 = ~0ul;
+    size_t idxNew = 0;
+    while (true) {
+        if (vold1 == ~0ul) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                vold1 = itrOld->getValue1();
+                vold2 = itrOld->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (vnew1 == ~0ul) {
+            if (idxNew < terms.size()) {
+                vnew1 = terms[idxNew].first;
+                vnew2 = terms[idxNew].second;
+                idxNew++;
+            } else {
+                break;
+            }
+        }
+        if (vold1 == vnew1 && vold2 == vnew2) {
+            vnew1 = vnew2 = ~0ul;
+        } else if (vold1 < vnew1 || (vold1 == vnew1 && vold2 < vnew2)) {
+            vold1 = vold2 = ~0ul;
+        } else {
+            out.push_back(std::make_pair(vnew1, vnew2));
+            vnew1 = vnew2 = ~0ul;
+        }
+    }
+    if (vnew1 != ~0ul)
+        out.push_back(std::make_pair(vnew1, vnew2));
+    while (idxNew < terms.size()) {
+        vnew1 = terms[idxNew].first;
+        vnew2 = terms[idxNew].second;
+        idxNew++;
+        out.push_back(std::make_pair(vnew1, vnew2));
+    }
+    return out;
+}
+
 std::vector<Term_t> TridentTable::checkNewIn(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
@@ -1340,6 +1409,84 @@ std::vector<Term_t> TridentTable::checkNewIn(
     }
     auto newend = std::unique(out.begin(), out.end());
     out.erase(newend, out.end());
+    return out;
+}
+
+std::vector<std::pair<Term_t,Term_t>> TridentTable::checkNewIn(
+        std::shared_ptr<const TGSegment> newSeg,
+        int posNew1,
+        int posNew2,
+        const Literal &l2,
+        int posInL2_1,
+        int posInL2_2) {
+    std::vector<uint8_t> fieldToSort;
+    VTuple t2 = l2.getTuple();
+    fieldToSort.clear();
+    uint8_t posInLit = l2.getPosVars()[posInL2_1];
+    fieldToSort.push_back(posInLit);
+    posInLit = l2.getPosVars()[posInL2_2];
+    fieldToSort.push_back(posInLit);
+    TridentTupleItr itr2;
+    itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
+    //Do some checks
+    if (l2.getNVars() == 0 || l2.getNVars() == 3) {
+        LOG(ERRORL) << "These cases are not supported.";
+        throw 10;
+    }
+
+    //Work with the physical iterators... a dirty hack but much faster
+    NewColumnTable *itrOld = (NewColumnTable*)itr2.getPhysicalIterator();
+    std::vector<std::pair<Term_t,Term_t>> out;
+
+    if (posNew1 != 0) {
+        std::vector<uint8_t> pos;
+        pos.push_back(posNew1);
+        pos.push_back(posNew2);
+        newSeg = newSeg->sortBy(pos);
+    }
+    auto itrNew = newSeg->iterator();
+
+    Term_t vold1 = ~0ul;
+    Term_t vold2 = ~0ul;
+    Term_t vnew1 = ~0ul;
+    Term_t vnew2 = ~0ul;
+    while (true) {
+        if (vold1 == ~0ul) {
+            if (itrOld->hasNext()) {
+                itrOld->next();
+                vold1 = itrOld->getValue1();
+                vold2 = itrOld->getValue2();
+            } else {
+                break;
+            }
+        }
+        if (vnew1 == ~0ul) {
+            if (itrNew->hasNext()) {
+                itrNew->next();
+                vnew1 = itrNew->get(posNew1);
+                vnew2 = itrNew->get(posNew2);
+            } else {
+                break;
+            }
+        }
+        if (vold1 == vnew1 && vold2 == vnew2) {
+            vnew1 = vnew2 = ~0ul;
+        } else if (vold1 < vnew1 || (vold1 == vnew1 && vold2 < vnew2)) {
+            vold1 = vold2 = ~0ul;
+        } else {
+            out.push_back(std::make_pair(vnew1, vnew2));
+            vnew1 = vnew2 = ~0ul;
+        }
+    }
+    if (vnew1 != ~0ul)
+        out.push_back(std::make_pair(vnew1, vnew2));
+    while (itrNew->hasNext()) {
+        itrNew->next();
+        vnew1 = itrNew->get(posNew1);
+        vnew2 = itrNew->get(posNew2);
+        out.push_back(std::make_pair(vnew1, vnew2));
+    }
     return out;
 }
 
