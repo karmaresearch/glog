@@ -157,7 +157,7 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                     }
                 } else {
                     return std::shared_ptr<const TGSegment>(
-                            new BinaryWithConstProvTGSegment(tuples, ~0ul,
+                            new BinaryWithConstProvTGSegment(tuples, nodeId,
                                 isSorted,
                                 sortedField));
                 }
