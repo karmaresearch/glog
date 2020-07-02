@@ -3,7 +3,6 @@
 #include <vlog/gbchase/gbsegment.h>
 #include <vlog/gbchase/gbsegmentinserter.h>
 
-
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<int> &posKnownVariables,
@@ -1606,12 +1605,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 intermediateResults = processFirstAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
-                //if (bodyNodes[currentBodyNode].size() == 1) {
-                //    auto n = bodyNodes[currentBodyNode][0];
-                //}
                 firstBodyAtomIsIDB = true;
                 intermediateResults = g.mergeNodes(
-                        bodyNodes[currentBodyNode], copyVarPosRight);
+                        bodyNodes[currentBodyNode], copyVarPosRight, true);
                 currentBodyNode++;
             }
             std::chrono::steady_clock::time_point end =
@@ -1686,7 +1682,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                                     newIntermediateResults->getNRows())));
                     size_t secondNodeId = ~0ul;
                     if (nodesRight.size() == 1) {
-                        secondNodeId = g.getNodeData(nodesRight[0])->getNodeId();
+                        secondNodeId = nodesRight[0];
                     }
                     assert(!g.isTmpNode(secondNodeId));
                     intermediateResultsNodes.push_back(std::shared_ptr<Column>(

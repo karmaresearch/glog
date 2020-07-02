@@ -43,7 +43,7 @@ size_t DFStandardChase::executeRulesInStratum(
 
         if (nnodes != g.getNNodes()) {
             for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
-                auto nrows = g.getNodeData(idx)->getNRows();
+                auto nrows = g.getNodeSize(idx);
                 derivedTuples += nrows;
             }
             step++;
@@ -75,7 +75,7 @@ size_t DFStandardChase::executeRulesInStratum(
 
             if (nnodes != g.getNNodes()) {
                 for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
-                    auto nrows = g.getNodeData(idx)->getNRows();
+                    auto nrows = g.getNodeSize(idx);
                     derivedTuples += nrows;
                 }
                 step++;

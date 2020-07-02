@@ -126,80 +126,13 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 };
 
-/*class TGSegmentLegacyDirectItr : public TGSegmentDirectItr {
-    private:
-        const bool trackProvenance;
-        const std::vector<std::shared_ptr<Column>> &columns;
-
-        int64_t nrows;
-        std::vector<const Term_t*> vectors;
-        std::vector<Term_t> constValues;
-        int64_t currentRowIdx;
-        int64_t m_currentRowIdx;
-
-    public:
-        TGSegmentLegacyDirectItr(const std::vector<std::shared_ptr<Column>> &columns,
-                const bool trackProvenance) :
-            trackProvenance(trackProvenance),
-            columns(columns) {
-                currentRowIdx = -1;
-                if (columns.size() > 0) {
-                    nrows = columns[0]->size();
-                } else {
-                    nrows = 1;
-                }
-                auto ncols = trackProvenance ? columns.size() - 1 : columns.size();
-                for(int i = 0; i < ncols; ++i) {
-                    auto c = columns[i];
-                    if (c->isConstant()) {
-                        vectors.push_back(NULL);
-                        constValues.push_back(c->first());
-                    } else {
-                        vectors.push_back(c->getVectorRef().data());
-                        constValues.push_back(0);
-                    }
-                }
-            }
-
-        bool hasNext() {
-            return currentRowIdx < (nrows - 1);
-        }
-
-        void next() {
-            currentRowIdx++;
-        }
-
-        void mark() {
-            m_currentRowIdx = currentRowIdx;
-        }
-
-        void reset() {
-            currentRowIdx = m_currentRowIdx;
-        }
-
-        Term_t get(const int colIdx) {
-            if (!vectors[colIdx]) {
-                return constValues[colIdx];
-            } else {
-                return vectors[colIdx][currentRowIdx];
-            }
-        }
-
-        size_t getNodeId() const {
-            return columns.back()->getValue(currentRowIdx);
-        }
-
-        int getNFields() const {
-            return trackProvenance ? columns.size() - 1 : columns.size();
-        }
-};*/
-
 template<typename K>
 class TGSegmentImplItr : public TGSegmentItr {
     private:
         const size_t nodeId;
         const int64_t nrows;
         int64_t m_currentIdx;
+        std::shared_ptr<const TGSegment> selfref;
 
     protected:
         const std::vector<K> &tuples;
@@ -207,9 +140,12 @@ class TGSegmentImplItr : public TGSegmentItr {
 
     public:
         TGSegmentImplItr(const size_t nodeId,
-                const std::vector<K> &tuples) : nodeId(nodeId), nrows(tuples.size()),
-        currentIdx(-1),
-        tuples(tuples) {}
+                const std::vector<K> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            nodeId(nodeId), nrows(tuples.size()),
+            currentIdx(-1),
+            selfref(selfref),
+            tuples(tuples) {}
 
         void mark() {
             m_currentIdx = currentIdx;
@@ -237,8 +173,9 @@ class TGSegmentImplItr : public TGSegmentItr {
 class UnaryTGSegmentItr : public TGSegmentImplItr<Term_t> {
     public:
         UnaryTGSegmentItr(const size_t nodeId,
-                const std::vector<Term_t> &tuples) :
-            TGSegmentImplItr(nodeId, tuples) {}
+                const std::vector<Term_t> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
 
         Term_t get(const int colIdx) {
             return tuples[currentIdx];
@@ -250,8 +187,9 @@ class UnaryTGSegmentItr : public TGSegmentImplItr<Term_t> {
 class UnaryWithProvTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_t>> {
     public:
         UnaryWithProvTGSegmentItr(const size_t nodeId,
-                const std::vector<std::pair<Term_t,Term_t>> &tuples) :
-            TGSegmentImplItr(nodeId, tuples) {}
+                const std::vector<std::pair<Term_t,Term_t>> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
 
         Term_t get(const int colIdx) {
             return tuples[currentIdx].first;
@@ -267,8 +205,9 @@ class UnaryWithProvTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_
 class BinaryTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_t>> {
     public:
         BinaryTGSegmentItr(const size_t nodeId,
-                const std::vector<std::pair<Term_t,Term_t>> &tuples) :
-            TGSegmentImplItr(nodeId, tuples) {}
+                const std::vector<std::pair<Term_t,Term_t>> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
 
         Term_t get(const int colIdx) {
             if (colIdx == 0) {
@@ -284,8 +223,9 @@ class BinaryTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_t>> {
 class BinaryWithProvTGSegmentItr : public TGSegmentImplItr<BinWithProv> {
     public:
         BinaryWithProvTGSegmentItr(const size_t nodeId,
-                const std::vector<BinWithProv> &tuples) :
-            TGSegmentImplItr(nodeId, tuples) {}
+                const std::vector<BinWithProv> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
 
         Term_t get(const int colIdx) {
             if (colIdx == 0) {

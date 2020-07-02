@@ -1,5 +1,6 @@
 #include <vlog/gbchase/gbgraph.h>
 #include <vlog/gbchase/gbruleexecutor.h>
+#include <vlog/gbchase/gbcompositesegment.h>
 
 #include <vlog/support.h>
 
@@ -90,6 +91,14 @@ void GBGraph::addNodeNoProv(PredId_t predId,
         throw 10;
     }
 
+#ifdef DEBUG
+    if (data->getName() == "CompositeTGSegment") {
+        LOG(ERRORL) << "CompositeTGSegment is meant to be used only during the"
+            " execution of a single rule. It should not be added to the graph";
+        throw 10;
+    }
+#endif
+
     auto nodeId = getNNodes();
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
@@ -115,6 +124,14 @@ void GBGraph::addNodeProv(PredId_t predid,
     outputNode.step = step;
     outputNode.setData(data);
     assert(nodeId == data->getNodeId());
+
+#ifdef DEBUG
+    if (data->getName() == "CompositeTGSegment") {
+        LOG(ERRORL) << "CompositeTGSegment is meant to be used only during the"
+            " execution of a single rule. It should not be added to the graph";
+        throw 10;
+    }
+#endif
 
     for(auto n : incomingEdges)
         if (isTmpNode(n))
@@ -821,7 +838,7 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
 
 std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         const std::vector<size_t> &nodeIdxs,
-        std::vector<int> &copyVarPos) const {
+        const std::vector<int> &copyVarPos, bool lazyMode) const {
 
     assert(nodeIdxs.size() > 0);
     auto ncols = copyVarPos.size();
@@ -834,6 +851,13 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             if (!project) {
                 return getNodeData(nodeIdxs[0]);
             }
+
+            /*if (lazyMode) {
+                return std::shared_ptr<const TGSegment>(
+                        new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
+                            false, 0, trackProvenance));
+            }*/
+
             auto seg = getNodeData(nodeIdxs[0]);
             if (seg->hasColumnarBackend()) {
                 std::vector<std::shared_ptr<Column>> projectedColumns;
@@ -872,6 +896,13 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 }
             }
         }
+
+        if (lazyMode) {
+            return std::shared_ptr<const TGSegment>(
+                    new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
+                        false, 0, trackProvenance));
+        }
+
         if (trackProvenance) {
             std::vector<std::pair<Term_t,Term_t>> tuples;
             for(auto idbBodyAtomIdx : nodeIdxs) {
@@ -907,6 +938,13 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 copyVarPos[0] == 0 && copyVarPos[1] == 1) {
             return getNodeData(nodeIdxs[0]);
         } else {
+
+            if (lazyMode) {
+                return std::shared_ptr<const TGSegment>(
+                        new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
+                            false, 0, trackProvenance));
+            }
+
             if (trackProvenance) {
                 std::vector<BinWithProv> tuples;
                 for(auto idbBodyAtomIdx : nodeIdxs) {

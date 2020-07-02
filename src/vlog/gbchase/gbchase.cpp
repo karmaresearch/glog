@@ -363,7 +363,7 @@ size_t GBChase::executeRulesInStratum(
     if (nnodes != g.getNNodes()) {
         auto derivedTuples = 0;
         for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
-            auto nrows = g.getNodeData(idx)->getNRows();
+            auto nrows = g.getNodeSize(idx);
             derivedTuples += nrows;
         }
         LOG(INFOL) << "Derived Tuples: " << derivedTuples;
@@ -403,7 +403,7 @@ void GBChase::run() {
             nnodes = g.getNNodes();
             size_t derivedTuples = executeRulesInStratum(rulesInStratum,
                     currentStrat, stepStratum, step);
-            g.printStats();
+            //g.printStats();
         } while (g.getNNodes() != nnodes);
         g.cleanTmpNodes();
     }
@@ -522,36 +522,50 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
         if (seg->getProvenanceType() == 2) {
             //Must split the nodes
             auto resortedSeg = seg->sortByProv();
-            size_t startidx = 0;
-            auto itr = resortedSeg->iterator();
-            size_t i = 0;
-            size_t currentNode = ~0ul;
+
+            std::vector<size_t> provNodes;
+            auto chunks = resortedSeg->sliceByNodes(g.getNNodes(),
+                    provNodes);
+            assert(chunks.size() == provNodes.size());
             std::vector<size_t> currentNodeList(1);
-            while (itr->hasNext()) {
-                itr->next();
-                bool hasChanged = i == 0 || currentNode != itr->getNodeId();
-                if (hasChanged) {
-                    if (startidx < i) {
-                        //Create a new node
-                        currentNodeList[0] = currentNode;
-                        auto nodeId = g.getNNodes();
-                        auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                        g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd,
-                                currentNodeList);
-                    }
-                    startidx = i;
-                    currentNode = itr->getNodeId();
-                }
-                i++;
+            for (size_t i = 0; i < chunks.size(); ++i) {
+                auto c = chunks[i];
+                currentNodeList[0] = provNodes[i];
+                assert(currentNodeList[0] != ~0ul);
+                g.addNodeProv(currentPredicate, ruleIdx, step, c,
+                        currentNodeList);
+            }
+
+            /*size_t startidx = 0;
+              auto itr = resortedSeg->iterator();
+              size_t i = 0;
+              size_t currentNode = ~0ul;
+              std::vector<size_t> currentNodeList(1);
+              while (itr->hasNext()) {
+              itr->next();
+              bool hasChanged = i == 0 || currentNode != itr->getNodeId();
+              if (hasChanged) {
+              if (startidx < i) {
+            //Create a new node
+            currentNodeList[0] = currentNode;
+            auto nodeId = g.getNNodes();
+            auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
+            g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd,
+            currentNodeList);
+            }
+            startidx = i;
+            currentNode = itr->getNodeId();
+            }
+            i++;
             }
             //Copy the last segment
             if (startidx < i) {
-                currentNodeList[0] = currentNode;
-                auto nodeId = g.getNNodes();
-                auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                g.addNodeProv(currentPredicate, ruleIdx,
-                        step, dataToAdd, currentNodeList);
-            }
+            currentNodeList[0] = currentNode;
+            auto nodeId = g.getNNodes();
+            auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
+            g.addNodeProv(currentPredicate, ruleIdx,
+            step, dataToAdd, currentNodeList);
+            }*/
         } else {
             std::vector<size_t> provnodes;
             if (seg->getNodeId() == ~0ul) {
@@ -635,9 +649,8 @@ size_t GBChase::getSizeTable(const PredId_t predid) const {
         const auto &nodeIDs = g.getNodeIDsWithPredicate(predid);
         size_t size = 0;
         for(auto nodeID : nodeIDs) {
-            auto data = g.getNodeData(nodeID);
-            size += data->getNRows();
-
+            auto data = g.getNodeSize(nodeID);
+            size += data;
         }
         return size;
     }

@@ -2,6 +2,7 @@
 #define _GB_SEGMENT_INSERTER_H
 
 #include <vlog/gbchase/gbsegment.h>
+#include <vlog/gbchase/gblegacysegment.h>
 
 #include <vlog/term.h>
 #include <vlog/column.h>

@@ -256,6 +256,10 @@ class GBGraph {
             return getNode(nodeId).getData();
         }
 
+        std::unique_ptr<TGSegmentItr> getNodeIterator(size_t nodeId) const {
+            return getNodeData(nodeId)->iterator();
+        }
+
         PredId_t getNodePredicate(size_t nodeId) const {
             return getNode(nodeId).predid;
         }
@@ -280,7 +284,8 @@ class GBGraph {
 
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,
-                std::vector<int> &copyVarPos) const;
+                const std::vector<int> &copyVarPos,
+                bool lazyMode = false) const;
 
         void addNodeNoProv(PredId_t predId,
                 size_t ruleIdx,

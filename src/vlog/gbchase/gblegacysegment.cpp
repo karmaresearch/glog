@@ -1,28 +1,32 @@
-#include <vlog/gbchase/gbsegment.h>
+#include <vlog/gbchase/gblegacysegment.h>
 #include <vlog/gbchase/gbsegmentitr.h>
 
 #include <vlog/segment.h>
 
-std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator() const {
-    return std::unique_ptr<TGSegmentItr>(new TGSegmentLegacyItr(columns, trackProvenance));
+std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator(
+        std::shared_ptr<const TGSegment> selfref) const {
+    return std::unique_ptr<TGSegmentItr>(
+            new TGSegmentLegacyItr(columns, trackProvenance));
 }
 
 bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
     if (fields.size() != 1)
         return false;
     auto field = fields[0];
-    return (isSorted && sortedField == field);
+    return (f_isSorted && sortedField == field);
 }
 
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields) const {
-    if (isSorted && (fields.size() == 0 || (fields.size() == 1 && fields[0] == 0))) {
+    if (f_isSorted && (fields.size() == 0 || (fields.size() == 1 && fields[0] == 0))) {
         return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
     if (columns.size() == 1) {
         auto column = columns[0]->sort();
         std::vector<std::shared_ptr<Column>> columns;
         columns.push_back(column);
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, column->size(), true, 0, trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(
+                    columns, column->size(), true, 0, trackProvenance));
     } else {
         auto nfields = columns.size();
         auto oldcols(columns);
@@ -32,12 +36,14 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields)
         for(int i = 0; i < nfields; ++i) {
             newColumns.push_back(snew->getColumn(i));
         }
-        return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newColumns, s.getNRows(), true, fields[0], trackProvenance));
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(
+                    newColumns, s.getNRows(), true, fields[0], trackProvenance));
     }
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
-    if (!isSorted || sortedField != 0) {
+std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
+    if (!f_isSorted || sortedField != 0) {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
     }
@@ -70,12 +76,12 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::unique() const {
                         getNodeId(), nrows)));
     }
 
-    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols,
+    return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(newcols,
                 nrows, true, sortedField, trackProvenance));
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::sort() const {
-    if (!isSorted || sortedField != 0) {
+std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
+    if (!f_isSorted || sortedField != 0) {
         auto nfields = columns.size();
         std::vector<std::shared_ptr<Column>> newcols;
         if (trackProvenance && columns.back()->isConstant()) {
@@ -97,10 +103,10 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sort() const {
                 newcols.push_back(news->getColumn(i));
             }
         }
-        return std::shared_ptr<TGSegment>(
+        return std::shared_ptr<const TGSegment>(
                 new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
-        return std::shared_ptr<TGSegment>(
+        return std::shared_ptr<const TGSegment>(
                 new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
     }
 }
@@ -128,7 +134,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
                 new TGSegmentLegacy(newcols, nrows, true, 0, trackProvenance));
     } else {
         return std::shared_ptr<TGSegment>(
-                new TGSegmentLegacy(columns, nrows, isSorted,
+                new TGSegmentLegacy(columns, nrows, f_isSorted,
                     sortedField, trackProvenance));
     }
 }
@@ -157,7 +163,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
         newcols.push_back(std::shared_ptr<Column>(
                     new CompressedColumn(blocks, length)));
     }
-    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length, isSorted, sortedField, trackProvenance));
+    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length, f_isSorted, sortedField, trackProvenance));
 
 }
 
@@ -298,7 +304,7 @@ size_t TGSegmentLegacy::getNodeId() const {
     }
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv() const {
+std::shared_ptr<const TGSegment> TGSegmentLegacy::sortByProv() const {
     if (!trackProvenance) {
         LOG(ERRORL) << "This method should not be called if the segment"
             " does not support the provenance";

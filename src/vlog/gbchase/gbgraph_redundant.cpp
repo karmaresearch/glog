@@ -1,4 +1,5 @@
 #include <vlog/gbchase/gbgraph.h>
+#include <vlog/gbchase/gblegacysegment.h>
 
 bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
     for(size_t i = 1; i < atoms.size(); ++i) {
@@ -727,7 +728,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         //std::chrono::steady_clock::time_point starth =
         //    std::chrono::steady_clock::now();
         //Try to join up to 20 elements
-        auto itr = getNodeData(nodeIdx)->iterator();
+        auto itr = getNodeIterator(nodeIdx);
         size_t maxCount = 20;
         size_t currentCount = 0;
         while (itr->hasNext() && currentCount++ < maxCount) {
