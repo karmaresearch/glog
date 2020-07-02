@@ -210,6 +210,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
 
     const uint32_t vId = originalRuleHead.getTermAtPos(0).getId();
     std::vector<__coord> bodyAtomsWithHeadVar;
+    bool suitableForReplacement = false;
     for(size_t i = 0; i < originalRuleBody.size(); ++i) {
         auto &l = originalRuleBody[i];
         int varIdx = 0;
@@ -221,6 +222,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                     c.posVarInLiteral = j;
                     c.posVar = varIdx;
                     bodyAtomsWithHeadVar.push_back(c);
+                    if (l.getTupleSize() == 1) {
+                        suitableForReplacement = true;
+                    }
                 }
                 varIdx++;
             }
@@ -265,7 +269,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     size_t selectedPos = bodyAtomsWithHeadVar[0].posVar;
     size_t selectedPosInLiteral = bodyAtomsWithHeadVar[0].posVarInLiteral;
 
-    if (bodyAtomsWithHeadVar[0].nhits < 18) {
+    if (bodyAtomsWithHeadVar[0].nhits < 18 || (!suitableForReplacement &&
+                bodyAtomsWithHeadVar[0].nhits !=
+                bodyAtomsWithHeadVar[0].probedhits)) {
         retainFree = false;
         return false;
     }
@@ -280,21 +286,28 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     std::vector<Term_t> retainedTerms;
     if (newNodeData->hasColumnarBackend() && nodeData->hasColumnarBackend()) {
         isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(retainedTerms,
-                newNodeData, selectedPosInLiteral, nodeData, 0);
+                newNodeData, selectedPosInLiteral, nodeData, 0,
+                !suitableForReplacement);
     } else if (nodeData->hasColumnarBackend()) {
         isRedundant_checkEquivalenceEDBAtoms_one_mem_edb(retainedTerms,
-                newNodeData, selectedPosInLiteral, nodeData, 0);
+                newNodeData, selectedPosInLiteral, nodeData, 0,
+                !suitableForReplacement);
     } else if (newNodeData->hasColumnarBackend()) {
         isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(retainedTerms,
-                newNodeData, selectedPosInLiteral, nodeData, 0);
+                newNodeData, selectedPosInLiteral, nodeData, 0,
+                !suitableForReplacement);
     } else {
         isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(retainedTerms,
-                newNodeData, selectedPosInLiteral, nodeData, 0);
+                newNodeData, selectedPosInLiteral, nodeData, 0,
+                !suitableForReplacement);
     }
 
     if (retainedTerms.empty()) {
         retainFree = true;
         return true;
+    } else if (!suitableForReplacement) {
+        retainFree = false;
+        return false;
     } else {
         retainFree = false;
 
@@ -331,6 +344,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
             //3: Use the temporary node instead
             bodyNodeIdxs[idxBodyAtom] = newNodeId;
             retainFree = true;
+        } else {
+            LOG(ERRORL) << "Should not occur";
+            throw 10;
         }
     }
 
@@ -342,7 +358,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
         std::shared_ptr<const TGSegment> oldSeg,
-        int posOld) {
+        int posOld,
+        bool stopAfterFirst) {
 
     //New
     auto newColNode = ((TGSegmentLegacy*)newSeg.get())->getColumn(posNew);
@@ -361,7 +378,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(
             ((EDBColumn*)newColNode.get())->getLiteral(),
             posInL1,
             ((EDBColumn*)oldColNode.get())->getLiteral(),
-            posInL2);
+            posInL2,
+            stopAfterFirst);
     retainedColumn = retainedValues[0];
     assert(retainedColumn->isBackedByVector());
     ((InmemoryColumn*)retainedColumn.get())->swap(out);
@@ -372,7 +390,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_edb(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
         std::shared_ptr<const TGSegment> oldSeg,
-        int posOld) {
+        int posOld,
+        bool stopAfterFirst) {
 
     //Old (edb)
     auto oldColNode = ((TGSegmentLegacy*)oldSeg.get())->getColumn(0);
@@ -390,7 +409,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
         std::shared_ptr<const TGSegment> oldSeg,
-        int posOld) {
+        int posOld,
+        bool stopAfterFirst) {
 
     //Old (edb)
     auto newColNode = ((TGSegmentLegacy*)newSeg.get())->getColumn(posNew);
@@ -407,7 +427,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
         std::shared_ptr<const TGSegment> newSeg,
         int posNew,
         std::shared_ptr<const TGSegment> oldSeg,
-        int posOld) {
+        int posOld,
+        bool stopAfterFirst) {
     auto itrOld = oldSeg->iterator();
     if (posNew != 0) {
         std::vector<uint8_t> pos;
@@ -449,6 +470,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
             out.push_back(vnew);
             processedTerms++;
             vnew = ~0ul;
+            if (stopAfterFirst)
+                break;
         }
     }
     if (vnew != ~0ul)
@@ -456,6 +479,9 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
     while (itrNew->hasNext()) {
         itrNew->next();
         out.push_back(itrNew->get(posNew));
+        if (stopAfterFirst) {
+            break;
+        }
     }
     std::sort(out.begin(), out.end());
     auto newend = std::unique(out.begin(), out.end());

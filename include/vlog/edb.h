@@ -337,7 +337,8 @@ class EDBLayer {
         std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const Literal &l2,
-                std::vector<uint8_t> &posInL2);
+                std::vector<uint8_t> &posInL2,
+                bool stopAfterFirst = false);
 
         std::vector<std::shared_ptr<Column>> checkNewIn(
                 std::vector <

@@ -107,28 +107,32 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> newSeg,
                 int posNew,
                 std::shared_ptr<const TGSegment> oldSeg,
-                int posOld);
+                int posOld,
+                bool stopAfterFirst);
 
         void isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
                 std::vector<Term_t> &out,
                 std::shared_ptr<const TGSegment> newSeg,
                 int posNew,
                 std::shared_ptr<const TGSegment> oldSeg,
-                int posOld);
+                int posOld,
+                bool stopAfterFirst);
 
         void isRedundant_checkEquivalenceEDBAtoms_one_mem_edb(
                 std::vector<Term_t> &out,
                 std::shared_ptr<const TGSegment> newSeg,
                 int posNew,
                 std::shared_ptr<const TGSegment> oldSeg,
-                int posOld);
+                int posOld,
+                bool stopAfterFirst);
 
         void isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(
                 std::vector<Term_t> &out,
                 std::shared_ptr<const TGSegment> newSeg,
                 int posNew,
                 std::shared_ptr<const TGSegment> oldSeg,
-                int posOld);
+                int posOld,
+                bool stopAfterFirst);
 
         bool isRedundant_checkEquivalenceEDBAtoms_two(
                 bool &retainFree,

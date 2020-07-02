@@ -1028,12 +1028,15 @@ static std::vector<std::shared_ptr<Column>> checkNewInGeneric(const Literal &l1,
     return output;
 }
 
-std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
+std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(
+        const Literal &l1,
         std::vector<uint8_t> &posInL1,
         const Literal &l2,
-        std::vector<uint8_t> &posInL2) {
+        std::vector<uint8_t> &posInL2,
+        bool stopAfterFirst) {
 
-    if (!dbPredicates.count(l1.getPredicate().getId()) || ! dbPredicates.count(l2.getPredicate().getId())) {
+    if (!dbPredicates.count(l1.getPredicate().getId()) ||
+            ! dbPredicates.count(l2.getPredicate().getId())) {
         LOG(ERRORL) << "Not supported";
         throw 10;
     }
@@ -1043,10 +1046,12 @@ std::vector<std::shared_ptr<Column>> EDBLayer::checkNewIn(const Literal &l1,
 
     if (p->second.manager != p2->second.manager) {
         // We have to do it ourselves.
-        return checkNewInGeneric(l1, posInL1, l2, posInL2, p->second.manager.get(), p2->second.manager.get());
+        return checkNewInGeneric(l1, posInL1, l2, posInL2,
+                p->second.manager.get(), p2->second.manager.get());
     }
 
-    return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2);
+    return p->second.manager->checkNewIn(l1, posInL1, l2, posInL2,
+            stopAfterFirst);
 }
 
 std::vector<std::pair<Term_t,Term_t>> EDBLayer::checkNewIn(
@@ -1627,7 +1632,8 @@ std::vector<std::pair<Term_t, Term_t>> EDBTable::checkNewIn(const Literal &l1,
 std::vector<std::shared_ptr<Column>> EDBTable::checkNewIn(const Literal &l1,
         std::vector<uint8_t> &posInL1,
         const Literal &l2,
-        std::vector<uint8_t> &posInL2) {
+        std::vector<uint8_t> &posInL2,
+        bool stopAfterFirst) {
     return checkNewInGeneric(l1, posInL1, l2, posInL2, this, this);
 }
 

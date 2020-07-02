@@ -789,7 +789,7 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<BinaryWithConstP
         size_t countHits(const std::vector<
                 std::pair<Term_t,Term_t>> &terms,
                 int column1, int column2) const {
-                       assert(column == 0);
+                       assert(column1 == 0 && column2 == 1);
             size_t c = 0;
             for(auto &t : terms) {
                 if (std::binary_search(tuples->begin(),

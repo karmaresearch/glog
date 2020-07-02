@@ -38,7 +38,8 @@ class TridentTable: public EDBTable {
 
         std::vector<std::shared_ptr<Column>> performAntiJoin(const Literal &l1,
                 std::vector<uint8_t> &pos1, const Literal &l2,
-                std::vector<uint8_t> &pos2);
+                std::vector<uint8_t> &pos2,
+                bool stopAfterFirst = false);
 
         std::vector<std::pair<Term_t, Term_t>> performAntiJoin(const Literal &l1,
                 std::vector<uint8_t> &pos1,
@@ -107,10 +108,12 @@ class TridentTable: public EDBTable {
                     l2, posInL2, pos);
         }
 
-        std::vector<std::shared_ptr<Column>> checkNewIn(const Literal &l1,
+        std::vector<std::shared_ptr<Column>> checkNewIn(
+                const Literal &l1,
                 std::vector<uint8_t> &posInL1,
                 const Literal &l2,
-                std::vector<uint8_t> &posInL2);
+                std::vector<uint8_t> &posInL2,
+                bool stopAfterFirst = false);
 
         std::vector<std::shared_ptr<Column>> checkNewIn(
                 std::vector <

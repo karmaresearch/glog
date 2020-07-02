@@ -8,20 +8,21 @@
 
 void antiJoinOneColumn(int posJoin1, int posJoin2,
         NewColumnTable *pitr1, NewColumnTable *pitr2,
-        std::shared_ptr<ColumnWriter> col) {
+        std::shared_ptr<ColumnWriter> col,
+        bool stopAfterFirst) {
     SeqColumnWriter cw(col.get());
     if (posJoin1 == 1) {
         if (posJoin2 == 2) {
-            pitr1->columnNotIn(1, pitr2, 2, &cw);
+            pitr1->columnNotIn(1, pitr2, 2, &cw, stopAfterFirst);
         } else { //posJoin2 == 1
-            pitr1->columnNotIn(1, pitr2, 1, &cw);
+            pitr1->columnNotIn(1, pitr2, 1, &cw, stopAfterFirst);
 
         }
     } else {
         if (posJoin2 == 2) {
-            pitr1->columnNotIn(2, pitr2, 2, &cw);
+            pitr1->columnNotIn(2, pitr2, 2, &cw, stopAfterFirst);
         } else {
-            pitr1->columnNotIn(2, pitr2, 1, &cw);
+            pitr1->columnNotIn(2, pitr2, 1, &cw, stopAfterFirst);
         }
     }
 }
@@ -167,7 +168,8 @@ std::vector<std::shared_ptr<Column>> TridentTable::performAntiJoin(
         const Literal &l1,
         std::vector<uint8_t> &pos1,
         const Literal &l2,
-        std::vector<uint8_t> &pos2) {
+        std::vector<uint8_t> &pos2,
+        bool stopAfterFirst) {
 
     TridentTupleItr itr1, itr2;
 
@@ -206,20 +208,29 @@ std::vector<std::shared_ptr<Column>> TridentTable::performAntiJoin(
         //Join on one column
         if (l1.getNVars() == 1) {
             if (l2.getNVars() == 1) {
-                antiJoinOneColumn(2, 2, (NewColumnTable*) pitr1, (NewColumnTable*) pitr2, cols[0]);
+                antiJoinOneColumn(2, 2, (NewColumnTable*) pitr1,
+                        (NewColumnTable*) pitr2, cols[0],
+                        stopAfterFirst);
             } else {
-                antiJoinOneColumn(2, 1, (NewColumnTable*) pitr1, (NewColumnTable*) pitr2, cols[0]);
+                antiJoinOneColumn(2, 1, (NewColumnTable*) pitr1,
+                        (NewColumnTable*) pitr2, cols[0],
+                        stopAfterFirst);
             }
         } else {
             if (l2.getNVars() == 1) {
-                antiJoinOneColumn(1, 2, (NewColumnTable*) pitr1, (NewColumnTable*) pitr2, cols[0]);
+                antiJoinOneColumn(1, 2, (NewColumnTable*) pitr1,
+                        (NewColumnTable*) pitr2, cols[0],
+                        stopAfterFirst);
             } else {
-                antiJoinOneColumn(1, 1, (NewColumnTable*) pitr1, (NewColumnTable*) pitr2, cols[0]);
+                antiJoinOneColumn(1, 1, (NewColumnTable*) pitr1,
+                        (NewColumnTable*) pitr2, cols[0],
+                        stopAfterFirst);
             }
         }
     } else {
         //Join on two columns
-        antiJoinTwoColumns((NewColumnTable*) pitr1, (NewColumnTable*) pitr2, cols[0], cols[1]);
+        antiJoinTwoColumns((NewColumnTable*) pitr1,
+                (NewColumnTable*) pitr2, cols[0], cols[1]);
     }
 
     std::vector<std::shared_ptr<Column>> output;
@@ -1500,8 +1511,9 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(
 std::vector<std::shared_ptr<Column>> TridentTable::checkNewIn(const Literal &l1,
         std::vector<uint8_t> &posInL1,
         const Literal &l2,
-        std::vector<uint8_t> &posInL2) {
-    return performAntiJoin(l1, posInL1, l2, posInL2);
+        std::vector<uint8_t> &posInL2,
+        bool stopAfterFirst) {
+    return performAntiJoin(l1, posInL1, l2, posInL2, stopAfterFirst);
 }
 
 std::vector<std::shared_ptr<Column>> TridentTable::checkNewIn(
