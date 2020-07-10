@@ -763,6 +763,164 @@ std::string Rule::toprettystring(Program * program, EDBLayer *db, bool replaceCo
     return output;
 }
 
+bool isTransitive(Rule &r,
+        PredId_t restrictPred = 0,
+        bool restrictCheck = false) {
+    const auto &head = r.getHeads();
+    const auto &body = r.getBody();
+    auto predid = head[0].getPredicate().getId();
+    if (restrictCheck && predid != restrictPred) {
+        return false;
+    }
+
+    if (head.size() == 1 &&
+            head[0].getTupleSize() == 2 &&
+            body.size() == 2 &&
+            body[0].getPredicate().getId() == predid &&
+            body[1].getPredicate().getId() == predid) {
+        //Check the body atoms
+        auto h1 = head[0].getTuple();
+        auto tx = h1.get(0);
+        auto tz = h1.get(1);
+        if (!tx.isVariable() || !tz.isVariable()) {
+            return false;
+        }
+        auto x = tx.getId();
+        auto z = tz.getId();
+
+        auto b1 = body[0].getTuple();
+        auto tx1 = b1.get(0);
+        if (!tx1.isVariable() || tx1.getId() != x) {
+            return false;
+        }
+        auto ty1 = b1.get(1);
+        if (!ty1.isVariable()) {
+            return false;
+        }
+        auto y = ty1.getId();
+        if (y == x || y == z) {
+            return false;
+        }
+
+        auto b2 = body[1].getTuple();
+        auto ty2 = b2.get(0);
+        if (!ty2.isVariable() || ty2.getId() != y) {
+            return false;
+        }
+        auto tz1 = b2.get(1);
+        if (!tz1.isVariable() || tz1.getId() != z) {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    return true;
+}
+
+bool isSymmetric(Rule &r,
+        PredId_t restrictPred = 0,
+        bool restrictCheck = false) {
+    const auto &head = r.getHeads();
+    const auto &body = r.getBody();
+    auto p1 = head[0].getPredicate().getId();
+    auto p2 = body[0].getPredicate().getId();
+    if ((restrictCheck && p1 != restrictPred) || p2 != p1 ||
+            head.size() != 1 ||
+            body.size() != 1) {
+        return false;
+    }
+    auto h1 = head[0].getTuple();
+    auto tx = h1.get(0);
+    auto ty = h1.get(1);
+    if (!tx.isVariable() || !ty.isVariable() || tx.getId() == ty.getId()) {
+        return false;
+    }
+    auto b = body[0].getTuple();
+    auto tx1 = b.get(0);
+    auto ty1 = b.get(1);
+    if (tx1.getId() != ty.getId() || ty1.getId() != tx.getId()) {
+        return false;
+    }
+    return true;
+}
+
+void Program::rewriteCliques() {
+    std::vector<Rule> oldrules = allrules;
+    cleanAllRules();
+
+    std::set<size_t> rulesToBeIgnored;
+
+    //Check for transitive rules
+    for(size_t i = 0; i < oldrules.size(); ++i) {
+        if (rulesToBeIgnored.count(i)) {
+            continue;
+        }
+
+        Rule &r = oldrules[i];
+        bool hasReplaced = false;
+        if (isTransitive(r)) {
+            //Ok, predid is marked as transitive.
+            //Let's see if it is also symmetric
+            const auto &head = r.getHeads();
+            auto predid = head[0].getPredicate().getId();
+            for(size_t j = 0; j < oldrules.size(); ++j) {
+                if (isSymmetric(oldrules[j], predid, true)) {
+                    //Replace the rule!
+                    //Create new predicate
+                    std::string mySpecialEDBPred = "VLOG_CLIQUE_" +
+                        std::to_string(predid);
+                    LOG(WARNL) << "Adding Clique " << mySpecialEDBPred;
+                    auto newpredid = addNewPredicate(mySpecialEDBPred);
+                    std::vector<std::string> params;
+                    params.push_back(std::to_string(predid));
+                    kb->addEDBPredicate(mySpecialEDBPred,
+                            "CLIQUE", params, newpredid);
+                    auto specialPred = getPredicate(mySpecialEDBPred);
+                    auto t = head[0].getTuple();
+                    Literal bodyAtom(specialPred, t);
+                    std::vector<Literal> body;
+                    body.push_back(bodyAtom);
+                    addRule(head, body);
+
+                    rulesToBeIgnored.insert(j);
+                    hasReplaced = true;
+                    break;
+                }
+            }
+        } else if (isSymmetric(r)) {
+            //Check if it is transitive
+            const auto &head = r.getHeads();
+            auto predid = head[0].getPredicate().getId();
+            for(size_t j = 0; j < oldrules.size(); ++j) {
+                if (isTransitive(oldrules[j], predid, true)) {
+                    //Replace the rule!
+                    std::string mySpecialEDBPred = "VLOG_CLIQUE_" +
+                        std::to_string(predid);
+                    auto newpredid = addNewPredicate(mySpecialEDBPred);
+                    std::vector<std::string> params;
+                    params.push_back(std::to_string(predid));
+                    kb->addEDBPredicate(mySpecialEDBPred,
+                            "CLIQUE", params, newpredid);
+                    auto specialPred = getPredicate(mySpecialEDBPred);
+                    auto t = head[0].getTuple();
+                    Literal bodyAtom(specialPred, t);
+                    std::vector<Literal> body;
+                    body.push_back(bodyAtom);
+                    addRule(head, body);
+
+                    rulesToBeIgnored.insert(j);
+                    hasReplaced = true;
+                    break;
+                }
+            }
+        }
+        if (!hasReplaced) {
+            //Add the rule as is
+            addRule(r.getHeads(), r.getBody());
+        }
+    }
+}
+
 void Program::singulariseEquality() {
     std::vector<Rule> oldrules = allrules;
     cleanAllRules();
@@ -1613,6 +1771,13 @@ std::vector<PredId_t> Program::getAllIDBPredicateIds() {
         }
     }
     return output;
+}
+
+PredId_t Program::addNewPredicate(std::string &predname) {
+    if (dictPredicates.get(predname) != -1) {
+        LOG(ERRORL) << "Predicate already present";
+    }
+    return dictPredicates.getOrAdd(predname);
 }
 
 void Program::axiomatizeEquality() {

@@ -9,6 +9,7 @@ class Column;
 class EDBIterator;
 class Segment;
 class TGSegment;
+class GBGraph;
 
 class EDBTable {
     public:
@@ -118,6 +119,10 @@ class EDBTable {
             return false;
         }
 
+        virtual bool canChange() {
+            return false;
+        }
+
         virtual std::shared_ptr<const Segment> getSegment() {
             return std::shared_ptr<const Segment>();
         }
@@ -134,6 +139,9 @@ class EDBTable {
             LOG(ERRORL) << "This function should have been implemented"
                 " in a subclass";
             throw 10;
+        }
+
+        virtual void setContext(GBGraph *g, size_t step) {
         }
 };
 

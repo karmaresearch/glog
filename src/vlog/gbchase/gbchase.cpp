@@ -3,18 +3,25 @@
 
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
         bool trackProvenance,
-        bool filterQueryCont) :
+        bool filterQueryCont,
+        bool rewriteCliques) :
     layer(layer),
     program(program),
     trackProvenance(trackProvenance),
     filterQueryCont(filterQueryCont),
     g(trackProvenance, useCacheRetain, filterQueryCont),
     executor(trackProvenance, g, layer, program) {
+        if (rewriteCliques) {
+            //Rewrite rules of the form P(X,Y),P(Y,Z)->P(X,Z) and P(X,Y)->P(Y,X)
+            program->rewriteCliques();
+        }
+
         if (!program->stratify(stratification, nStratificationClasses)) {
             LOG(ERRORL) << "Program could not be stratified";
             throw std::runtime_error("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+
         rules = program->getAllRules();
         if (trackProvenance) {
             g.setRulesProgramLayer(rules.data(), program, &layer);
@@ -397,6 +404,7 @@ void GBChase::run() {
 
         do {
             step++;
+            layer.setContext(&g, step);
             LOG(INFOL) << "Step " << step;
             currentIteration = step;
             g.cleanTmpNodes();

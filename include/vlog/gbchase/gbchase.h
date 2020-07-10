@@ -72,7 +72,8 @@ class GBChase : public Chase {
         VLIBEXP GBChase(EDBLayer &layer, Program *program,
                 bool useCacheRetain = true,
                 bool trackProvenance = false,
-                bool filterQueryCont = false);
+                bool filterQueryCont = false,
+                bool rewriteCliques = false);
 
         VLIBEXP virtual void run();
 

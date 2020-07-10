@@ -1479,13 +1479,13 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
-#ifdef DEBUG//DEBUG
+#ifdef DEBUG
     if (rule.getFrontierVariables().empty()) {
         LOG(ERRORL) << "The system does not yet support the execution of rules"
             " with empty frontier variables set";
         throw 10;
     }
-    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
+    LOG(WARNL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);

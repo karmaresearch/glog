@@ -26,18 +26,22 @@
 #include <vlog/text/stringtable.h>
 #include <vlog/text/stringtable_binary.h>
 #include <vlog/text/stringtable_unary.h>
+#include <vlog/clique/cliquetable.h>
 #include <vlog/incremental/edb-table-from-idb.h>
 #include <vlog/incremental/edb-table-importer.h>
 
 #include <climits>
 
-EDBLayer::EDBLayer(EDBLayer &db, bool copyTables) : conf(db.conf) {
-    this->predDictionary = db.predDictionary;
-    this->termsDictionary = db.termsDictionary;
-    if (copyTables) {
-        this->dbPredicates = db.dbPredicates;
+EDBLayer::EDBLayer(EDBLayer &db, bool copyTables) :
+    conf(db.conf),
+    multithreaded(db.multithreaded),
+    edbconfpath(db.edbconfpath) {
+        this->predDictionary = db.predDictionary;
+        this->termsDictionary = db.termsDictionary;
+        if (copyTables) {
+            this->dbPredicates = db.dbPredicates;
+        }
     }
-}
 
 std::vector<PredId_t> EDBLayer::getAllEDBPredicates() {
     std::vector<PredId_t> out;
@@ -154,9 +158,110 @@ void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf,
     // table->dump(std::cerr);
 }
 
-void EDBLayer::addInmemoryTable(std::string predicate, std::vector<std::vector<std::string>> &rows) {
+void EDBLayer::addInmemoryTable(std::string predicate,
+        std::vector<std::vector<std::string>> &rows) {
     PredId_t id = (PredId_t) predDictionary->getOrAdd(predicate);
     addInmemoryTable(predicate, id, rows);
+}
+
+void EDBLayer::addTable(const EDBConf::Table &table, bool multithreaded,
+        std::string edbconfpath, PredId_t predId, bool usePredId) {
+
+    if (usePredId == true && table.type != "CLIQUE") {
+        LOG(ERRORL) << "It is not possible to assign IDs to tables different "
+            "than CLIQUE";
+        throw 10;
+    }
+
+    if (usePredId) {
+        if (predDictionary->contains(predId)) {
+            LOG(ERRORL) << "The predicate ID " << predId << " is already assigned";
+            throw 10;
+        }
+    }
+
+    if (table.type == "Trident") {
+        addTridentTable(table, multithreaded);
+    } else if (table.type == "CLIQUE") {
+        addCliqueTable(table, predId, usePredId);
+#ifdef MYSQL
+    } else if (table.type == "MySQL") {
+        addMySQLTable(table);
+#endif
+#ifdef ODBC
+    } else if (table.type == "ODBC") {
+        addODBCTable(table);
+#endif
+#ifdef MAPI
+    } else if (table.type == "MAPI") {
+        addMAPITable(table);
+#endif
+#ifdef MDLITE
+    } else if (table.type == "MDLITE") {
+        addMDLiteTable(table);
+#endif
+    } else if (table.type == "CSV" || table.type == "INMEMORY") {
+        addInmemoryTable(table, edbconfpath);
+#ifdef SPARQL
+    } else if (table.type == "SPARQL") {
+        addSparqlTable(table);
+#endif
+    } else if (table.type == "EDBonIDB") {
+        addEDBonIDBTable(table);
+    } else if (table.type == "EDBimporter") {
+        addEDBimporter(table);
+    } else if (table.type == "Embeddings") {
+        addEmbTable(table);
+    } else if (table.type == "TopK") {
+        addTopKTable(table);
+    } else if (table.type == "Elastic") {
+        addElasticTable(table);
+    } else if (table.type == "StringBinary") {
+        addStringTable(false, table);
+    } else if (table.type == "StringUnary") {
+        addStringTable(true, table);
+    } else {
+        LOG(ERRORL) << "Type of table is not supported";
+        throw 10;
+    }
+}
+
+void EDBLayer::setContext(GBGraph *g, size_t step) {
+    this->context_gbGraph = g;
+    this->context_step = step;
+    //Update the various tables
+    for(auto &pair : dbPredicates) {
+        pair.second.manager->setContext(g, step);
+    }
+}
+
+void EDBLayer::addEDBPredicate(std::string name,
+        std::string type,
+        std::vector<std::string> args,
+        PredId_t id) {
+    EDBConf::Table table;
+    table.predname = name;
+    table.type = type;
+    table.params = args;
+    addTable(table, multithreaded, edbconfpath, id, true);
+}
+
+void EDBLayer::addCliqueTable(const EDBConf::Table &tableConf, PredId_t pid,
+        bool usePredId) {
+    EDBInfoTable infot;
+    if (usePredId) {
+        infot.id = pid;
+    } else {
+        infot.id = (PredId_t) predDictionary->getOrAdd(tableConf.predname);
+        if (doesPredExists(infot.id)) {
+            throw 10;
+        }
+    }
+    infot.type = tableConf.type;
+    infot.arity = 2;
+    int64_t targetPredId = std::stoi(tableConf.params[0]);
+    infot.manager = std::shared_ptr<EDBTable>(new CliqueTable(targetPredId));
+    dbPredicates.insert(make_pair(infot.id, infot));
 }
 
 void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {

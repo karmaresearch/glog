@@ -70,6 +70,10 @@ class Dictionary {
             return counter;
         }
 
+        bool contains(int64_t key) {
+            return inverseMap.count(key);
+        }
+
         bool get(const std::string &rawValue, Term_t &id) const {
             SimpleHashmap::const_iterator itr = map.find(rawValue);
             if (itr == map.end()) {

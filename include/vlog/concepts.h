@@ -256,21 +256,21 @@ struct Substitution {
 };
 
 /*class TermMapping {
-    private:
-        bool e;
-        std::vector<Substitution> subs;
-    public:
-        TermMapping(bool exist, std::vector<Substitution> &subs) : e(exist),
-        subs(subs) {}
+  private:
+  bool e;
+  std::vector<Substitution> subs;
+  public:
+  TermMapping(bool exist, std::vector<Substitution> &subs) : e(exist),
+  subs(subs) {}
 
-        bool exist() const {
-            return e;
-        }
+  bool exist() const {
+  return e;
+  }
 
-        const std::vector<Substitution> getSubs() const {
-            return subs;
-        }
-};*/
+  const std::vector<Substitution> getSubs() const {
+  return subs;
+  }
+  };*/
 
 VLIBEXP std::vector<Substitution> concat(std::vector<Substitution>&, std::vector<Substitution>&);
 VLIBEXP std::vector<Substitution> inverse_concat(std::vector<Substitution>&, std::vector<Substitution>&);
@@ -508,7 +508,8 @@ class Program {
         Dictionary dictPredicates;
         std::unordered_map<PredId_t, uint8_t> cardPredicates;
 
-        void rewriteRule(std::vector<Literal> &heads, std::vector<Literal> &body);
+        void rewriteRule(std::vector<Literal> &heads,
+                std::vector<Literal> &body);
 
         void addRule(Rule &rule);
 
@@ -528,6 +529,8 @@ class Program {
         uint64_t getMaxPredicateId() {
             return dictPredicates.getCounter();
         }
+
+        PredId_t addNewPredicate(std::string &predname);
 
         static std::string prettifyName(std::string name);
 
@@ -629,6 +632,8 @@ class Program {
         VLIBEXP void axiomatizeEquality();
 
         VLIBEXP void singulariseEquality();
+
+        VLIBEXP void rewriteCliques();
 
         ~Program() {
         }

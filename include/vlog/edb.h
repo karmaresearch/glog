@@ -30,6 +30,7 @@ class Column;
 class SemiNaiver;       // Why cannot I break the software hierarchy? RFHH
 class EDBFCInternalTable;
 class TGSegment;
+class GBGraph;
 
 using RemoveLiteralOf = std::unordered_map<PredId_t, const EDBRemoveLiterals *>;
 
@@ -55,7 +56,8 @@ class EDBMemIterator : public EDBIterator {
     public:
         EDBMemIterator() {}
 
-        void init1(PredId_t id, std::vector<Term_t>*, const bool c1, const Term_t vc1);
+        void init1(PredId_t id, std::vector<Term_t>*, const bool c1,
+                const Term_t vc1);
 
         void init2(PredId_t id, const bool defaultSorting,
                 std::vector<std::pair<Term_t, Term_t>>*, const bool c1,
@@ -93,7 +95,8 @@ class EmptyEDBIterator final : public EDBIterator {
         predid = id;
     }
 
-    VLIBEXP void init1(PredId_t id, std::vector<Term_t>*, const bool c1, const Term_t vc1) {
+    VLIBEXP void init1(PredId_t id, std::vector<Term_t>*, const bool c1,
+            const Term_t vc1) {
         predid = id;
     }
 
@@ -140,7 +143,12 @@ class EDBLayer {
         };
 
         const EDBConf &conf;
+        const bool multithreaded;
+        const std::string edbconfpath;
         bool loadAllData;
+
+        GBGraph *context_gbGraph;
+        size_t context_step;
 
         std::shared_ptr<Dictionary> predDictionary; //std::string, Term_t
         std::map<PredId_t, EDBInfoTable> dbPredicates;
@@ -151,7 +159,12 @@ class EDBLayer {
         std::shared_ptr<Dictionary> termsDictionary;//std::string, Term_t
         std::string rootPath;
 
-        VLIBEXP void addTridentTable(const EDBConf::Table &tableConf, bool multithreaded);
+        VLIBEXP void addTridentTable(const EDBConf::Table &tableConf,
+                bool multithreaded);
+
+        void addCliqueTable(const EDBConf::Table &tableConf,
+                PredId_t predId = 0,
+                bool usePredId = false);
 
         void addTopKTable(const EDBConf::Table &tableConf);
 
@@ -192,72 +205,42 @@ class EDBLayer {
 
         std::string name;
 
+        void addTable(const EDBConf::Table &table, bool multithreaded,
+                std::string edbconfpath, PredId_t predId = 0,
+                bool usePredId = false);
+
     public:
         EDBLayer(EDBLayer &db, bool copyTables = false);
 
         EDBLayer(const EDBConf &conf, bool multithreaded,
-                const NamedSemiNaiver &prevSemiNaiver, bool loadAllData = true) :
-            conf(conf), prevSemiNaiver(prevSemiNaiver), loadAllData(loadAllData) {
+                const NamedSemiNaiver &prevSemiNaiver,
+                bool loadAllData = true) :
+            conf(conf), prevSemiNaiver(prevSemiNaiver),
+            loadAllData(loadAllData), multithreaded(multithreaded),
+            edbconfpath(conf.getConfigFilePath()), context_gbGraph(NULL),
+            context_step(0)
+    {
 
-                const std::vector<EDBConf::Table> tables = conf.getTables();
-                rootPath = conf.getRootPath();
-                std::string edbconfpath = conf.getConfigFilePath();
+        const std::vector<EDBConf::Table> tables = conf.getTables();
+        rootPath = conf.getRootPath();
+        std::string edbconfpath = conf.getConfigFilePath();
 
-                predDictionary = std::shared_ptr<Dictionary>(new Dictionary());
+        predDictionary = std::shared_ptr<Dictionary>(new Dictionary());
 
-                if (prevSemiNaiver.size() != 0) {
-                    handlePrevSemiNaiver();
-                }
+        if (prevSemiNaiver.size() != 0) {
+            handlePrevSemiNaiver();
+        }
 
-                for (const auto &table : tables) {
-                    if (table.type == "Trident") {
-                        addTridentTable(table, multithreaded);
-#ifdef MYSQL
-                    } else if (table.type == "MySQL") {
-                        addMySQLTable(table);
-#endif
-#ifdef ODBC
-                    } else if (table.type == "ODBC") {
-                        addODBCTable(table);
-#endif
-#ifdef MAPI
-                    } else if (table.type == "MAPI") {
-                        addMAPITable(table);
-#endif
-#ifdef MDLITE
-                    } else if (table.type == "MDLITE") {
-                        addMDLiteTable(table);
-#endif
-                    } else if (table.type == "CSV" || table.type == "INMEMORY") {
-                        addInmemoryTable(table, edbconfpath);
-#ifdef SPARQL
-                    } else if (table.type == "SPARQL") {
-                        addSparqlTable(table);
-#endif
-                    } else if (table.type == "EDBonIDB") {
-                        addEDBonIDBTable(table);
-                    } else if (table.type == "EDBimporter") {
-                        addEDBimporter(table);
-                    } else if (table.type == "Embeddings") {
-                        addEmbTable(table);
-                    } else if (table.type == "TopK") {
-                        addTopKTable(table);
-                    } else if (table.type == "Elastic") {
-                        addElasticTable(table);
-                    } else if (table.type == "StringBinary") {
-                        addStringTable(false, table);
-                    } else if (table.type == "StringUnary") {
-                        addStringTable(true, table);
-                    } else {
-                        LOG(ERRORL) << "Type of table is not supported";
-                        throw 10;
-                    }
-                }
-            }
+        for (const auto &table : tables) {
+            addTable(table, multithreaded, edbconfpath);
+        }
+    }
 
-        EDBLayer(const EDBConf &conf, bool multithreaded, bool loadAllData = true) :
-            EDBLayer(conf, multithreaded, NamedSemiNaiver(), loadAllData) {
-            }
+        EDBLayer(const EDBConf &conf, bool multithreaded,
+                bool loadAllData = true) :
+            EDBLayer(conf, multithreaded, NamedSemiNaiver(), loadAllData)
+    {
+    }
 
         std::vector<PredId_t> getAllEDBPredicates();
 
@@ -276,6 +259,11 @@ class EDBLayer {
         void setPredArity(PredId_t id, uint8_t arity);
 
         void addTmpRelation(Predicate &pred, IndexedTupleTable *table);
+
+        void addEDBPredicate(std::string name,
+                std::string type,
+                std::vector<std::string> args,
+                PredId_t id);
 
         bool isTmpRelationEmpty(Predicate &pred) {
             if (pred.getId() >= tmpRelations.size()) {
@@ -486,6 +474,8 @@ class EDBLayer {
         bool acceptQueriesWithFreeVariables(const Literal &query);
 
         BuiltinFunction getBuiltinFunction(const Literal &query);
+
+        void setContext(GBGraph *g, size_t step);
 
         ~EDBLayer() {
             for (int i = 0; i < tmpRelations.size(); ++i) {
