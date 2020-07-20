@@ -235,6 +235,21 @@ void EDBLayer::setContext(GBGraph *g, size_t step) {
     }
 }
 
+void EDBLayer::clearContext() {
+    this->context_gbGraph = NULL;
+    this->context_step = 0;
+    for(auto &pair : dbPredicates) {
+        pair.second.manager->clearContext();
+    }
+}
+
+bool EDBLayer::canChange(PredId_t predId) {
+    if (dbPredicates.count(predId)) {
+        return dbPredicates[predId].manager->canChange();
+    }
+    return false;
+}
+
 void EDBLayer::addEDBPredicate(std::string name,
         std::string type,
         std::vector<std::string> args,
@@ -260,7 +275,8 @@ void EDBLayer::addCliqueTable(const EDBConf::Table &tableConf, PredId_t pid,
     infot.type = tableConf.type;
     infot.arity = 2;
     int64_t targetPredId = std::stoi(tableConf.params[0]);
-    infot.manager = std::shared_ptr<EDBTable>(new CliqueTable(targetPredId));
+    infot.manager = std::shared_ptr<EDBTable>(new CliqueTable(infot.id,
+                targetPredId));
     dbPredicates.insert(make_pair(infot.id, infot));
 }
 

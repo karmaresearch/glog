@@ -1485,7 +1485,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             " with empty frontier variables set";
         throw 10;
     }
-    LOG(WARNL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
+    LOG(INFOL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);

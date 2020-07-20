@@ -143,6 +143,9 @@ class EDBTable {
 
         virtual void setContext(GBGraph *g, size_t step) {
         }
+
+        virtual void clearContext() {
+        }
 };
 
 

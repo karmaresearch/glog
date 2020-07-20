@@ -869,7 +869,6 @@ void Program::rewriteCliques() {
                     //Create new predicate
                     std::string mySpecialEDBPred = "VLOG_CLIQUE_" +
                         std::to_string(predid);
-                    LOG(WARNL) << "Adding Clique " << mySpecialEDBPred;
                     auto newpredid = addNewPredicate(mySpecialEDBPred);
                     std::vector<std::string> params;
                     params.push_back(std::to_string(predid));

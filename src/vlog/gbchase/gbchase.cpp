@@ -284,6 +284,7 @@ std::pair<bool, size_t> GBChase::determineAdmissibleRule(
         const size_t step) const {
     auto &rule = rules[ruleIdx];
     bool empty = false;
+    bool edbCanChange = false;
     for (auto &bodyAtom : rule.getBody()) {
         Predicate pred = bodyAtom.getPredicate();
         if (pred.getType() != EDB) {
@@ -291,6 +292,10 @@ std::pair<bool, size_t> GBChase::determineAdmissibleRule(
             if (!g.areNodesWithPredicate(pred.getId()) && !negated) {
                 empty = true;
                 break;
+            }
+        } else {
+            if (layer.canChange(pred.getId())) {
+                edbCanChange = true;
             }
         }
     }
@@ -304,7 +309,8 @@ std::pair<bool, size_t> GBChase::determineAdmissibleRule(
         //I only execute these rules in the first iteration
         //of the current strat (which should be the first strat,
         //I think).
-        if (step != stepStratum + 1 || stratumLevel != 0) {
+        //I make an exception if the EDB predicates can change
+        if (!edbCanChange && (step != stepStratum + 1 || stratumLevel != 0)) {
             return std::make_pair(false, 0);
         }
         prevstep = 0;
@@ -381,7 +387,8 @@ size_t GBChase::executeRulesInStratum(
 }
 
 void GBChase::run() {
-    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
@@ -411,7 +418,6 @@ void GBChase::run() {
             nnodes = g.getNNodes();
             size_t derivedTuples = executeRulesInStratum(rulesInStratum,
                     currentStrat, stepStratum, step);
-            //g.printStats();
         } while (g.getNNodes() != nnodes);
         g.cleanTmpNodes();
     }
@@ -420,6 +426,7 @@ void GBChase::run() {
         std::chrono::system_clock::now() - start;
     LOG(INFOL) << "Runtime chase: " << dur.count();
 
+    layer.clearContext();
     SegmentCache::getInstance().clear();
     executor.printStats();
     g.printStats();

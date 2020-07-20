@@ -1,6 +1,8 @@
 #ifndef _CLIQUE_TABLE_H
 #define _CLIQUE_TABLE_H
 
+#include <vlog/clique/cliqueiterator.h>
+
 #include <vlog/edbtable.h>
 #include <vlog/gbchase/gbgraph.h>
 
@@ -8,12 +10,22 @@
 
 class CliqueTable: public EDBTable {
     private:
+        const PredId_t predid;
         const PredId_t targetPredicate;
         GBGraph *g;
         size_t step;
 
+        bool recompute;
+        std::map<size_t, std::vector<Term_t>> components;
+        std::map<Term_t, size_t> term2component;
+        size_t componentIDCounter;
+
+        void computeConnectedComponents();
+
+        CliqueIterator *iterator();
+
     public:
-        CliqueTable(PredId_t targetPredicate);
+        CliqueTable(PredId_t predid, PredId_t targetPredicate);
 
         void query(QSQQuery *query, TupleTable *outputTable,
                 std::vector<uint8_t> *posToFilter,
@@ -52,10 +64,14 @@ class CliqueTable: public EDBTable {
             return true;
         }
 
-        void setContext(GBGraph *g, size_t step) {
-            this->g = g;
-            this->step = step;
-        }
+        void setContext(GBGraph *g, size_t step);
+
+        void clearContext();
+
+        std::vector<std::pair<Term_t, Term_t>> checkNewIn(
+                const Literal &l1,
+                std::vector<uint8_t> &posInL1,
+                const std::vector<std::pair<Term_t, Term_t>> &existing);
 };
 
 #endif

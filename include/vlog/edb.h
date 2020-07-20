@@ -469,6 +469,8 @@ class EDBLayer {
             return name;
         }
 
+        bool canChange(PredId_t predId);
+
         bool isQueryAllowed(const Literal &query);
 
         bool acceptQueriesWithFreeVariables(const Literal &query);
@@ -476,6 +478,8 @@ class EDBLayer {
         BuiltinFunction getBuiltinFunction(const Literal &query);
 
         void setContext(GBGraph *g, size_t step);
+
+        void clearContext();
 
         ~EDBLayer() {
             for (int i = 0; i < tmpRelations.size(); ++i) {
