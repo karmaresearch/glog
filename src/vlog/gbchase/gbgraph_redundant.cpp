@@ -64,6 +64,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     retainFree = true; //by default, I assume that checking for duplicates
     //will not be necessary
     for(auto &nodeId : getNodeIDsWithPredicate(predId)) {
+        assert(!isTmpNode(nodeId));
         std::vector<Substitution> allSubs;
         //First check the head
         const auto &headNodeLiteral = getNodeHeadQuery(nodeId);
@@ -327,11 +328,12 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
             }
         }
 
-        if (idxBodyAtom != -1) {
+        if (idxBodyAtom != -1 && !isTmpNode(bodyNodeIdxs[idxBodyAtom])) {
             const Literal &b = originalRuleBody[idxBodyAtom]; //This is
             //the atom the we should consider for the replacement.
             assert(idxBodyAtom < bodyNodeIdxs.size());
             size_t nodeToReplace = bodyNodeIdxs[idxBodyAtom];
+            assert(!isTmpNode(nodeToReplace));
             assert(nodeToReplace != ~0ul);
             //2: Create a temporary node with only the facts that
             //lead to new derivations
@@ -345,7 +347,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
             //3: Use the temporary node instead
             bodyNodeIdxs[idxBodyAtom] = newNodeId;
             retainFree = true;
-        } else {
+        } else if (idxBodyAtom == -1) {
             LOG(ERRORL) << "Should not occur";
             throw 10;
         }

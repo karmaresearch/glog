@@ -852,12 +852,6 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 return getNodeData(nodeIdxs[0]);
             }
 
-            /*if (lazyMode) {
-                return std::shared_ptr<const TGSegment>(
-                        new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                            false, 0, trackProvenance));
-            }*/
-
             auto seg = getNodeData(nodeIdxs[0]);
             if (seg->hasColumnarBackend()) {
                 std::vector<std::shared_ptr<Column>> projectedColumns;
