@@ -298,7 +298,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                         //constant node because all the columns in ``columns''
                         //contain terms
                         auto newcolumns = columns;
-                        columns.push_back(std::shared_ptr<Column>(
+                        newcolumns.push_back(std::shared_ptr<Column>(
                                     new CompressedColumn(nodeId, addedRows)));
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(newcolumns, addedRows,

@@ -23,8 +23,8 @@ std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationTy
             return lastDurationJoin;
         case DUR_HEAD:
             return lastDurationCreateHead;
-        //case DUR_PREP2TO1:
-        //    return lastDurationPrep2to1;
+            //case DUR_PREP2TO1:
+            //    return lastDurationPrep2to1;
     }
     throw 10;
 }
@@ -1689,8 +1689,10 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                                 new CompressedColumn(
                                     secondNodeId,
                                     newIntermediateResults->getNRows())));
+                    //As node, I use 0 because it indicates the first row
+                    //for retrieving the provenance
                     intermediateResults = newIntermediateResults->getSegment(
-                            ~0ul, false, 0, trackProvenance, false);
+                            0, false, 0, trackProvenance, false);
                 }
             } else {
                 intermediateResults = newIntermediateResults->getSegment(
