@@ -132,11 +132,12 @@ CompositeTGSegment::sliceByNodes(size_t startNodeIdx,
         throw 10;
     } else {
         for (auto n : nodes) {
-            provNodes.push_back(n);
             std::vector<size_t> listNodes;
             listNodes.push_back(n);
             std::shared_ptr<const TGSegment> t =
                 g.mergeNodes(listNodes, copyVarPos);
+            //I cannot copy n in provNodes because it could be temporary
+            provNodes.push_back(t->getNodeId());
             out.push_back(t->slice(startNodeIdx++, 0, t->getNRows()));
         }
     }
