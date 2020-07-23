@@ -32,6 +32,19 @@ typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD //,DUR_PREP2TO1
 typedef enum { N_BDY_ATOMS } StatType;
 
 
+#define N_ATTEMPTS_ENABLE_DUPL_DEL 5
+class DuplManager {
+    private:
+        bool enabled;
+        GBSegmentInserterEntities l;
+        GBSegmentInserterEntities r;
+
+    public:
+        DuplManager(GBSegmentInserter *output);
+        bool left(const Term_t &t) const;
+        bool right(const Term_t &t) const;
+};
+
 class GBRuleExecutor {
     private:
         std::chrono::duration<double, std::milli> durationFirst;

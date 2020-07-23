@@ -723,11 +723,21 @@ void GBRuleExecutor::mergejoin(
     lastDurationMergeSort += std::chrono::system_clock::now() - startS;
     durationMergeSort += lastDurationMergeSort;
 
-#if NDEBUG
+#if DEBUG
     size_t joinLeftSize = inputLeft->getNRows();
     size_t joinRightSize = inputRight->getNRows();
     LOG(DEBUGL) << "Join left size=" << joinLeftSize << " right size=" << joinRightSize;
 #endif
+
+    //START Datastructures used in case the join produces many duplicates
+    size_t countDuplicatedJoins = 0;
+    size_t addedSoFar = 0;
+    size_t grpCountRight = 0;
+    bool filterDuplEnabled = false;
+    std::unique_ptr<DuplManager> duplManager;
+    bool leftGroupDuplicate = false;
+    bool rightGroupDuplicate = false;
+    //END data structures used with many duplicates
 
     //Do the merge join
     if (itrLeft->hasNext()) {
@@ -742,9 +752,10 @@ void GBRuleExecutor::mergejoin(
         return;
     }
 
-#if NDEBUG
+#if DEBUG
     size_t total = 0;
     size_t max = 65536;
+    size_t processedRight = 0;
 #endif
 
     long countLeft = -1;
@@ -753,7 +764,6 @@ void GBRuleExecutor::mergejoin(
     Term_t currentrow[sizerow + 2];
     for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
     int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
-    size_t processedRight = 0;
     while (true) {
         //Are they matching?
         while (res < 0 && itrLeft->hasNext()) {
@@ -761,7 +771,7 @@ void GBRuleExecutor::mergejoin(
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
         }
 
-#if NDEBUG
+#if DEBUG
         if (processedRight % 1000 == 0)
             LOG(DEBUGL) << "Processed records " << processedRight;
 #endif
@@ -771,7 +781,7 @@ void GBRuleExecutor::mergejoin(
 
         while (res > 0 && itrRight->hasNext()) {
             itrRight->next();
-#if NDEBUG
+#if DEBUG
             processedRight++;
 #endif
             res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
@@ -783,11 +793,19 @@ void GBRuleExecutor::mergejoin(
 
         if (res == 0) {
             if (countLeft == -1) {
+                //ignored if dupl. are not considered
+                leftGroupDuplicate = filterDuplEnabled;
+
                 currentKey.clear();
                 itrLeft->mark();
                 countLeft = 1;
+                grpCountRight = 1;
+
                 for (int i = 0; i < fields1.size(); i++) {
-                    currentKey.push_back(itrLeft->get(fields1[i]));
+                    auto v = itrLeft->get(fields1[i]);
+                    currentKey.push_back(v);
+                    leftGroupDuplicate = filterDuplEnabled &&
+                        duplManager->left(itrLeft->get(copyVarPosLeft[0]));
                 }
                 while (itrLeft->hasNext()) {
                     itrLeft->next();
@@ -799,13 +817,18 @@ void GBRuleExecutor::mergejoin(
                             break;
                         }
                     }
-                    if (! equal) {
+                    if (!equal) {
                         break;
+                    }
+                    //Check for duplicates
+                    if (leftGroupDuplicate) {
+                        leftGroupDuplicate = filterDuplEnabled &&
+                            duplManager->left(itrLeft->get(copyVarPosLeft[0]));
                     }
                     countLeft++;
                 }
             }
-#if NDEBUG
+#if DEBUG
             total += countLeft;
             while (total >= max) {
                 LOG(TRACEL) << "Count = " << countLeft << ", total = " << total;
@@ -813,39 +836,43 @@ void GBRuleExecutor::mergejoin(
             }
 #endif
 
-            itrLeft->reset();
-            //Move the left iterator countLeft times and emit tuples
-            for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
-                auto rightPos = copyVarPosRight[idx];
-                currentrow[copyVarPosLeft.size() + idx] = itrRight->get(
-                        rightPos);
-            }
-            auto c = 0;
             bool leftActive = true;
-            while (c < countLeft) {
-                for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
-                    auto leftPos = copyVarPosLeft[idx];
-                    auto el = itrLeft->get(leftPos);
-                    currentrow[idx] = el;
+            rightGroupDuplicate = filterDuplEnabled &&
+                duplManager->right(itrRight->get(copyVarPosRight[0]));
+            if (!leftGroupDuplicate || !rightGroupDuplicate) {
+                //Move the left iterator countLeft times and emit tuples
+                for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
+                    auto rightPos = copyVarPosRight[idx];
+                    currentrow[copyVarPosLeft.size() + idx] = itrRight->get(
+                            rightPos);
                 }
-                if (trackProvenance) {
-                    currentrow[sizerow] = itrLeft->getNodeId();
-                    currentrow[sizerow + 1] = itrRight->getNodeId();
+                itrLeft->reset();
+                size_t c = 0;
+                while (c < countLeft) {
+                    for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
+                        auto leftPos = copyVarPosLeft[idx];
+                        auto el = itrLeft->get(leftPos);
+                        currentrow[idx] = el;
+                    }
+                    if (trackProvenance) {
+                        currentrow[sizerow] = itrLeft->getNodeId();
+                        currentrow[sizerow + 1] = itrRight->getNodeId();
+                    }
+                    output->add(currentrow);
+                    if (itrLeft->hasNext()) {
+                        itrLeft->next();
+                    } else {
+                        leftActive = false;
+                    }
+                    c++;
                 }
-                output->add(currentrow);
-                if (itrLeft->hasNext()) {
-                    itrLeft->next();
-                } else {
-                    leftActive = false;
-                }
-                c++;
             }
 
             //Move right
             if (!itrRight->hasNext()) {
                 break;
             } else {
-#if NDEBUG
+#if DEBUG
                 processedRight++;
 #endif
                 itrRight->next();
@@ -859,18 +886,45 @@ void GBRuleExecutor::mergejoin(
                     break;
                 }
             }
-            if (! equal) {
+            if (!equal) {
+                //The algorithm should have outputted countLeft * grpCountRight
+                //tuples. Check if they turned out to be duplicates
+                size_t maxSize = countLeft * grpCountRight;
+                size_t diff = output->getNRows() - addedSoFar;
+                if (!filterDuplEnabled && leftActive && diff < maxSize / 10) {
+                    countDuplicatedJoins++;
+                    if (countDuplicatedJoins >= N_ATTEMPTS_ENABLE_DUPL_DEL) {
+                        //It seems that the join is producing a huge number
+                        //of duplicates. Activate a pre-filtering to prevent
+                        //the output of many duplicated derivations
+                        if (copyVarPosLeft.size() == 1 &&
+                                copyVarPosRight.size() == 1) {
+                            filterDuplEnabled = true;
+                            LOG(DEBUGL) << "Enabling advanced duplicate "
+                                          "removal technique";
+                            //Populate the two sides of the joins that produce
+                            //duplicate derivations
+                            duplManager = std::unique_ptr<DuplManager>(
+                                    new DuplManager(output.get()));
+                        }
+                    }
+                }
+                addedSoFar = output->getNRows();
+
                 countLeft = -1;
+                leftGroupDuplicate = false;
                 //LeftItr is already pointing to the next element ...
                 if (!leftActive) {
                     break;
                 }
                 res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(),
                         joinVarsPos);
+            } else {
+                grpCountRight++;
             }
         }
     }
-#if NDEBUG
+#if DEBUG
     LOG(DEBUGL) << "Total = " << total;
     std::chrono::duration<double> secL =
         std::chrono::system_clock::now() - startS;
@@ -1452,10 +1506,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
-            const int nfields = trackProvenance ? tuples->getNColumns() + 1 :
-                tuples->getNColumns();
+            const int extraColumns = trackProvenance ? 1 : 0;
+            const int nfields = tuples->getNColumns() + extraColumns;
             std::unique_ptr<GBSegmentInserter> outputJoin = GBSegmentInserter::
-                getInserter(nfields);
+                getInserter(nfields, extraColumns, false);
 
             //Perform a left join
             leftjoin(tuples,
@@ -1637,7 +1691,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
             std::unique_ptr<GBSegmentInserter> newIntermediateResults =
                 GBSegmentInserter::getInserter(copyVarPosLeft.size() +
-                        copyVarPosRight.size() + extraColumns);
+                        copyVarPosRight.size() + extraColumns,
+                        extraColumns, true);
             newIntermediateResults->addBuiltinFunctions(builtinFunctions);
 
             std::chrono::steady_clock::time_point start =
@@ -1721,19 +1776,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             uniqueTuples = true;
         }
 
-        //If there was only one body atom, then the vector with the provenance
-        //is empty
-        /*        if (trackProvenance && firstBodyAtomIsIDB &&
-                  bodyAtoms.size() == 1) {
-                  size_t ni = bodyNodes[0][0];
-                  if (g.isTmpNode(ni))
-                  ni = intermediateResults->getNodeId();
-        //assert(ni == intermediateResults->getNodeId());
-        intermediateResultsNodes.push_back(std::shared_ptr<Column>(
-        new CompressedColumn(ni,
-        intermediateResults->getNRows())));
-        }*/
-
         //Compute the head atoms
         for (auto &head : rule.getHeads()) {
             bool shouldSort = true, shouldDelDupl = true;
@@ -1763,4 +1805,24 @@ void GBRuleExecutor::printStats() {
     LOG(INFOL) << "Time joins (ms): " << durationJoin.count();
     LOG(INFOL) << "Time head (ms): " << durationCreateHead.count();
     //LOG(INFOL) << "Time preparation join2to1 (ms): " << durationPrep2to1.count();
+}
+
+DuplManager::DuplManager(GBSegmentInserter *output) {
+    //Collect all the entities in the left side of the binary relation
+    //added so far
+    LOG(DEBUGL) << "Start populating the maps for the detection of duplicates";
+    l = output->getEntitiesAddedSoFar(0);
+    r = output->getEntitiesAddedSoFar(1);
+    size_t nrows = output->getNRows();
+    enabled = nrows >= (l.size() * r.size());
+    LOG(DEBUGL) << "nrows = " << nrows << " l.size()=" <<  l.size() << " r.size()=" << r.size();
+    LOG(DEBUGL) << "(Done) Start populating the maps for the detection of duplicates. Is enabled? " << enabled;
+}
+
+bool DuplManager::left(const Term_t &t) const {
+    return enabled && l.count(t);
+}
+
+bool DuplManager::right(const Term_t &t) const {
+    return enabled && r.count(t);
 }
