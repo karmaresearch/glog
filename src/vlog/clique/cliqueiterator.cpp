@@ -9,8 +9,10 @@ CliqueIterator::CliqueIterator(PredId_t predid,
         auto compId = startitr->second;
         assert(components.count(compId));
         const auto &comp = components.find(compId);
-        startitrComp = comp->second.cbegin();
-        enditrComp = comp->second.cend();
+        const auto &vector = comp->second;
+        assert(vector.size() > 0);
+        startitrComp = vector.cbegin();
+        enditrComp = vector.cend();
         hasAdvanced = true;
         t1 = t2 = ~0ul;
     }

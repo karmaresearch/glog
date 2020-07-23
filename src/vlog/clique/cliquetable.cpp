@@ -132,14 +132,14 @@ std::vector<std::pair<Term_t, Term_t>> CliqueTable::checkNewIn(
                 newt[1] = itr->getElementAt(1);
 
                 /*if (prevnewt[0] > newt[0] ||
-                        (prevnewt[0] == newt[0] && prevnewt[1] > newt[1])) {
-                    throw 10;
-                } else if (prevnewt[0] == newt[0] &&
-                        prevnewt[1] == newt[1]) {
-                    throw 10;
-                }
-                prevnewt[0] = newt[0];
-                prevnewt[1] = newt[1];*/
+                  (prevnewt[0] == newt[0] && prevnewt[1] > newt[1])) {
+                  throw 10;
+                  } else if (prevnewt[0] == newt[0] &&
+                  prevnewt[1] == newt[1]) {
+                  throw 10;
+                  }
+                  prevnewt[0] = newt[0];
+                  prevnewt[1] = newt[1];*/
             } else {
                 break;
             }
@@ -184,6 +184,9 @@ std::vector<std::pair<Term_t, Term_t>> CliqueTable::checkNewIn(
 void CliqueTable::computeConnectedComponents() {
     if (!recompute)
         return;
+
+    LOG(DEBUGL) << "Recomputing the components for pred " << predid;
+    LOG(DEBUGL) << "(before) N. components " << components.size() << " t2c " << term2component.size();
 
     //Take the content of all nodes produced in the previous step
     //Check each pair, if they are in the same component, do nothing. Otherwise
@@ -254,8 +257,8 @@ void CliqueTable::computeConnectedComponents() {
             auto e = std::unique(v.begin(), v.end());
             v.erase(e, v.end());
         }
-        LOG(DEBUGL) << predid << "N. components " << components.size();
-        LOG(DEBUGL) << predid << "term2component " << term2component.size();
     }
+    LOG(DEBUGL) << predid << "(After) N. components " << components.size();
+    LOG(DEBUGL) << predid << "(After) term2component " << term2component.size();
     recompute = false;
 }
