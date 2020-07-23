@@ -215,7 +215,7 @@ void CliqueTable::computeConnectedComponents() {
                     components.insert(std::make_pair(componentIDCounter,
                                 std::vector<Term_t>()));
                     components[componentIDCounter].push_back(term1);
-                    //if (term1 != term2)
+                    if (term1 != term2)
                         components[componentIDCounter].push_back(term2);
                     componentIDCounter++;
                 } else if (!term2component.count(term2)) {
