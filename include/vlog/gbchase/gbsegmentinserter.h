@@ -99,7 +99,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
             if (shouldRemoveDuplicates) {
                 processedRecords++;
                 if (processedRecords % 10000000 == 0)
-                    LOG(WARNL) << "Processed records: " << processedRecords;
+                    LOG(DEBUGL) << "Processed records: " << processedRecords;
                 if (useDuplicateMap && isInMap(row)) {
                     return;
                 }
@@ -120,7 +120,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
                             0.8 * THRESHOLD_CHECK_DUPLICATES;
                         if (!useDuplicateMap &&
                                 diff > 0.8 * THRESHOLD_CHECK_DUPLICATES) {
-                            LOG(INFOL) << "Decided to use the map with " <<
+                            LOG(DEBUGL) << "Decided to use the map with " <<
                                 tuples.size() << " elements to filter out "
                                 "duplicates immediately";
                             useDuplicateMap = true;
@@ -130,7 +130,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
                             THRESHOLD_CHECK_DUPLICATES;
                     } else {
                         shouldRemoveDuplicates = false;
-                        LOG(WARNL) << "No longer check!";
+                        LOG(DEBUGL) << "No longer check!";
                     }
                 }
             }

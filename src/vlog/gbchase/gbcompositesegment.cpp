@@ -128,6 +128,16 @@ std::vector<std::shared_ptr<const TGSegment>>
 CompositeTGSegment::sliceByNodes(size_t startNodeIdx,
         std::vector<size_t> &provNodes) const {
     std::vector<std::shared_ptr<const TGSegment>> out;
+    bool needMerging = false;
+    for(auto n : nodes) {
+        if (copyVarPos.size() != g.getNodeData(n)->getNColumns()) {
+            needMerging = true;
+        }
+    }
+
+    if (needMerging) //not supported yet
+        throw 10;
+
     if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns()) {
         throw 10;
     } else {
