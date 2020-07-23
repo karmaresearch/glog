@@ -137,7 +137,14 @@ CompositeTGSegment::sliceByNodes(size_t startNodeIdx,
             std::shared_ptr<const TGSegment> t =
                 g.mergeNodes(listNodes, copyVarPos);
             //I cannot copy n in provNodes because it could be temporary
-            provNodes.push_back(t->getNodeId());
+            auto nid = t->getNodeId();
+            if (nid != n && !g.isTmpNode(n)) {
+                //It can be that GBGraph has reshaped t, thus t->getNodeId()
+                //is no longer equal to 'n'. In this case, I use the original n
+                nid = n;
+            }
+            assert(nid != ~0ul && !g.isTmpNode(nid));
+            provNodes.push_back(nid);
             out.push_back(t->slice(startNodeIdx++, 0, t->getNRows()));
         }
     }
