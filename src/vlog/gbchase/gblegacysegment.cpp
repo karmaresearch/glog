@@ -208,9 +208,11 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
         uint8_t colPos2,
         std::vector<BinWithProv> &out) const {
     assert(trackProvenance);
+    assert(columns.size() > colPos1);
+    assert(columns.size() > colPos2);
     auto &c1 = columns[colPos1];
     auto &c2 = columns[colPos2];
-    auto &c3 = columns[2];
+    auto &c3 = columns.back();
     auto itr1 = c1->getReader();
     auto itr2 = c2->getReader();
     auto itrProv = c3->getReader();

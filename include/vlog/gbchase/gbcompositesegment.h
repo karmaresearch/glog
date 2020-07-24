@@ -126,6 +126,9 @@ class CompositeTGSegment : public TGSegment {
 
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const;
+
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<BinWithProv> &out) const;
 };
 
 #endif

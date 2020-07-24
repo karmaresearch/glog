@@ -176,3 +176,14 @@ void CompositeTGSegment::appendTo(uint8_t colPos,
         g.getNodeData(n)->appendTo(posToAppend, out);
     }
 }
+
+void CompositeTGSegment::appendTo(uint8_t colPos1, uint8_t colPos2,
+        std::vector<BinWithProv> &out) const {
+    assert(!sortBeforeAccess);
+    assert(!removeDuplBeforeAccess);
+    int p1 = copyVarPos[colPos1];
+    int p2 = copyVarPos[colPos2];
+    for(auto n : nodes) {
+        g.getNodeData(n)->appendTo(p1, p2, out);
+    }
+}

@@ -506,7 +506,8 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithProv> &out) const {
-            assert(colPos1 == colPos2 == 0);
+            assert(colPos1 == colPos2);
+            assert(colPos1 == 0);
             for(const auto &value : *tuples.get()) {
                 BinWithProv p;
                 p.first = value;
