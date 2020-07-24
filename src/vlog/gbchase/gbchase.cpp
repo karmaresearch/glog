@@ -259,11 +259,15 @@ void GBChase::prepareRuleExecutionPlans(
                         newnode.ruleIdx = ruleIdx;
                         newnode.step = step;
                         newnode.incomingEdges = acceptableNodes;
-                        if (redundantFreeCombinations == nCombinations) {
-                            newnode.retainFree = true;
-                        } else {
+                        //retainFree is bugged. Duplicates are still possible
+                        //If retainFree == true, I guarantee that there are no duplicates
+                        //w.r.t. nodes produced in the previous iteration, not other nodes in the current one
+                        //If I want to re-enable it, then I must filter if other nodes have been derived in the same step
+                        //if (redundantFreeCombinations == nCombinations) {
+                        //    newnode.retainFree = true;
+                        //} else {
                             newnode.retainFree = false;
-                        }
+                        //}
                     }
                 }
             } else {
