@@ -517,6 +517,15 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
             }
         }
 
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<std::pair<Term_t, Term_t>> &out) const {
+            assert(colPos1 == colPos2);
+            assert(colPos1 == 0);
+            for(const auto &value : *tuples.get()) {
+                out.push_back(std::make_pair(value, value));
+            }
+        }
+
         size_t countHits(const std::vector<Term_t> &terms,
                 int column) const {
             assert(column == 0);
