@@ -131,6 +131,27 @@ void GBGraph::addNodeProv(PredId_t predid,
             " execution of a single rule. It should not be added to the graph";
         throw 10;
     }
+
+    //The check below should never be triggered because the cliques
+    //are never entirely novel. Thus, duplicate elimination will create a
+    //new data structure.
+    if (data->hasColumnarBackend()) {
+        //Check if one of the columns come from a EDB layout that changes.
+        //Issue a warning if that happens
+        auto s = (TGSegmentLegacy*)data.get();
+        for(size_t i = 0; i < data->getNColumns(); ++i) {
+            auto c = s->getColumn(i);
+            if (c->isEDB()) {
+                auto ec = (EDBColumn*)c.get();
+                const auto &layer = ec->getEDBLayer();
+                const auto &query = ec->getLiteral();
+                const auto table = layer.getEDBTable(query.getPredicate().getId());
+                if (table->canChange()) {
+                    throw 10;
+                }
+            }
+        }
+    }
 #endif
 
     for(auto n : incomingEdges)
@@ -769,6 +790,14 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                     getNodeData(nodeIdxs[i])->appendTo(0, 1, tuples);
                 }
                 std::sort(tuples.begin(), tuples.end());
+#ifdef DEBUG
+                auto e = std::unique(tuples.begin(), tuples.end());
+                auto d = std::distance(e, tuples.end());
+                if (d > 0) {
+                    LOG(ERRORL) << "Duplicates should not occur here!";
+                    throw 10;
+                }
+#endif
                 auto seg = std::shared_ptr<const TGSegment>(
                         new BinaryTGSegment(tuples, ~0ul, true, 0));
                 CacheRetainEntry entry;

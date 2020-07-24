@@ -43,7 +43,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     const bool isHeadUnary = h.getTupleSize() == 1;
 
 #ifdef DEBUG
-    LOG(INFOL) << "Original rule " << rule.tostring(program, layer);
+    LOG(DEBUGL) << "Original rule " << rule.tostring(program, layer);
 #endif
 
     //Create a conjunctive query for the node we would like to add
@@ -57,7 +57,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     for(auto &l : outputQueryBody) {
         query += " " + l.tostring(program, layer);
     }
-    LOG(INFOL) << "Checking redundacy for QUERY (H) " << outputQueryHead->
+    LOG(DEBUGL) << "Checking redundacy for QUERY (H) " << outputQueryHead->
         tostring(program, layer) << " " << query;
 #endif
 
@@ -82,7 +82,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
         for(auto &l : bodyNodeLiterals) {
             match += " " + l.tostring(program, layer);
         }
-        LOG(INFOL) << "COMPARING against " << headNodeLiteral.tostring(
+        LOG(DEBUGL) << "COMPARING against " << headNodeLiteral.tostring(
                 program, layer) << match;
 #endif
 
@@ -129,7 +129,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
             for(auto &l : bodyNodeLiterals) {
                 match += " " + l.tostring(program, layer);
             }
-            LOG(INFOL) << "Found MATCH for " << headNodeLiteral.tostring(
+            LOG(DEBUGL) << "Found MATCH for " << headNodeLiteral.tostring(
                     program, layer) << match;
 #endif
             std::chrono::duration<double, std::milli> dur =

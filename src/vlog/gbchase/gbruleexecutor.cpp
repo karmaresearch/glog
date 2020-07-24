@@ -308,10 +308,34 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         throw 10;
     }
 
+    auto &table = edbTables[p];
+    /*if (table->canChange()) {
+        //I cannot use structure sharing because I might get duplicates.
+        //Force a materialization of the table in main memory
+        if (atom.getTupleSize() == 2) {
+            std::vector<std::pair<Term_t, Term_t>> tuples;
+            auto itr = table->getIterator(atom);
+            while (itr->hasNext()) {
+                itr->next();
+                tuples.push_back(std::make_pair(itr->getElementAt(0),
+                            itr->getElementAt(1)));
+            }
+            if (trackProvenance) {
+                return std::shared_ptr<const TGSegment>(
+                        new BinaryWithConstProvTGSegment(tuples, ~0ul, false, 0));
+            } else {
+                LOG(ERRORL) << "Not supported";
+                throw 10;
+            }
+        } else {
+            LOG(ERRORL) << "Not supported";
+            throw 10;
+        }
+    }*/
+
+    //I can apply structure sharing safetly
     bool shouldSort = true;
     bool shouldRetainUnique = true;
-
-    auto &table = edbTables[p];
     std::vector<std::shared_ptr<Column>> columns;
     auto nrows = table->getCardinality(atom);
     if (table->useSegments()) {
@@ -357,6 +381,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
 
     auto seg = std::shared_ptr<const TGSegment>(
             new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));
+    std::shared_ptr<const TGSegment> output;
+
     if (copyVarPos.size() != atom.getTupleSize()) {
         //There is a projection. We might have to remove duplicates
         auto projectedSegment = projectTuples_structuresharing(
@@ -374,10 +400,11 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
         } else {
             uniqueSegment = sortedSegment;
         }
-        return uniqueSegment;
+        output = uniqueSegment;
     } else {
-        return seg;
+        output = seg;
     }
+    return output;
 }
 
 void GBRuleExecutor::nestedloopjoin(
@@ -901,7 +928,7 @@ void GBRuleExecutor::mergejoin(
                                 copyVarPosRight.size() == 1) {
                             filterDuplEnabled = true;
                             LOG(DEBUGL) << "Enabling advanced duplicate "
-                                          "removal technique";
+                                "removal technique";
                             //Populate the two sides of the joins that produce
                             //duplicate derivations
                             duplManager = std::unique_ptr<DuplManager>(
