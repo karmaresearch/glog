@@ -40,12 +40,12 @@ bool CliqueTable::isEmpty(const Literal &query,
 }
 
 EDBIterator *CliqueTable::getIterator(const Literal &query) {
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
-}
-
-EDBIterator *CliqueTable::getSortedIterator(const Literal &query,
-        const std::vector<uint8_t> &fields) {
+    //Check that the query is generic
+    if (query.getTupleSize() == 2 && query.getTermAtPos(0).isVariable() &&
+            query.getTermAtPos(1).isVariable() &&
+            query.getTermAtPos(0).getId() != query.getTermAtPos(1).getId()) {
+        return iterator();
+    }
     LOG(ERRORL) << "Not implemented";
     throw 10;
 }
@@ -102,6 +102,16 @@ CliqueIterator *CliqueTable::iterator() {
             term2component.begin(),
             term2component.end());
     return itr;
+}
+
+EDBIterator *CliqueTable::getSortedIterator(const Literal &query,
+        const std::vector<uint8_t> &fields) {
+    if (fields.size() == 2 && fields[0] == 0 && fields[1] == 1) {
+        //TODO: check that the query is without constants nor dupl. variables
+        return iterator();
+    }
+    LOG(ERRORL) << "Not implemented";
+    throw 10;
 }
 
 std::vector<std::pair<Term_t, Term_t>> CliqueTable::checkNewIn(
@@ -217,9 +227,17 @@ void CliqueTable::computeConnectedComponents() {
                                 componentIDCounter));
                     components.insert(std::make_pair(componentIDCounter,
                                 std::vector<Term_t>()));
-                    components[componentIDCounter].push_back(term1);
-                    if (term1 != term2)
-                        components[componentIDCounter].push_back(term2);
+                    if (term1 != term2) {
+                        if (term1 < term2) {
+                            components[componentIDCounter].push_back(term1);
+                            components[componentIDCounter].push_back(term2);
+                        } else {
+                            components[componentIDCounter].push_back(term2);
+                            components[componentIDCounter].push_back(term1);
+                        }
+                    } else {
+                        components[componentIDCounter].push_back(term1);
+                    }
                     componentIDCounter++;
                 } else if (!term2component.count(term2)) {
                     //Add term2 to the component of term1

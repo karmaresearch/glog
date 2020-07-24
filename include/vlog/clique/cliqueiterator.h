@@ -9,9 +9,11 @@
 class CliqueIterator : public EDBIterator {
     private:
         PredId_t predid;
+        const bool empty;
         const std::map<size_t, std::vector<Term_t>> &components;
 
-        std::map<Term_t, size_t>::iterator startitr;
+        std::map<Term_t, size_t>::iterator begitr;
+        std::map<Term_t, size_t>::iterator itr;
         std::map<Term_t, size_t>::iterator enditr;
 
         std::vector<Term_t>::const_iterator startitrComp;

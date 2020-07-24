@@ -4,29 +4,38 @@ CliqueIterator::CliqueIterator(PredId_t predid,
         const std::map<size_t, std::vector<Term_t>> &components,
         std::map<Term_t, size_t>::iterator startitr,
         std::map<Term_t, size_t>::iterator enditr) :
-    predid(predid), components(components), startitr(startitr), enditr(enditr) {
+    predid(predid), empty(components.size() == 0),
+    components(components), begitr(startitr), enditr(enditr) {
 
-        auto compId = startitr->second;
-        assert(components.count(compId));
-        const auto &comp = components.find(compId);
-        const auto &vector = comp->second;
-        assert(vector.size() > 0);
-        startitrComp = vector.cbegin();
-        enditrComp = vector.cend();
-        hasAdvanced = true;
+        if (!empty) {
+            itr = startitr;
+            auto compId = startitr->second;
+            assert(components.count(compId));
+            const auto &comp = components.find(compId);
+            const auto &vector = comp->second;
+            assert(vector.size() > 0);
+            startitrComp = vector.cbegin();
+            enditrComp = vector.cend();
+            hasAdvanced = true;
+        } else {
+            hasAdvanced = false;
+        }
         t1 = t2 = ~0ul;
     }
 
 bool CliqueIterator::advance() {
+    if (empty)
+        return false;
+
     if (startitrComp != enditrComp) {
         assert(startitrComp < enditrComp);
         startitrComp++;
     }
     if (startitrComp == enditrComp) {
         //Move to the next term
-        startitr++;
-        if (startitr != enditr) {
-            auto compId = startitr->second;
+        itr++;
+        if (itr != enditr) {
+            auto compId = itr->second;
             assert(components.count(compId));
             const auto &comp = components.find(compId);
             startitrComp = comp->second.cbegin();
@@ -58,7 +67,7 @@ void CliqueIterator::next() {
     }
     if (!hasAdvanced || startitrComp == enditrComp)
         throw 10;
-    t1 = startitr->first;
+    t1 = itr->first;
     t2 = *startitrComp;
     hasAdvanced = false;
 }
@@ -78,6 +87,18 @@ void CliqueIterator::skipDuplicatedFirstColumn() {
 }
 
 void CliqueIterator::clear() {
-    LOG(ERRORL) << "Not supported";
-    throw 10;
+    if (!empty) {
+        itr = begitr;
+        auto compId = begitr->second;
+        assert(components.count(compId));
+        const auto &comp = components.find(compId);
+        const auto &vector = comp->second;
+        assert(vector.size() > 0);
+        startitrComp = vector.cbegin();
+        enditrComp = vector.cend();
+        hasAdvanced = true;
+    } else {
+        hasAdvanced = false;
+    }
+    t1 = t2 = ~0ul;
 }
