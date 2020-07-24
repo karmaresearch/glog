@@ -1211,6 +1211,8 @@ std::vector<Term_t> TridentTable::checkNewIn(
     auto itrOld = oldSeg->iterator();
     Term_t vold = ~0ul;
     Term_t vnew = ~0ul;
+    Term_t vnew_prev = ~0ul; //The iterator with new tuples could contain
+    //duplicates. This variable is used to prevent it
 
     size_t processedTerms = 0;
     size_t existingTerms = 0;
@@ -1233,6 +1235,12 @@ std::vector<Term_t> TridentTable::checkNewIn(
                     vnew = itrNew->getValue2();
                 else
                     vnew = itrNew->getKey();
+
+                if (vnew == vnew_prev) {
+                    vnew = ~0ul;
+                    continue;
+                }
+                vnew_prev = vnew;
             } else {
                 break;
             }
@@ -1259,6 +1267,10 @@ std::vector<Term_t> TridentTable::checkNewIn(
             vnew = itrNew->getValue2();
         else
             vnew = itrNew->getKey();
+        if (vnew == vnew_prev) {
+            continue;
+        }
+        vnew_prev = vnew;
         out.push_back(vnew);
     }
     //Sorting and retaining the unique should not be necessary here

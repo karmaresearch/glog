@@ -159,7 +159,6 @@ bool GBGraph::isRedundant(size_t ruleIdx,
                 durationQueryContain1 += dur;
             else
                 durationQueryContain2 += dur;
-
             return true;
         }
         if (!rt) {
@@ -421,7 +420,7 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
     auto retainedValues = layer->checkNewIn(
             ((EDBColumn*)newColNode.get())->getLiteral(),
             ((EDBColumn*)newColNode.get())->posColumnInLiteral(),
-            newSeg);
+            oldSeg);
     retainedValues.swap(out);
 }
 
