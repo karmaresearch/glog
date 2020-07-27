@@ -4,13 +4,18 @@
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
         bool trackProvenance,
         bool filterQueryCont,
+        bool edbCheck,
         bool rewriteCliques) :
     layer(layer),
     program(program),
     trackProvenance(trackProvenance),
     filterQueryCont(filterQueryCont),
+    edbCheck(edbCheck),
     g(trackProvenance, useCacheRetain, filterQueryCont),
-    executor(trackProvenance, g, layer, program) {
+    executor(trackProvenance, g, layer, program),
+    triggers(0) {
+        LOG(INFOL) << "Query cont=" << filterQueryCont <<
+            " EDB check=" << edbCheck;
         if (rewriteCliques) {
             //Rewrite rules of the form P(X,Y),P(Y,Z)->P(X,Z) and P(X,Y)->P(Y,X)
             program->rewriteCliques();
@@ -182,7 +187,7 @@ void GBChase::prepareRuleExecutionPlans(
                                 //Do the check!
                                 bool rFree = false;
                                 if (g.isRedundant(ruleIdx, currentComb,
-                                            rFree)) {
+                                            edbCheck, rFree)) {
                                     filteredCombinations++;
                                 } else {
                                     //Take the tmp nodes into account
@@ -266,7 +271,7 @@ void GBChase::prepareRuleExecutionPlans(
                         //if (redundantFreeCombinations == nCombinations) {
                         //    newnode.retainFree = true;
                         //} else {
-                            newnode.retainFree = false;
+                        newnode.retainFree = false;
                         //}
                     }
                 }
@@ -445,6 +450,10 @@ size_t GBChase::getNnodes() {
     return g.getNNodes();
 }
 
+size_t GBChase::getNTriggers() {
+    return triggers;
+}
+
 bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
@@ -475,6 +484,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         currentPredicate = heads[headIdx++].getPredicate().getId();
         auto derivations = outputRule.segment;
         nders_un += derivations->getNRows();
+        triggers += derivations->getNRows();
         auto derivationNodes = outputRule.nodes;
         const bool shouldCleanDuplicates = cleanDuplicates &&
             !outputRule.uniqueTuples;

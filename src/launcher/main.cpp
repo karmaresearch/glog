@@ -332,6 +332,9 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
     query_options.add<bool>("","no-intersect", false, "Disable intersection optimization.",false);
     query_options.add<string>("","graphfile", "", "Path to store the rule dependency graph",false);
 
+    query_options.add<bool>("","querycont", true, "Enable the optimization that performs query containment to reduce duplicates during the computation of tgchase.", true);
+    query_options.add<bool>("","edbcheck", true, "Enable the optimization that check EDB relations to reduce duplicates during the computation of tgchase.", true);
+
     query_options.add<string>("","sameasAlgo", "NOTHING", "Enable equality algorithm. Techniques: NOTHING (default), AXIOM (axiomatization), SING (singularisation).",false);
 
     ProgramArgs::GroupArgs& load_options = *vm.newGroup("Options for <load>");
@@ -543,7 +546,10 @@ void launchGBChase(
     } else if (cmd == "tgchase") {
         tc = GBChaseAlgorithm::TGCHASE_DYNAMIC;
     }
-    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc, param1);
+    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc,
+            vm["querycont"].as<bool>(),
+            vm["edbcheck"].as<bool>(),
+            param1);
 
     if (vm["profiler"].as<std::string>() != "") {
         sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
@@ -591,6 +597,7 @@ void launchGBChase(
     LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
     LOG(INFOL) << "Derived tuples = " << sn->getNDerivedFacts();
     LOG(INFOL) << "N. nodes = " << sn->getNnodes();
+    LOG(INFOL) << "Triggers = " << sn->getNTriggers();
 
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
     if (vm["monitorThread"].as<bool>()) {

@@ -60,8 +60,10 @@ class GBGraph {
         Program *program;
 
         std::chrono::duration<double, std::milli> durationRetain;
+        std::chrono::duration<double, std::milli> durationQueryContain;
         std::chrono::duration<double, std::milli> durationQueryContain1;
         std::chrono::duration<double, std::milli> durationQueryContain2;
+        std::chrono::duration<double, std::milli> durationEDBCheck;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -218,8 +220,10 @@ class GBGraph {
             cacheRetainEnabled(cacheRetainEnabled),
             queryContEnabled(useQueryContainmentForRedundancyElim),
             durationRetain(0),
+            durationQueryContain(0),
             durationQueryContain1(0),
             durationQueryContain2(0),
+            durationEDBCheck(0),
             allRules(NULL),
             layer(NULL), program(NULL) {
                 counterNullValues = RULE_SHIFT(1);
@@ -333,6 +337,7 @@ class GBGraph {
 
         bool isRedundant(size_t ruleIdx,
                 std::vector<size_t> &bodyNodeIdx,
+                bool edbCheck,
                 bool &retainFree);
 
         void printStats() {
@@ -341,6 +346,11 @@ class GBGraph {
                 durationQueryContain1.count();
             LOG(INFOL) << "Time query containment (binary) (ms): " <<
                 durationQueryContain2.count();
+            LOG(INFOL) << "Time query containment (total) "
+                "(includes EDB check) (ms): " <<
+                durationQueryContain.count();
+            LOG(INFOL) << "Time EDB check (ms): " <<
+                durationEDBCheck.count();
         }
 };
 

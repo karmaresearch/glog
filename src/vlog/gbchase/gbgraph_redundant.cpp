@@ -13,7 +13,9 @@ bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
 }
 
 bool GBGraph::isRedundant(size_t ruleIdx,
-        std::vector<size_t> &bodyNodeIdxs, bool &retainFree) {
+        std::vector<size_t> &bodyNodeIdxs,
+        bool edbCheck,
+        bool &retainFree) {
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
 
@@ -138,12 +140,16 @@ bool GBGraph::isRedundant(size_t ruleIdx,
                 durationQueryContain1 += dur;
             else
                 durationQueryContain2 += dur;
+            durationQueryContain += dur;
             retainFree = true;
             return true;
         }
 
         bool rt = false;
-        if (isRedundant_checkEquivalenceEDBAtoms(
+        std::chrono::steady_clock::time_point startE =
+            std::chrono::steady_clock::now();
+        bool responseEDBCheck = edbCheck &&
+            isRedundant_checkEquivalenceEDBAtoms(
                     rt,
                     bodyNodeIdxs,
                     h,
@@ -151,7 +157,12 @@ bool GBGraph::isRedundant(size_t ruleIdx,
                     outputQueryHead.get(),
                     outputQueryBody,
                     rangesOutputQueryBody,
-                    nodeId)) {
+                    nodeId);
+        std::chrono::duration<double, std::milli> durE =
+            std::chrono::steady_clock::now() - startE;
+        durationEDBCheck += durE;
+
+        if (responseEDBCheck) {
             retainFree = true;
             std::chrono::duration<double, std::milli> dur =
                 std::chrono::steady_clock::now() - start;
@@ -159,6 +170,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
                 durationQueryContain1 += dur;
             else
                 durationQueryContain2 += dur;
+            durationQueryContain += dur;
             return true;
         }
         if (!rt) {
@@ -171,6 +183,7 @@ bool GBGraph::isRedundant(size_t ruleIdx,
         durationQueryContain1 += dur;
     else
         durationQueryContain2 += dur;
+    durationQueryContain += dur;
     return false;
 }
 

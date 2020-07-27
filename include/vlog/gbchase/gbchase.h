@@ -18,6 +18,7 @@ class GBChase : public Chase {
     protected:
         const bool trackProvenance;
         const bool filterQueryCont;
+        const bool edbCheck;
         Program *program;
         EDBLayer &layer; //Stores the input data
         GBGraph g; //Stores the derivations
@@ -34,6 +35,9 @@ class GBChase : public Chase {
         std::string currentRule;
 #endif
         std::map<PredId_t, std::shared_ptr<FCTable>> cacheFCTables;
+
+        //Used for statistics
+        size_t triggers;
 
         void createNewNodesWithProv(
                 size_t ruleIdx, size_t step,
@@ -73,6 +77,7 @@ class GBChase : public Chase {
                 bool useCacheRetain = true,
                 bool trackProvenance = false,
                 bool filterQueryCont = false,
+                bool edbCheck = false,
                 bool rewriteCliques = false);
 
         VLIBEXP virtual void run();
@@ -92,6 +97,8 @@ class GBChase : public Chase {
         size_t getNDerivedFacts();
 
         size_t getNnodes();
+
+        size_t getNTriggers();
 
 #ifdef WEBINTERFACE
         std::string getCurrentRule();

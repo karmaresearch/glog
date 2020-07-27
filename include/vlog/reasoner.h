@@ -129,6 +129,8 @@ class Reasoner {
                 EDBLayer &layer,
                 Program *p,
                 GBChaseAlgorithm typeChase = GBChaseAlgorithm::GBCHASE,
+                bool queryCont = true,
+                bool edbCheck = true,
                 std::string param1 = "");
 
         int getNumberOfIDBPredicates(Literal&, Program&);
