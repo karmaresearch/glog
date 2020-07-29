@@ -450,6 +450,10 @@ size_t GBChase::getNnodes() {
     return g.getNNodes();
 }
 
+size_t GBChase::getNedges() {
+    return g.getNEdges();
+}
+
 size_t GBChase::getNTriggers() {
     return triggers;
 }

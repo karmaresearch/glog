@@ -236,6 +236,8 @@ class GBGraph {
             return nodes.size();
         }
 
+        size_t getNEdges() const;
+
         bool isTmpNode(size_t nodeId) const {
             return nodeId >= startCounterTmpNodes;
         }

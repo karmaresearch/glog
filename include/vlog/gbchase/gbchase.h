@@ -98,6 +98,8 @@ class GBChase : public Chase {
 
         size_t getNnodes();
 
+        size_t getNedges();
+
         size_t getNTriggers();
 
 #ifdef WEBINTERFACE

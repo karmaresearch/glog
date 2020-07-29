@@ -597,6 +597,7 @@ void launchGBChase(
     LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
     LOG(INFOL) << "Derived tuples = " << sn->getNDerivedFacts();
     LOG(INFOL) << "N. nodes = " << sn->getNnodes();
+    LOG(INFOL) << "N. edges = " << sn->getNedges();
     LOG(INFOL) << "Triggers = " << sn->getNTriggers();
 
 #if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)

@@ -1093,3 +1093,11 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     }
     return tuples->getNRows();
 }
+
+size_t GBGraph::getNEdges() const {
+    size_t out = 0;
+    for (const auto &n : nodes) {
+        out += n.incomingEdges.size();
+    }
+    return out;
+}
