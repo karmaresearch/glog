@@ -1446,7 +1446,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
 }
 
 bool SemiNaiver::checkEmpty(const Literal *lit) {
-    FCIterator tableIt = getTable(lit->getPredicate().getId());
+    FCIterator tableIt = getTableItr(lit->getPredicate().getId());
     VTuple tuple = lit->getTuple();
     std::vector<std::pair<uint8_t, uint8_t>> repeated = lit->getRepeatedVars();
 
