@@ -56,8 +56,9 @@ void EDBLayer::addTridentTable(const EDBConf::Table &tableConf, bool multithread
     const std::string pn = tableConf.predname;
     const std::string kbpath = tableConf.params[0];
     if (!Utils::exists(kbpath) || !Utils::exists(kbpath + DIR_SEP + "p0")) {
-        LOG(ERRORL) << "The KB at " << kbpath << " does not exist. Check the edb.conf file.";
-        throw 10;
+        std::string error = "The KB at " + kbpath + " does not exist. Check the edb.conf file.";
+        LOG(ERRORL) << error;
+        throw error;
     }
     infot.id = (PredId_t) predDictionary->getOrAdd(pn);
     infot.type = tableConf.type;
@@ -1442,14 +1443,11 @@ std::string EDBLayer::getPredType(PredId_t id) const {
     if (dbPredicates.count(id)) {
         return dbPredicates.at(id).type;
     }
-    return 0;
+    return NULL;
 }
 
 std::string EDBLayer::getPredName(PredId_t id) const {
-    if (dbPredicates.count(id)) {
-        return predDictionary->getRawValue(id);
-    }
-    return 0;
+    return predDictionary->getRawValue(id);
 }
 
 uint8_t EDBLayer::getPredArity(PredId_t id) const {

@@ -738,7 +738,7 @@ JNIEXPORT jlong JNICALL Java_karmaresearch_vlog_VLog_nativeQuerySize(JNIEnv * en
 				}
 
 				// And add the rule.
-				f->program->addRule(vhead, vbody, rewrite != 0);
+				f->program->addRule(vhead, vbody, rewrite != 0, false);
 			}
 		}
 	}
@@ -795,7 +795,7 @@ JNIEXPORT jlong JNICALL Java_karmaresearch_vlog_VLog_nativeQuerySize(JNIEnv * en
 
 		LOG(INFOL) << "Starting full materialization";
 		try {
-			f->sn = new SemiNaiver(*(f->layer), f->program, true, true, false,
+			f->sn = new SemiNaiver(*(f->layer), f->program, true, false, false,
 					(bool) skolem ?
 					TypeChase::SKOLEM_CHASE : TypeChase::RESTRICTED_CHASE,
 					-1, false, false);
@@ -995,7 +995,7 @@ JNIEXPORT jlong JNICALL Java_karmaresearch_vlog_VLog_nativeQuerySize(JNIEnv * en
 		}
 		try {
 			std::string str = jstring2string(env, s);
-			int v = Checker::check(*(f->program), str, *(f->layer));
+			int v = Checker::check(*(f->program), str, "", *(f->layer));
 			jclass resultClass = env->FindClass("karmaresearch/vlog/VLog$CyclicCheckResult");
 			jfieldID fidNON_CYCLIC = env->GetStaticFieldID(resultClass , "NON_CYCLIC", "Lkarmaresearch/vlog/VLog$CyclicCheckResult;");
 			jfieldID fidCYCLIC    = env->GetStaticFieldID(resultClass , "CYCLIC", "Lkarmaresearch/vlog/VLog$CyclicCheckResult;");

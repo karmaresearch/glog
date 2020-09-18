@@ -314,6 +314,7 @@ void JoinExecutor::verificativeJoinOneColumn(
         //to the EDB layer
         std::shared_ptr<const Column> column = table->
             getColumn(hv.joinCoordinates[currentLiteral][0].second);
+        column = column->sort();
         // LOG(TRACEL) << "Count = " << count;
         try {
             itr->reset();
@@ -587,7 +588,8 @@ void JoinExecutor::join(SemiNaiver * naiver, const FCInternalTable * t1,
             LOG(TRACEL) << "i = " << i << ", first = " << (int) joinsCoordinates[i].first << ", second = " << (int) joinsCoordinates[i].second;
         }
 #endif
-        if (t1->estimateNRows() <= factor * THRESHOLD_HASHJOIN
+        //No hash joins if there are functors
+        /*if (t1->estimateNRows() <= factor * THRESHOLD_HASHJOIN
                 && joinsCoordinates.size() < 3 && joinsCoordinates.size() > 0
                 && (factor != 1 || joinsCoordinates.size() > 1 ||
                     joinsCoordinates[0].first != joinsCoordinates[0].second ||
@@ -599,14 +601,14 @@ void JoinExecutor::join(SemiNaiver * naiver, const FCInternalTable * t1,
 #ifdef DEBUG
             output->checkSizes();
 #endif
-        } else {
+        } else {*/
             LOG(TRACEL) << "Executing mergejoin.";
             mergejoin(t1, naiver, outputLiterals, literal, min, max,
                     joinsCoordinates, output, nthreads);
 #ifdef DEBUG
             output->checkSizes();
 #endif
-        }
+        /*}*/
     }
 }
 
@@ -684,12 +686,12 @@ void JoinExecutor::execSelectiveHashJoin(const RuleExecutionDetails & currentRul
     //This is tricky, since these variables may occur more than once.
     std::vector<uint8_t> correction;
     uint8_t correction_count = 0;
-    uint8_t v1 = literal.getTermAtPos(idxJoinFieldInLiteral1).getId();
-    uint8_t v2 = njoinfields < 2 ? 0 : literal.getTermAtPos(idxJoinFieldInLiteral2).getId();
+    Var_t v1 = literal.getTermAtPos(idxJoinFieldInLiteral1).getId();
+    Var_t v2 = njoinfields < 2 ? 0 : literal.getTermAtPos(idxJoinFieldInLiteral2).getId();
     for (int i = 0; i < literal.getTupleSize(); i++) {
         if (literal.getTermAtPos(i).isVariable()) {
             correction.push_back(correction_count);
-            uint8_t v = literal.getTermAtPos(i).getId();
+            Var_t v = literal.getTermAtPos(i).getId();
             if (v == v1 || (njoinfields == 2 && v == v2)) {
                 correction_count++;
             }
@@ -823,7 +825,7 @@ void JoinExecutor::execSelectiveHashJoin(const RuleExecutionDetails & currentRul
                 while (outputLiterals != NULL && outputLiterals->size() == 1 &&  start < end) {
                     VTuple t = (*outputLiterals)[0].getTuple();
                     for (uint8_t i = 0; i < nPosFromFirst; ++i) {
-                        uint8_t var = t.get(posFromFirst[i].first).getId();
+                        Var_t var = t.get(posFromFirst[i].first).getId();
                         // t.set(VTerm(0, values[start + posFromFirst[i].second]), posFromFirst[i].first);
                         // Watch out: variable could be used more than once --Ceriel
                         t.replaceAll(t.get(posFromFirst[i].first), VTerm(0, values[start + posFromFirst[i].second]));
@@ -1248,7 +1250,7 @@ void JoinExecutor::mergejoin(const FCInternalTable * t1, SemiNaiver * naiver,
             for (uint32_t j = 0; j < idxColumnsLowCardInLiteral.size(); ++j) {
                 uint8_t idxInLiteral = 0;
                 uint8_t nvars = 0;
-                uint8_t var = 0;
+                Var_t var = 0;
                 for (uint8_t r = 0; r < literalToQuery.getTupleSize(); ++r) {
                     if (literalToQuery.getTermAtPos(r).isVariable()) {
                         if (nvars == idxColumnsLowCardInLiteral[j]) {

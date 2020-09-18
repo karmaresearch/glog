@@ -99,8 +99,8 @@ bool TableFilterer::isEligibleForPartialSubs(
     if (bodyLiterals.size() == 2) {
         // Check the join: may have only one join position.
         int count = 0;
-        std::vector<uint8_t> v1 = bodyLiterals[0].getAllVars();
-        std::vector<uint8_t> v2 = bodyLiterals[1].getAllVars();
+        std::vector<Var_t> v1 = bodyLiterals[0].getAllVars();
+        std::vector<Var_t> v2 = bodyLiterals[1].getAllVars();
         for (int i = 0; i < v1.size(); i++) {
             for (int j = 0; j < v2.size(); j++) {
                 if (v1[i] == v2[j]) {
@@ -217,7 +217,7 @@ bool TableFilterer::isEligibleForPartialSubs(
 
     //Check if the small literal shares variables with the recursive literal
     if (foundSmall) {
-        std::vector<uint8_t> allvars = bodyLiterals[idxRecursive].getAllVars();
+        std::vector<Var_t> allvars = bodyLiterals[idxRecursive].getAllVars();
         if (bodyLiterals[idxSmall].getSharedVars(allvars).size() == 0)
             return false;
     }
@@ -325,7 +325,7 @@ bool TableFilterer::producedDerivationInPreviousStepsWithSubs_rec(
             throw 10;
         }
         VTerm tAtCurQuery = currentQuery.getTermAtPos(posLit_second);
-        uint8_t idVarCurQuery = tAtCurQuery.getId();
+        Var_t idVarCurQuery = tAtCurQuery.getId();
         if (idVarCurQuery == 0) {
             // Giving up
             return false;
@@ -364,7 +364,7 @@ bool TableFilterer::producedDerivationInPreviousStepsWithSubs_rec(
         const int nsubs2 = Literal::getSubstitutionsA2B(subs2,
                 blockRule.getFirstHead(), outputQuery);
         VTerm tAtOutQuery = outputQuery.getTermAtPos(posHead_first);
-        uint8_t idVarOutQuery = tAtOutQuery.getId();
+        Var_t idVarOutQuery = tAtOutQuery.getId();
         if (idVarOutQuery == 0) {
             // Giving up
             return false;
@@ -435,8 +435,11 @@ bool TableFilterer::producedDerivationInPreviousStepsWithSubs_rec(
                 for (int i = 0; i < rLit->getTupleSize(); ++i) {
                     VTerm t2 = rLit->getTermAtPos(i);
                     if (t2.isVariable() && t.getId() == t2.getId()) {
-                        if (foundJoin)
-                            throw 10; //there should be only one
+                        if (foundJoin) {
+                            // throw 10; //there should be only one
+			    // Apparently we don't understand this case. Giving up.
+			    return false;
+			}
                         joinRandNRLits.first = j;
                         joinRandNRLits.second = i;
                         foundJoin = true;
@@ -446,8 +449,11 @@ bool TableFilterer::producedDerivationInPreviousStepsWithSubs_rec(
                 for (int i = 0; i < headBlockRule.getTupleSize(); ++i) {
                     VTerm t2 = headBlockRule.getTermAtPos(i);
                     if (t2.isVariable() && t.getId() == t2.getId()) {
-                        if (foundHead)
-                            throw 10;
+                        if (foundHead) {
+                            // throw 10;
+			    // Apparently we don't understand this case. Giving up.
+			    return false;
+			}
                         joinHeadAndNRLits.first = i;
                         joinHeadAndNRLits.second = j;
                         foundHead = true;
