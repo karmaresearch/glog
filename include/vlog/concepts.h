@@ -353,9 +353,13 @@ class Literal {
 
         std::vector<Var_t> getSharedVars(const std::vector<Var_t> &vars) const;
 
+        //Return a list of unique variables and related position in the literal
+        std::vector<std::pair<uint8_t, uint8_t>> getAllVarsAndPos() const;
+
         std::vector<Var_t> getNewVars(std::vector<Var_t> &vars) const;
 
         std::vector<Var_t> getAllVars() const;
+
         bool containsVariable(Var_t variableId) const;
 
         std::string tostring(const Program *program, const EDBLayer *db) const;
