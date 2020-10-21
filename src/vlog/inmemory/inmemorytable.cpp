@@ -356,9 +356,6 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
                         match = false;
                     }
                 }
-                if (match) {
-                    valIndex++;
-                }
                 if (match || ! rematch) {
                     break;
                 }
@@ -373,8 +370,6 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
             }
             outputTable->addRow(row);
         }
-        // LOG(ERRORL) << "Not implemented yet";
-        // throw 10;
     }
 }
 
