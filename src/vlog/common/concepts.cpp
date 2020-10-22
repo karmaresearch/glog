@@ -417,8 +417,8 @@ std::vector<Var_t> Literal::getAllVars() const {
     return output;
 }
 
-std::vector<std::pair<uint8_t,uint8_t>> Literal::getAllVarsAndPos() const {
-    std::vector<std::pair<uint8_t,uint8_t>> output;
+std::vector<std::pair<Var_t,uint8_t>> Literal::getAllVarsAndPos() const {
+    std::vector<std::pair<Var_t,uint8_t>> output;
     for (int i = 0; i < getTupleSize(); ++i) {
         VTerm t = getTermAtPos(i);
         if (t.isVariable()) {
@@ -467,7 +467,7 @@ bool Rule::checkRecursion(const std::vector<Literal> &heads,
     return false;
 }
 
-void Rule::checkRule() const {
+/*void Rule::checkRule() const {
     bool vars[256];
     memset(vars, 0, sizeof(bool) * 256);
     int varCount = 0;
@@ -482,7 +482,7 @@ void Rule::checkRule() const {
         }
     }
     LOG(DEBUGL) << "Rule " << this->tostring() << " has " << varCount << " variables";
-}
+}*/
 
 bool Rule::doesVarAppearsInFollowingPatterns(int startingPattern, Var_t value) const {
     for (int i = startingPattern; i < body.size(); ++i) {

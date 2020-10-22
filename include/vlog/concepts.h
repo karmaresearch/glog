@@ -354,7 +354,7 @@ class Literal {
         std::vector<Var_t> getSharedVars(const std::vector<Var_t> &vars) const;
 
         //Return a list of unique variables and related position in the literal
-        std::vector<std::pair<uint8_t, uint8_t>> getAllVarsAndPos() const;
+        std::vector<std::pair<Var_t, uint8_t>> getAllVarsAndPos() const;
 
         std::vector<Var_t> getNewVars(std::vector<Var_t> &vars) const;
 
@@ -394,7 +394,7 @@ class Rule {
             _isRecursive(checkRecursion(heads, body)),
             existential(!getExistentialVariables().empty()),
             egd(egd) {
-                checkRule();
+                //checkRule();
             }
 
         Rule(uint32_t ruleId, Rule &r) : ruleId(ruleId),
@@ -486,7 +486,7 @@ class Rule {
             return result;
         }
 
-        void checkRule() const;
+        //void checkRule() const;
 
         Rule normalizeVars() const;
 
