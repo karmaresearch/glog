@@ -131,6 +131,7 @@ class Reasoner {
                 GBChaseAlgorithm typeChase = GBChaseAlgorithm::GBCHASE,
                 bool queryCont = true,
                 bool edbCheck = true,
+                bool rewriteCliques = true,
                 std::string param1 = "");
 
         int getNumberOfIDBPredicates(Literal&, Program&);

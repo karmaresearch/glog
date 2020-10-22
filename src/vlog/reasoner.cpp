@@ -865,6 +865,7 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
         GBChaseAlgorithm typeChase,
         bool queryCont,
         bool edbCheck,
+        bool rewriteCliques,
         std::string param1) {
     if (typeChase == GBChaseAlgorithm::GBCHASE) {
         std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, false, false));
@@ -877,7 +878,7 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
                     true, true,
                     queryCont,
                     edbCheck,
-                    true));
+                    rewriteCliques));
         return sn;
     } else {
         LOG(ERRORL) << "Type of chase is not supported";

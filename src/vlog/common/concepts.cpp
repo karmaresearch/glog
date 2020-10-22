@@ -468,21 +468,21 @@ bool Rule::checkRecursion(const std::vector<Literal> &heads,
 }
 
 /*void Rule::checkRule() const {
-    bool vars[256];
-    memset(vars, 0, sizeof(bool) * 256);
-    int varCount = 0;
-    for (int i = 0; i < body.size(); ++i) {
-        Literal l = body[i];
-        std::vector<Var_t> v = l.getAllVars();
-        for (int j = 0; j < v.size(); j++) {
-            if (! vars[v[j]]) {
-                vars[v[j]] = true;
-                varCount++;
-            }
-        }
-    }
-    LOG(DEBUGL) << "Rule " << this->tostring() << " has " << varCount << " variables";
-}*/
+  bool vars[256];
+  memset(vars, 0, sizeof(bool) * 256);
+  int varCount = 0;
+  for (int i = 0; i < body.size(); ++i) {
+  Literal l = body[i];
+  std::vector<Var_t> v = l.getAllVars();
+  for (int j = 0; j < v.size(); j++) {
+  if (! vars[v[j]]) {
+  vars[v[j]] = true;
+  varCount++;
+  }
+  }
+  }
+  LOG(DEBUGL) << "Rule " << this->tostring() << " has " << varCount << " variables";
+  }*/
 
 bool Rule::doesVarAppearsInFollowingPatterns(int startingPattern, Var_t value) const {
     for (int i = startingPattern; i < body.size(); ++i) {

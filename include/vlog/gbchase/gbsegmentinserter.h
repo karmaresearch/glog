@@ -171,7 +171,11 @@ class GBSegmentInserterUnary :
         }
 
     public:
-        GBSegmentInserterUnary(bool delDupl) : GBSegmentInserterImpl(1, delDupl) { }
+        GBSegmentInserterUnary(bool delDupl) :
+            GBSegmentInserterImpl(1, delDupl)
+    {
+        novelTuples.set_empty_key(~0ul);
+    }
 
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
@@ -209,6 +213,21 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
             tuples.push_back(std::make_pair(row[0], row[1]));
         }
 
+        GBSegmentInserterEntities getEntitiesAddedSoFar(int pos) {
+            GBSegmentInserterEntities e;
+            e.set_empty_key(~0ul);
+            if (pos == 0) {
+                for(auto t : tuples)
+                    e.insert(t.first);
+            } else if (pos == 1) {
+                for(auto t : tuples)
+                    e.insert(t.second);
+            } else {
+                throw 10;
+            }
+            return e;
+        }
+
         bool isInMap(Term_t *row) {
             return novelTuples.count(std::make_pair(row[0], row[1]));
         }
@@ -221,7 +240,9 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
 
     public:
         GBSegmentInserterBinary(bool delDupl) : GBSegmentInserterImpl(1, delDupl),
-        secondFieldConstant(true) { }
+        secondFieldConstant(true) {
+            novelTuples.set_empty_key(std::make_pair(~0ul, ~0ul));
+        }
 
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
@@ -321,8 +342,8 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
             return e;
         }
 
-
         void populateMap() {
+            novelTuples.set_empty_key(std::make_pair(~0ul, ~0ul));
             for(auto &v : tuples) {
                 novelTuples.insert(std::make_pair(v.first, v.second));
             }

@@ -334,6 +334,7 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
 
     query_options.add<bool>("","querycont", true, "Enable the optimization that performs query containment to reduce duplicates during the computation of tgchase.", true);
     query_options.add<bool>("","edbcheck", true, "Enable the optimization that check EDB relations to reduce duplicates during the computation of tgchase.", true);
+    query_options.add<bool>("","rewritecliques", true, "Enable the optimization that rewrites transitive and reflexity equality rules.", true);
 
     query_options.add<string>("","sameasAlgo", "NOTHING", "Enable equality algorithm. Techniques: NOTHING (default), AXIOM (axiomatization), SING (singularisation).",false);
 
@@ -549,6 +550,7 @@ void launchGBChase(
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc,
             vm["querycont"].as<bool>(),
             vm["edbcheck"].as<bool>(),
+            vm["rewritecliques"].as<bool>(),
             param1);
 
     if (vm["profiler"].as<std::string>() != "") {
