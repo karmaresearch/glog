@@ -158,9 +158,9 @@ void GBGraph::addNodeProv(PredId_t predid,
         if (isTmpNode(n))
             throw 10;
 
+    outputNode.incomingEdges = incomingEdges;
     if (queryContEnabled) {
         assert(allRules != NULL && program != NULL && layer != NULL);
-        outputNode.incomingEdges = incomingEdges;
         //Create a query and associate it to the node
         auto queryHead = createQueryFromNode(outputNode.queryBody,
                 outputNode.rangeQueryBody,
