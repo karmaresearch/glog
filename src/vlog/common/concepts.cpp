@@ -857,11 +857,11 @@ void Program::rewriteCliques() {
 
         Rule &r = oldrules[i];
         bool hasReplaced = false;
+        const auto &head = r.getHeads();
+        auto predid = head[0].getPredicate().getId();
         if (isTransitive(r)) {
             //Ok, predid is marked as transitive.
             //Let's see if it is also symmetric
-            const auto &head = r.getHeads();
-            auto predid = head[0].getPredicate().getId();
             for(size_t j = 0; j < oldrules.size(); ++j) {
                 if (isSymmetric(oldrules[j], predid, true)) {
                     //Replace the rule!
@@ -887,8 +887,6 @@ void Program::rewriteCliques() {
             }
         } else if (isSymmetric(r)) {
             //Check if it is transitive
-            const auto &head = r.getHeads();
-            auto predid = head[0].getPredicate().getId();
             for(size_t j = 0; j < oldrules.size(); ++j) {
                 if (isTransitive(oldrules[j], predid, true)) {
                     //Replace the rule!
@@ -915,6 +913,10 @@ void Program::rewriteCliques() {
         if (!hasReplaced) {
             //Add the rule as is
             addRule(r.getHeads(), r.getBody());
+        } else {
+            LOG(DEBUGL) << "A clique (predicate " <<
+                predid << ", " <<
+                dictPredicates.getRawValue(predid) << ") has been replaced!";
         }
     }
 }

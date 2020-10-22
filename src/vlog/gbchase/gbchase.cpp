@@ -13,25 +13,29 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     edbCheck(edbCheck),
     g(trackProvenance, useCacheRetain, filterQueryCont),
     executor(trackProvenance, g, layer, program),
-    triggers(0) {
-        LOG(INFOL) << "Query cont=" << filterQueryCont <<
-            " EDB check=" << edbCheck;
-        if (rewriteCliques) {
-            //Rewrite rules of the form P(X,Y),P(Y,Z)->P(X,Z) and P(X,Y)->P(Y,X)
-            program->rewriteCliques();
-        }
-
-        if (!program->stratify(stratification, nStratificationClasses)) {
-            LOG(ERRORL) << "Program could not be stratified";
-            throw std::runtime_error("Program could not be stratified");
-        }
-        LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
-
-        rules = program->getAllRules();
-        if (trackProvenance) {
-            g.setRulesProgramLayer(rules.data(), program, &layer);
-        }
+    triggers(0),
+    durationPreparation(0),
+    durationRuleExec(0)/*,
+    durationDebug(0)*/
+{
+    LOG(INFOL) << "Query cont=" << filterQueryCont <<
+        " EDB check=" << edbCheck;
+    if (rewriteCliques) {
+        //Rewrite rules of the form P(X,Y),P(Y,Z)->P(X,Z) and P(X,Y)->P(Y,X)
+        program->rewriteCliques();
     }
+
+    if (!program->stratify(stratification, nStratificationClasses)) {
+        LOG(ERRORL) << "Program could not be stratified";
+        throw std::runtime_error("Program could not be stratified");
+    }
+    LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
+
+    rules = program->getAllRules();
+    if (trackProvenance) {
+        g.setRulesProgramLayer(rules.data(), program, &layer);
+    }
+}
 
 Program *GBChase::getProgram() {
     return program;
@@ -357,6 +361,8 @@ size_t GBChase::executeRulesInStratum(
         const size_t stepStratum,
         size_t &step) {
 
+    std::chrono::system_clock::time_point start =
+        std::chrono::system_clock::now();
     //Identify the rules that can be executed
     std::vector<std::pair<size_t,size_t>> admissibleRules;
     determineAdmissibleRules(
@@ -373,10 +379,12 @@ size_t GBChase::executeRulesInStratum(
         size_t prevstep = p.second;
         prepareRuleExecutionPlans(ruleIdx, prevstep, step, newnodes);
     }
+    durationPreparation +=  std::chrono::system_clock::now() - start;
 
     //Execute the rule associated to the node
     auto nnodes = g.getNNodes();
     auto nodesToProcess = newnodes.size();
+
     LOG(INFOL) << "Nodes to process " << nodesToProcess;
     for(size_t idxNode = 0; idxNode < nodesToProcess; ++idxNode) {
         executeRule(newnodes[idxNode]);
@@ -438,6 +446,9 @@ void GBChase::run() {
     layer.clearContext();
     SegmentCache::getInstance().clear();
     executor.printStats();
+    LOG(INFOL) << "(GBChase) Time stratum preparation (ms): " << durationPreparation.count();
+    LOG(INFOL) << "(GBChase) Time rule exec (ms): " << durationRuleExec.count();
+    //LOG(INFOL) << "(GBChase) Time debug (ms): " << durationDebug.count();
     g.printStats();
     stopRun();
 }
@@ -481,6 +492,9 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     currentPredicate = heads[headIdx].getPredicate().getId();
     auto outputsRule = executor.executeRule(rule, node);
     bool nonempty = false;
+    std::chrono::duration<double, std::milli> execRuntime =
+        std::chrono::system_clock::now() - start;
+    durationRuleExec += execRuntime;
 
     std::chrono::system_clock::time_point starth =
         std::chrono::system_clock::now();
@@ -493,6 +507,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         const bool shouldCleanDuplicates = cleanDuplicates &&
             !outputRule.uniqueTuples;
         nonempty |= !(derivations == NULL || derivations->isEmpty());
+
         if (nonempty) {
             //Keep only the new derivations
             std::shared_ptr<const TGSegment> retainedTuples;
@@ -502,6 +517,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
             } else {
                 retainedTuples = derivations;
             }
+
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
                 nders += retainedTuples->getNRows();
@@ -510,8 +526,13 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                 } else {
                     //Add new nodes
                     if (trackProvenance) {
+                        //std::chrono::system_clock::time_point start_d =
+                        //    std::chrono::system_clock::now();
                         createNewNodesWithProv(node.ruleIdx, node.step,
                                 retainedTuples, derivationNodes);
+                        //std::chrono::duration<double, std::milli> dur_d =
+                        //    std::chrono::system_clock::now() - start_d;
+                        //durationDebug += dur_d;
                     } else {
                         //Add a single node
                         g.addNodeNoProv(currentPredicate, node.ruleIdx,

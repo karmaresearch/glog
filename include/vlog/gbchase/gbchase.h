@@ -38,6 +38,9 @@ class GBChase : public Chase {
 
         //Used for statistics
         size_t triggers;
+        std::chrono::duration<double, std::milli> durationPreparation;
+        std::chrono::duration<double, std::milli> durationRuleExec;
+        //std::chrono::duration<double, std::milli> durationDebug;
 
         void createNewNodesWithProv(
                 size_t ruleIdx, size_t step,
