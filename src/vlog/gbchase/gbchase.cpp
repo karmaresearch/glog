@@ -151,7 +151,9 @@ void GBChase::prepareRuleExecutionPlans(
                 for(size_t i = 0; i < acceptableNodes.size(); ++i) {
                     nCombinations = nCombinations * acceptableNodes[i].size();
                 }
-                if (acceptableNodes.size() > 1 && nCombinations > 10) {
+                if (/*acceptableNodes.size() > 1 &&*/ nCombinations > 10) {
+                    LOG(DEBUGL) << "Skipping checking redundancies " << acceptableNodes.size() <<
+                        " " << nCombinations << " ...";
                     //The combinations are too many to test...
                     newnodes.emplace_back();
                     GBRuleInput &newnode = newnodes.back();
