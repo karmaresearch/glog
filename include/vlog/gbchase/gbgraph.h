@@ -13,26 +13,43 @@ class GBGraph {
         struct GBGraph_Node {
             private:
                 std::shared_ptr<const TGSegment> data;
+
+                bool queryCreated;
+                std::unique_ptr<Literal> queryHead; //Used only for query containment
+                std::vector<Literal> queryBody; //Used only for query containment
+                std::vector<size_t> rangeQueryBody; //Record the boundaries
+                //between the rewritings
+
+                void createQueryFromNode(GBGraph &g);
+
             public:
                 PredId_t predid;
                 size_t ruleIdx;
                 size_t step;
                 std::vector<size_t> incomingEdges;
 
-                std::unique_ptr<Literal> queryHead; //Used only for query containment
-                std::vector<Literal> queryBody; //Used only for query containment
-                std::vector<size_t> rangeQueryBody; //Record the boundaries
-                //between the rewritings
-
-                GBGraph_Node() : ruleIdx(0), step(0) {}
+                GBGraph_Node() : queryCreated(false), ruleIdx(0), step(0) {}
 
                 std::shared_ptr<const TGSegment> getData() const {
                     return data;
                 }
 
+                static std::unique_ptr<Literal> createQueryFromNode(
+                        uint32_t &outputCounter,
+                        std::vector<Literal> &outputQueryBody,
+                        std::vector<size_t> &rangeOutputQueryBody,
+                        const Rule &rule,
+                        const std::vector<size_t> &incomingEdges,
+                        GBGraph &g);
+
+
                 void setData(std::shared_ptr<const TGSegment> data) {
                     this->data = data;
                 }
+
+                const Literal &getQueryHead(GBGraph &g);
+
+                const std::vector<Literal> &getQueryBody(GBGraph &g);
         };
 
         struct CacheRetainEntry {
@@ -64,6 +81,8 @@ class GBGraph {
         std::chrono::duration<double, std::milli> durationQueryContain1;
         std::chrono::duration<double, std::milli> durationQueryContain2;
         std::chrono::duration<double, std::milli> durationEDBCheck;
+
+        //std::chrono::duration<double, std::milli> durationDebug;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -184,12 +203,12 @@ class GBGraph {
 
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
-        std::unique_ptr<Literal> createQueryFromNode(
-                std::vector<Literal> &outputQueryBody,
-                std::vector<size_t> &rangeOutputQueryBody,
-                const Rule &rule,
-                const std::vector<size_t> &incomingEdges,
-                bool incrementCounter = true);
+        /*std::unique_ptr<Literal> createQueryFromNode(
+          std::vector<Literal> &outputQueryBody,
+          std::vector<size_t> &rangeOutputQueryBody,
+          const Rule &rule,
+          const std::vector<size_t> &incomingEdges,
+          bool incrementCounter = true);*/
 
         void addNode(PredId_t predId,
                 size_t ruleIdx,
@@ -212,6 +231,16 @@ class GBGraph {
             }
         }
 
+        const Literal &getNodeHeadQuery(size_t nodeId) {
+            GBGraph_Node &n = nodes[nodeId];
+            return n.getQueryHead(*this);
+        }
+
+        const std::vector<Literal> &getNodeBodyQuery(size_t nodeId) {
+            GBGraph_Node &n = nodes[nodeId];
+            return n.getQueryBody(*this);
+        }
+
     public:
         GBGraph(bool trackProvenance,
                 bool cacheRetainEnabled,
@@ -224,6 +253,7 @@ class GBGraph {
             durationQueryContain1(0),
             durationQueryContain2(0),
             durationEDBCheck(0),
+            /*durationDebug(0),*/
             allRules(NULL),
             layer(NULL), program(NULL) {
                 counterNullValues = RULE_SHIFT(1);
@@ -268,15 +298,6 @@ class GBGraph {
 
         PredId_t getNodePredicate(size_t nodeId) const {
             return getNode(nodeId).predid;
-        }
-
-        const Literal &getNodeHeadQuery(size_t nodeId) const {
-            assert(getNode(nodeId).queryHead.get() != NULL);
-            return *(getNode(nodeId).queryHead.get());
-        }
-
-        const std::vector<Literal> &getNodeBodyQuery(size_t nodeId) const {
-            return getNode(nodeId).queryBody;
         }
 
         bool areNodesWithPredicate(PredId_t predId) const {
@@ -353,6 +374,7 @@ class GBGraph {
                 durationQueryContain.count();
             LOG(INFOL) << "Time EDB check (ms): " <<
                 durationEDBCheck.count();
+            //LOG(INFOL) << "(GBGraph) Time debug (ms): " << durationDebug.count();
         }
 };
 

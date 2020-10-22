@@ -4,19 +4,52 @@
 
 #include <vlog/support.h>
 
-std::unique_ptr<Literal> GBGraph::createQueryFromNode(
+
+const Literal &GBGraph::GBGraph_Node::getQueryHead(GBGraph &g)
+{
+    if (!queryCreated) {
+        createQueryFromNode(g);
+    }
+    return *(queryHead.get());
+}
+
+const std::vector<Literal> &GBGraph::GBGraph_Node::getQueryBody(GBGraph &g)
+{
+    if (!queryCreated) {
+        createQueryFromNode(g);
+    }
+    return queryBody;
+}
+
+void GBGraph::GBGraph_Node::createQueryFromNode(GBGraph &g)
+{
+    auto newHead = GBGraph_Node::createQueryFromNode(
+            g.counterFreshVarsQueryCont,
+            queryBody,
+            rangeQueryBody,
+            g.allRules[ruleIdx],
+            incomingEdges,
+            g);
+    this->queryHead = std::move(newHead);
+    queryCreated = true;
+}
+
+std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
+        uint32_t &counterFreshVars,
         std::vector<Literal> &outputQueryBody,
         std::vector<size_t> &rangeOutputQueryBody,
         const Rule &rule,
         const std::vector<size_t> &incomingEdges,
-        bool incrementCounter) {
+        GBGraph &g)
+{
     assert(rule.getHeads().size() == 1);
-
     //Rewrite the rule with fresh variables
-    auto oldCounter = counterFreshVarsQueryCont;
-    counterFreshVarsQueryCont++;
-    Rule newRule = rule.rewriteWithFreshVars(counterFreshVarsQueryCont);
+    counterFreshVars++;
+    Rule newRule = rule.rewriteWithFreshVars(counterFreshVars);
     auto &newBody = newRule.getBody();
+
+    //const Rule &newRule = rule;
+    //auto &newBody = rule.getBody();
 
     outputQueryBody.clear();
     int idxIncomingEdge = 0;
@@ -31,14 +64,14 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
             assert(incomingEdges.size() > 0);
             size_t incEdge = incomingEdges[idxIncomingEdge++];
             //Get the head atom associated to the node
-            const auto &litIncEdge = getNodeHeadQuery(incEdge);
+            const auto &litIncEdge = g.getNodeHeadQuery(incEdge);
             //Compute the MGU
             std::vector<Substitution> subs;
             auto nsubs = Literal::getSubstitutionsA2B(subs, litIncEdge, l);
             assert(nsubs != -1);
 
             //First replace all remaining variables with fresh ones
-            const auto &bodyIncEdge = getNodeBodyQuery(incEdge);
+            const auto &bodyIncEdge = g.getNodeBodyQuery(incEdge);
             std::set<uint32_t> av;
             for(auto &litBody : bodyIncEdge) {
                 for(size_t i = 0; i < litBody.getTupleSize(); ++i) {
@@ -57,7 +90,7 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
                 }
                 if (!found) {
                     subs.push_back(Substitution(v, VTerm(
-                                    counterFreshVarsQueryCont++, 0)));
+                                    counterFreshVars++, 0)));
                 }
             }
 
@@ -67,11 +100,6 @@ std::unique_ptr<Literal> GBGraph::createQueryFromNode(
         }
     }
     assert(idxIncomingEdge == incomingEdges.size());
-
-    if (!incrementCounter)
-        counterFreshVarsQueryCont = oldCounter;
-
-
     return std::unique_ptr<Literal>(new Literal(newRule.getFirstHead()));
 }
 
@@ -158,39 +186,44 @@ void GBGraph::addNodeProv(PredId_t predid,
         if (isTmpNode(n))
             throw 10;
 
-    outputNode.incomingEdges = incomingEdges;
-    if (queryContEnabled) {
-        assert(allRules != NULL && program != NULL && layer != NULL);
-        //Create a query and associate it to the node
-        auto queryHead = createQueryFromNode(outputNode.queryBody,
-                outputNode.rangeQueryBody,
-                allRules[ruleIdx],
-                incomingEdges);
+    /*    if (queryContEnabled) {
+          assert(allRules != NULL && program != NULL && layer != NULL);
+    //Create a query and associate it to the node
+    std::chrono::system_clock::time_point start_d = std::chrono::system_clock::now();
+    auto queryHead = createQueryFromNode(outputNode.queryBody,
+    outputNode.rangeQueryBody,
+    allRules[ruleIdx],
+    incomingEdges);
+    std::chrono::duration<double, std::milli> dur_d =
+    std::chrono::system_clock::now() - start_d;
+    LOG(INFOL) << "Creating query (ms) " << dur_d.count();
+    durationDebug += dur_d;
 
 #ifdef DEBUG
-        LOG(INFOL) << "Node " << nodeId << " created with rule " <<
-            allRules[ruleIdx].tostring(program, layer);
-        LOG(INFOL) << "     QH: " << queryHead->tostring(program, layer);
-        std::string nodes = "";
-        for(auto i : incomingEdges) {
-            nodes += " " + std::to_string(i);
-        }
-        LOG(INFOL) << "     NO:" << nodes;
-        std::string qb = "";
-        for(auto &l : outputNode.queryBody) {
-            qb += " " + l.tostring(program, layer);
-        }
-        LOG(INFOL) << "     QB:" << qb;
+LOG(INFOL) << "Node " << nodeId << " created with rule " <<
+allRules[ruleIdx].tostring(program, layer);
+LOG(INFOL) << "     QH: " << queryHead->tostring(program, layer);
+std::string nodes = "";
+for(auto i : incomingEdges) {
+nodes += " " + std::to_string(i);
+}
+LOG(INFOL) << "     NO:" << nodes;
+std::string qb = "";
+for(auto &l : outputNode.queryBody) {
+qb += " " + l.tostring(program, layer);
+}
+LOG(INFOL) << "     QB:" << qb;
 #endif
 
-        outputNode.queryHead = std::move(queryHead);
-        assert(outputNode.queryHead.get() != NULL);
-    }
+outputNode.queryHead = std::move(queryHead);
+assert(outputNode.queryHead.get() != NULL);
+}*/
 
+    outputNode.incomingEdges = incomingEdges;
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
-        data->getNRows();
-}
+    data->getNRows();
+    }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,
         std::shared_ptr<const TGSegment> data) {

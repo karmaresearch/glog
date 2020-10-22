@@ -51,8 +51,14 @@ bool GBGraph::isRedundant(size_t ruleIdx,
     //Create a conjunctive query for the node we would like to add
     std::vector<Literal> outputQueryBody;
     std::vector<size_t> rangesOutputQueryBody;
-    const auto outputQueryHead = createQueryFromNode(outputQueryBody,
-            rangesOutputQueryBody, rule, bodyNodeIdxs, false);
+    uint32_t outputCounter = counterFreshVarsQueryCont;
+    const auto outputQueryHead = GBGraph::GBGraph_Node::createQueryFromNode(
+            outputCounter,
+            outputQueryBody,
+            rangesOutputQueryBody,
+            rule,
+            bodyNodeIdxs,
+            *this);
 
 #ifdef DEBUG
     std::string query = "";
