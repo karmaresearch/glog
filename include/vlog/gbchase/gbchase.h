@@ -47,6 +47,19 @@ class GBChase : public Chase {
                 std::shared_ptr<const TGSegment> seg,
                 std::vector<std::shared_ptr<Column>> &provenance);
 
+        void prepareRuleExecutionPlans_queryContainment(
+                std::vector<GBRuleInput> &newnodes,
+                std::vector<std::vector<size_t>> &acceptableNodes,
+                const size_t ruleIdx,
+                const size_t step);
+
+        void prepareRuleExecutionPlans_SNE(
+                const std::vector<std::pair<bool,std::vector<size_t>>> nodesForRule,
+                size_t ruleIdx,
+                size_t step,
+                size_t prevstep,
+                std::vector<GBRuleInput> &newnodes);
+
     protected:
         std::pair<bool, size_t> determineAdmissibleRule(
                 const size_t &ruleIdx,

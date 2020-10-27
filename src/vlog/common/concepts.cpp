@@ -762,15 +762,10 @@ std::string Rule::toprettystring(Program * program, EDBLayer *db, bool replaceCo
     return output;
 }
 
-bool isTransitive(Rule &r,
-        PredId_t restrictPred = 0,
-        bool restrictCheck = false) {
-    const auto &head = r.getHeads();
-    const auto &body = r.getBody();
+bool Rule::isTransitive() const {
+    const auto &head = getHeads();
+    const auto &body = getBody();
     auto predid = head[0].getPredicate().getId();
-    if (restrictCheck && predid != restrictPred) {
-        return false;
-    }
 
     if (head.size() == 1 &&
             head[0].getTupleSize() == 2 &&
@@ -859,7 +854,7 @@ void Program::rewriteCliques() {
         bool hasReplaced = false;
         const auto &head = r.getHeads();
         auto predid = head[0].getPredicate().getId();
-        if (isTransitive(r)) {
+        if (r.isTransitive()) {
             //Ok, predid is marked as transitive.
             //Let's see if it is also symmetric
             for(size_t j = 0; j < oldrules.size(); ++j) {
@@ -888,7 +883,8 @@ void Program::rewriteCliques() {
         } else if (isSymmetric(r)) {
             //Check if it is transitive
             for(size_t j = 0; j < oldrules.size(); ++j) {
-                if (isTransitive(oldrules[j], predid, true)) {
+                auto headPredid = oldrules[j].getHeads()[0].getPredicate().getId();
+                if (headPredid == predid && oldrules[j].isTransitive()) {
                     //Replace the rule!
                     std::string mySpecialEDBPred = "VLOG_CLIQUE_" +
                         std::to_string(predid);

@@ -16,7 +16,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     triggers(0),
     durationPreparation(0),
     durationRuleExec(0)/*,
-    durationDebug(0)*/
+                         durationDebug(0)*/
 {
     LOG(INFOL) << "Query cont=" << filterQueryCont <<
         " EDB check=" << edbCheck;
@@ -76,6 +76,199 @@ bool lowerStrat(const Rule &rule, int currentStrat,
     return true;
 }
 
+void GBChase::prepareRuleExecutionPlans_queryContainment(
+        std::vector<GBRuleInput> &newnodes,
+        std::vector<std::vector<size_t>> &acceptableNodes,
+        const size_t ruleIdx,
+        const size_t step)
+{
+    size_t nCombinations = 1;
+    for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+        nCombinations = nCombinations * acceptableNodes[i].size();
+    }
+    if (/*acceptableNodes.size() > 1 &&*/ nCombinations > 10) {
+        LOG(DEBUGL) << "Skipping checking redundancies " << acceptableNodes.size() <<
+            " " << nCombinations << " ...";
+        //The combinations are too many to test...
+        newnodes.emplace_back();
+        GBRuleInput &newnode = newnodes.back();
+        newnode.ruleIdx = ruleIdx;
+        newnode.step = step;
+        newnode.incomingEdges = acceptableNodes;
+    } else {
+        size_t filteredCombinations = 0;
+        size_t redundantFreeCombinations = 0;
+        std::vector<int> processedCombs(acceptableNodes.size());
+        std::vector<size_t> currentComb(acceptableNodes.size());
+        for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+            processedCombs[i] = -1;
+        }
+        size_t currentIdx = 0;
+
+        //Remember temporary nodes
+        std::map<size_t, std::vector<size_t>> replacements;
+
+        //Check all combinations
+        while (true) {
+            if (processedCombs[currentIdx] ==
+                    acceptableNodes[currentIdx].size() - 1) {
+                //Go back one level
+                if (currentIdx == 0) {
+                    break;
+                } else {
+                    processedCombs[currentIdx] = -1;
+                    currentIdx--;
+                }
+            } else {
+                processedCombs[currentIdx]++;
+                auto idx = processedCombs[currentIdx];
+                currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
+                //Am I at the last? Then check
+                if (currentIdx == acceptableNodes.size() - 1) {
+                    //Do the check!
+                    bool rFree = false;
+                    if (g.isRedundant(ruleIdx, currentComb,
+                                edbCheck, rFree)) {
+                        filteredCombinations++;
+                    } else {
+                        //Take the tmp nodes into account
+                        for(int i = 0; i < currentComb.size(); ++i) {
+                            auto nodeId = currentComb[i];
+                            if (g.isTmpNode(nodeId)) {
+                                auto originalNode = acceptableNodes[
+                                    i][processedCombs[i]];
+                                if (!replacements.count(originalNode)) {
+                                    replacements.insert(
+                                            std::make_pair(originalNode,
+                                                std::vector<size_t>()));
+                                }
+                                replacements[originalNode].push_back(
+                                        nodeId);
+                                currentComb[i] = originalNode;
+                            }
+                        }
+                    }
+                    if (rFree) {
+                        redundantFreeCombinations++;
+                    }
+                } else {
+                    currentIdx++;
+                }
+            }
+        }
+
+        if (filteredCombinations == nCombinations) {
+            //All combinations are redundant, skip
+        } else {
+            //Use the temporary nodes
+            if (!replacements.empty()) {
+                std::map<size_t, size_t> finalReplacementMap;
+                for(auto &p : replacements) {
+                    assert(p.second.size() > 0);
+                    if (p.second.size() == 1) {
+                        finalReplacementMap.insert(std::make_pair(
+                                    p.first, p.second[0]));
+                    } else {
+                        size_t idx = 0;
+                        size_t card = ~0ul;
+                        for(size_t i = 0; i < p.second.size(); ++i) {
+                            auto nodeId = p.second[i];
+                            if (g.getNodeSize(nodeId) < card) {
+                                idx = i;
+                                card = g.getNodeSize(nodeId);
+                            }
+                        }
+                        finalReplacementMap.insert(std::make_pair(
+                                    p.first, p.second[idx]));
+                    }
+                }
+                //Do the replacement
+                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
+                    for(size_t j = 0; j < acceptableNodes[i].size();
+                            ++j) {
+                        auto n = acceptableNodes[i][j];
+                        if (finalReplacementMap.count(n)) {
+                            acceptableNodes[i][j] =
+                                finalReplacementMap[n];
+                        }
+                    }
+                }
+            }
+
+            newnodes.emplace_back();
+            GBRuleInput &newnode = newnodes.back();
+            newnode.ruleIdx = ruleIdx;
+            newnode.step = step;
+            newnode.incomingEdges = acceptableNodes;
+            newnode.retainFree = false;
+        }
+    }
+}
+
+void GBChase::prepareRuleExecutionPlans_SNE(
+        const std::vector<std::pair<bool, std::vector<size_t>>> nodesForRule,
+        size_t ruleIdx,
+        size_t step,
+        size_t prevstep,
+        std::vector<GBRuleInput> &newnodes)
+{
+    for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
+        if (nodesForRule[pivot].first) { //Is negated, skip
+            continue;
+        }
+        //First consider only combinations where at least one node
+        //is derived in the previous step (semi-naive evaluation)
+        std::vector<std::vector<size_t>> acceptableNodes;
+        bool acceptableNodesEmpty = false;
+        for(int j = 0; j < nodesForRule.size(); ++j) {
+            std::vector<size_t> selection;
+            bool isNegated = nodesForRule[j].first;
+            auto &nodes = nodesForRule[j].second;
+            if (j < pivot && !isNegated) {
+                for(auto &nodeId : nodes) {
+                    auto nodeStep = g.getNodeStep(nodeId);
+                    if (nodeStep < prevstep) {
+                        selection.push_back(nodeId);
+                    } else {
+                        break;
+                    }
+                }
+            } else if (j == pivot && !isNegated) {
+                for(auto &nodeId : nodes) {
+                    auto nodeStep = g.getNodeStep(nodeId);
+                    if (nodeStep >= prevstep) {
+                        selection.push_back(nodeId);
+                    }
+                }
+            } else {
+                selection = nodes;
+            }
+            if (selection.empty()) {
+                acceptableNodesEmpty = true;
+                break;
+            }
+            acceptableNodes.push_back(selection);
+        }
+
+        if (acceptableNodesEmpty) {
+            continue;
+        }
+
+        if (filterQueryCont) {
+            prepareRuleExecutionPlans_queryContainment(newnodes,
+                    acceptableNodes,
+                    ruleIdx,
+                    step);
+        } else {
+            newnodes.emplace_back();
+            GBRuleInput &newnode = newnodes.back();
+            newnode.ruleIdx = ruleIdx;
+            newnode.step = step;
+            newnode.incomingEdges = acceptableNodes;
+        }
+    }
+}
+
 void GBChase::prepareRuleExecutionPlans(
         const size_t &ruleIdx,
         const size_t prevstep,
@@ -104,192 +297,136 @@ void GBChase::prepareRuleExecutionPlans(
         newnode.step = step;
         newnode.incomingEdges = std::vector<std::vector<size_t>>();
     } else {
-        for(int pivot = 0; pivot < nodesForRule.size(); ++pivot) {
-            if (nodesForRule[pivot].first) { //Is negated, skip
-                continue;
+        if (rule.isTransitive()) {
+            /*LOG(WARNL) << "There is a transitive rule!!!" << ruleIdx;
+              bool isOptimizationApplicable = true;
+              size_t minStep = ~0ul;
+              assert(nodesForRule.size() == 2);
+              for(size_t i = 0;
+              i < nodesForRule.size() && isOptimizationApplicable;
+              ++i) {
+              if (nodesForRule[i].first) { //is negated
+              isOptimizationApplicable = false;
+              break;
+              }
+              for (auto &nodeId : nodesForRule[i].second) {
+              auto nodeStep = g.getNodeStep(nodeId);
+              auto nodeRuleIdx = g.getNodeRuleIdx(nodeId);
+              if (nodeRuleIdx != ruleIdx) {
+              if (minStep == ~0ul) {
+              minStep = nodeStep;
+              } else if (minStep != nodeStep) {
+              isOptimizationApplicable = false;
+              break;
+              }
+              }
+              }
+              }
+              isOptimizationApplicable = isOptimizationApplicable &&
+              minStep != ~0ul;
+
+              if (!isOptimizationApplicable) {
+              LOG(WARNL) << "Missed optimization!";
+              prepareRuleExecutionPlans_SNE(nodesForRule,
+              ruleIdx, step, prevstep, newnodes);
+              } else {
+              size_t minStepLeft = prevstep;
+              size_t minStepRight = minStep;
+              std::vector<std::vector<size_t>> acceptableNodes;
+              acceptableNodes.resize(nodesForRule.size());
+              for(size_t i = 0; i < nodesForRule.size(); ++i) {
+              for (auto &nodeId : nodesForRule[i].second) {
+              if (i == 0) {
+              if (g.getNodeStep(nodeId) >= minStepLeft) {
+              acceptableNodes[i].push_back(nodeId);
+              }
+              } else { //i==1
+              if (g.getNodeStep(nodeId) == minStepRight) {
+              acceptableNodes[i].push_back(nodeId);
+              }
+              }
+              }
+              }
+              if (!acceptableNodes[0].empty() &&
+              !acceptableNodes[1].empty()) {
+              newnodes.emplace_back();
+              GBRuleInput &newnode = newnodes.back();
+              newnode.ruleIdx = ruleIdx;
+              newnode.step = step;
+              newnode.incomingEdges = acceptableNodes;
+              }
+              }
+              } else {
+              prepareRuleExecutionPlans_SNE(nodesForRule,
+              ruleIdx, step, prevstep, newnodes);
+              }*/
+            bool isOptimizationApplicable = true;
+        assert(nodesForRule.size() == 2);
+        for(size_t i = 0; i < nodesForRule.size(); ++i) {
+            if (nodesForRule[i].first) { //is negated
+                isOptimizationApplicable = false;
+                break;
             }
-            //First consider only combinations where at least one node
-            //is derived in the previous step
-            std::vector<std::vector<size_t>> acceptableNodes;
-            bool acceptableNodesEmpty = false;
-            for(int j = 0; j < nodesForRule.size(); ++j) {
-                std::vector<size_t> selection;
-                bool isNegated = nodesForRule[j].first;
-                auto &nodes = nodesForRule[j].second;
-                if (j < pivot && !isNegated) {
-                    for(auto &nodeId : nodes) {
-                        auto nodeStep = g.getNodeStep(nodeId);
-                        if (nodeStep < prevstep) {
-                            selection.push_back(nodeId);
-                        } else {
-                            break;
-                        }
+        }
+        if (!isOptimizationApplicable) {
+            prepareRuleExecutionPlans_SNE(nodesForRule,
+                    ruleIdx, step, prevstep, newnodes);
+        } else {
+            //Get the nodes not produced by the transitive rule
+            std::vector<size_t> leftSidePrevStep;
+            std::vector<size_t> leftSideBeforePrevStep;
+            for (auto &nodeId : nodesForRule[0].second) {
+                auto nodeRuleIdx = g.getNodeRuleIdx(nodeId);
+                if (nodeRuleIdx != ruleIdx) {
+                    auto nodeStep = g.getNodeStep(nodeId);
+                    if (nodeStep == prevstep) {
+                        leftSidePrevStep.push_back(nodeId);
+                    } else {
+                        leftSideBeforePrevStep.push_back(nodeId);
                     }
-                } else if (j == pivot && !isNegated) {
-                    for(auto &nodeId : nodes) {
-                        auto nodeStep = g.getNodeStep(nodeId);
-                        if (nodeStep >= prevstep) {
-                            selection.push_back(nodeId);
-                        }
-                    }
-                } else {
-                    selection = nodes;
                 }
-                if (selection.empty()) {
-                    acceptableNodesEmpty = true;
-                    break;
-                }
-                acceptableNodes.push_back(selection);
             }
 
-            if (acceptableNodesEmpty) {
-                continue;
-            }
-
-            if (filterQueryCont) {
-                size_t nCombinations = 1;
-                for(size_t i = 0; i < acceptableNodes.size(); ++i) {
-                    nCombinations = nCombinations * acceptableNodes[i].size();
+            if (leftSideBeforePrevStep.size() > 0) {
+                std::vector<std::vector<size_t>> acceptableNodes;
+                acceptableNodes.resize(nodesForRule.size());
+                acceptableNodes[0] = leftSideBeforePrevStep;
+                for (auto &nodeId : nodesForRule[1].second) {
+                    if (g.getNodeStep(nodeId) == prevstep) {
+                        acceptableNodes[1].push_back(nodeId);
+                    }
                 }
-                if (/*acceptableNodes.size() > 1 &&*/ nCombinations > 10) {
-                    LOG(DEBUGL) << "Skipping checking redundancies " << acceptableNodes.size() <<
-                        " " << nCombinations << " ...";
-                    //The combinations are too many to test...
+                if (!acceptableNodes[0].empty() &&
+                        !acceptableNodes[1].empty()) {
                     newnodes.emplace_back();
                     GBRuleInput &newnode = newnodes.back();
                     newnode.ruleIdx = ruleIdx;
                     newnode.step = step;
                     newnode.incomingEdges = acceptableNodes;
-                } else {
-                    size_t filteredCombinations = 0;
-                    size_t redundantFreeCombinations = 0;
-                    std::vector<int> processedCombs(acceptableNodes.size());
-                    std::vector<size_t> currentComb(acceptableNodes.size());
-                    for(size_t i = 0; i < acceptableNodes.size(); ++i) {
-                        processedCombs[i] = -1;
-                    }
-                    size_t currentIdx = 0;
-
-                    //Remember temporary nodes
-                    std::map<size_t, std::vector<size_t>> replacements;
-
-                    //Check all combinations
-                    while (true) {
-                        if (processedCombs[currentIdx] ==
-                                acceptableNodes[currentIdx].size() - 1) {
-                            //Go back one level
-                            if (currentIdx == 0) {
-                                break;
-                            } else {
-                                processedCombs[currentIdx] = -1;
-                                currentIdx--;
-                            }
-                        } else {
-                            processedCombs[currentIdx]++;
-                            auto idx = processedCombs[currentIdx];
-                            currentComb[currentIdx] = acceptableNodes[currentIdx][idx];
-                            //Am I at the last? Then check
-                            if (currentIdx == acceptableNodes.size() - 1) {
-                                //Do the check!
-                                bool rFree = false;
-                                if (g.isRedundant(ruleIdx, currentComb,
-                                            edbCheck, rFree)) {
-                                    filteredCombinations++;
-                                } else {
-                                    //Take the tmp nodes into account
-                                    for(int i = 0; i < currentComb.size(); ++i) {
-                                        auto nodeId = currentComb[i];
-                                        if (g.isTmpNode(nodeId)) {
-                                            auto originalNode = acceptableNodes[
-                                                i][processedCombs[i]];
-                                            if (!replacements.count(originalNode)) {
-                                                replacements.insert(
-                                                        std::make_pair(originalNode,
-                                                            std::vector<size_t>()));
-                                            }
-                                            replacements[originalNode].push_back(
-                                                    nodeId);
-                                            currentComb[i] = originalNode;
-                                        }
-                                    }
-                                }
-                                if (rFree) {
-                                    redundantFreeCombinations++;
-                                }
-                            } else {
-                                currentIdx++;
-                            }
-                        }
-                    }
-
-                    if (filteredCombinations == nCombinations) {
-                        //All combinations are redundant, skip
-                    } else {
-                        if (filteredCombinations != 0) {
-                            //LOG(WARNL) << "FIXME: (gbchase) Not (yet) implemented"
-                            //    << filteredCombinations << " " << nCombinations <<
-                            //    " rule " << ruleIdx;
-                        }
-                        //Use the temporary nodes
-                        if (!replacements.empty()) {
-                            std::map<size_t, size_t> finalReplacementMap;
-                            for(auto &p : replacements) {
-                                assert(p.second.size() > 0);
-                                if (p.second.size() == 1) {
-                                    finalReplacementMap.insert(std::make_pair(
-                                                p.first, p.second[0]));
-                                } else {
-                                    size_t idx = 0;
-                                    size_t card = ~0ul;
-                                    for(size_t i = 0; i < p.second.size(); ++i) {
-                                        auto nodeId = p.second[i];
-                                        if (g.getNodeSize(nodeId) < card) {
-                                            idx = i;
-                                            card = g.getNodeSize(nodeId);
-                                        }
-                                    }
-                                    finalReplacementMap.insert(std::make_pair(
-                                                p.first, p.second[idx]));
-                                }
-                            }
-                            //Do the replacement
-                            for(size_t i = 0; i < acceptableNodes.size(); ++i) {
-                                for(size_t j = 0; j < acceptableNodes[i].size();
-                                        ++j) {
-                                    auto n = acceptableNodes[i][j];
-                                    if (finalReplacementMap.count(n)) {
-                                        acceptableNodes[i][j] =
-                                            finalReplacementMap[n];
-                                    }
-                                }
-                            }
-                        }
-
-                        newnodes.emplace_back();
-                        GBRuleInput &newnode = newnodes.back();
-                        newnode.ruleIdx = ruleIdx;
-                        newnode.step = step;
-                        newnode.incomingEdges = acceptableNodes;
-                        //retainFree is bugged. Duplicates are still possible
-                        //If retainFree == true, I guarantee that there are no duplicates
-                        //w.r.t. nodes produced in the previous iteration, not other nodes in the current one
-                        //If I want to re-enable it, then I must filter if other nodes have been derived in the same step
-                        //if (redundantFreeCombinations == nCombinations) {
-                        //    newnode.retainFree = true;
-                        //} else {
-                        newnode.retainFree = false;
-                        //}
-                    }
                 }
-            } else {
-                newnodes.emplace_back();
-                GBRuleInput &newnode = newnodes.back();
-                newnode.ruleIdx = ruleIdx;
-                newnode.step = step;
-                newnode.incomingEdges = acceptableNodes;
+            }
+            if (leftSidePrevStep.size() > 0) {
+                std::vector<std::vector<size_t>> acceptableNodes;
+                acceptableNodes.resize(nodesForRule.size());
+                acceptableNodes[0] = leftSidePrevStep;
+                for (auto &nodeId : nodesForRule[1].second) {
+                    acceptableNodes[1].push_back(nodeId);
+                }
+                if (!acceptableNodes[0].empty() &&
+                        !acceptableNodes[1].empty()) {
+                    newnodes.emplace_back();
+                    GBRuleInput &newnode = newnodes.back();
+                    newnode.ruleIdx = ruleIdx;
+                    newnode.step = step;
+                    newnode.incomingEdges = acceptableNodes;
+                }
             }
         }
+    } else {
+        prepareRuleExecutionPlans_SNE(nodesForRule,
+                ruleIdx, step, prevstep, newnodes);
     }
+}
 }
 
 std::pair<bool, size_t> GBChase::determineAdmissibleRule(
@@ -564,7 +701,6 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         stats.timems_retain = retainRuntime.count();
         stats.nbdyatoms = executor.getStat(StatType::N_BDY_ATOMS);
         saveStatistics(stats);
-
     }
 
     return nonempty;

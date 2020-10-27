@@ -402,6 +402,8 @@ class Rule {
         existential(r.existential), egd(r.egd) {
         }
 
+        bool isTransitive() const;
+
         Rule createAdornment(uint8_t headAdornment) const;
 
         bool isRecursive() const {

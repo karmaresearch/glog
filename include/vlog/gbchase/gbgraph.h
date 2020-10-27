@@ -276,6 +276,10 @@ class GBGraph {
             return getNode(nodeId).step;
         }
 
+        size_t getNodeRuleIdx(size_t nodeId) const {
+            return getNode(nodeId).ruleIdx;
+        }
+
         void setRulesProgramLayer(Rule *allRules,
                 Program *program,
                 EDBLayer *layer) {
