@@ -223,7 +223,7 @@ class TGSegmentImpl : public TGSegment {
             const auto nrows = nodes.size() / ncols;
             idxs.resize(nrows);
             for(size_t i = 0; i < nrows; ++i) idxs[i] = i;
-            std::sort(idxs.begin(), idxs.end(), ProvSorter(nodes.data(), ncols));
+            std::stable_sort(idxs.begin(), idxs.end(), ProvSorter(nodes.data(), ncols));
             return shuffle(idxs);
         }
 
