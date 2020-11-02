@@ -66,7 +66,7 @@ class GBSegmentInserter {
         virtual ~GBSegmentInserter() {}
 };
 
-template<class K, typename V>
+template<class K, typename V, typename H>
 class GBSegmentInserterImpl : public GBSegmentInserter {
     protected:
         const size_t card;
@@ -74,7 +74,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
         bool shouldRemoveDuplicates;
         size_t checkDuplicatesAfter;
         bool useDuplicateMap;
-        google::dense_hash_set<V> novelTuples;
+        google::dense_hash_set<V,H> novelTuples;
         virtual bool isInMap(Term_t *row) = 0;
         virtual void populateMap() = 0;
 
@@ -153,7 +153,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
 };
 
 class GBSegmentInserterUnary :
-    public GBSegmentInserterImpl<std::vector<Term_t>,Term_t>
+    public GBSegmentInserterImpl<std::vector<Term_t>,Term_t,std::hash<Term_t>>
 {
     protected:
         void addRow(Term_t *row) {
@@ -197,9 +197,19 @@ class GBSegmentInserterUnary :
         }
 };
 
+struct PairTermHash
+{
+	template <class T1, class T2>
+	std::size_t operator() (const std::pair<T1, T2> &pair) const
+	{
+		return std::hash<T1>()(pair.first) ^ std::hash<T2>()(pair.second);
+	}
+};
+
 class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                                 std::vector<std::pair<Term_t, Term_t>>,
-                                std::pair<Term_t, Term_t>>
+                                std::pair<Term_t, Term_t>,
+                                PairTermHash>
 {
     private:
         bool secondFieldConstant;
@@ -298,7 +308,8 @@ struct BinWithDoubleProv {
 
 class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
                                               std::vector<BinWithDoubleProv>,
-                                              std::pair<Term_t, Term_t>>
+                                              std::pair<Term_t, Term_t>,
+                                              PairTermHash>
 {
     private:
         bool node1Constant;
