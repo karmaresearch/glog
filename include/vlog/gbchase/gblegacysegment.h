@@ -50,6 +50,11 @@ class TGSegmentLegacy : public TGSegment {
             return f_isSorted && sortedField == 0;
         }
 
+        std::vector<
+            std::shared_ptr<const TGSegment>> sliceByNodes(
+                    size_t startNodeIdx,
+                    std::vector<size_t> &provNodes) const;
+
         std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const;

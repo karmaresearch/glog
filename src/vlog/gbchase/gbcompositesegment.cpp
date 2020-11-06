@@ -14,14 +14,33 @@ size_t CompositeTGSegment::getNRows() const {
     assert(nodes.size() > 0);
     assert(copyVarPos.size() == 1 || copyVarPos[0] != copyVarPos[1]);
     if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns()) {
-        LOG(ERRORL) << "Case not supported";
+        if (nodes.size() == 1) {
+            auto nodeData = g.getNodeData(nodes[0]);
+            if (copyVarPos.size() == 2) {
+                std::vector<std::shared_ptr<Column>> out;
+                std::vector<int> columns;
+                columns.push_back(copyVarPos[0]);
+                columns.push_back(copyVarPos[1]);
+                nodeData->projectTo(columns, out);
+                if (out[0]->isEDB() && out[1]->isEDB()) {
+                    EDBColumn *c1 = (EDBColumn*) out[0].get();
+                    EDBColumn *c2 = (EDBColumn*) out[1].get();
+                    EDBLayer &layer = c1->getEDBLayer();
+                    const Literal &l1 = c1->getLiteral();
+                    const Literal &l2 = c2->getLiteral();
+                    auto card = layer.getCardinality(l1);
+                    return card;
+                }
+            }
+        }
+        LOG(ERRORL) << "Case not yet implemented";
         throw 10;
+    } else {
+        size_t nrows = 0;
+        for(auto n : nodes)
+            nrows += g.getNodeSize(n);
+        return nrows;
     }
-
-    size_t nrows = 0;
-    for(auto n : nodes)
-        nrows += g.getNodeSize(n);
-    return nrows;
 }
 
 std::unique_ptr<TGSegmentItr> CompositeTGSegment::iterator(

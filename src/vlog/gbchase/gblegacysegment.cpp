@@ -16,6 +16,40 @@ bool TGSegmentLegacy::isSortedBy(std::vector<uint8_t> &fields) const {
     return (f_isSorted && sortedField == field);
 }
 
+std::vector<std::shared_ptr<const TGSegment>> TGSegmentLegacy::sliceByNodes(
+        size_t startNodeIdx,
+        std::vector<size_t> &provNodes) const
+{
+    std::vector<std::shared_ptr<const TGSegment>> out;
+    size_t startidx = 0;
+    auto itr = iterator();
+    size_t i = 0;
+    size_t currentNode = ~0ul;
+    while (itr->hasNext()) {
+        itr->next();
+        bool hasChanged = i == 0 || currentNode != itr->getNodeId();
+        if (hasChanged) {
+            if (startidx < i) {
+                //Create a new node
+                provNodes.push_back(currentNode);
+                auto dataToAdd = slice(
+                        startNodeIdx++, startidx, i);
+                out.push_back(dataToAdd);
+            }
+            startidx = i;
+            currentNode = itr->getNodeId();
+        }
+        i++;
+    }
+    //Copy the last segment
+    if (startidx < i) {
+        auto dataToAdd = slice(startNodeIdx++, startidx, i);
+        provNodes.push_back(currentNode);
+        out.push_back(dataToAdd);
+    }
+    return out;
+}
+
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortBy(std::vector<uint8_t> &fields) const {
     if (f_isSorted && (fields.size() == 0 || (fields.size() == 1 && fields[0] == 0))) {
         return std::shared_ptr<TGSegment>(new TGSegmentLegacy(columns, nrows, true, 0, trackProvenance));

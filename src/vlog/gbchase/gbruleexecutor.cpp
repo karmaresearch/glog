@@ -98,8 +98,15 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
     } else { //More than 2
         std::vector<std::shared_ptr<Column>> columns;
         tuples->projectTo(posKnownVariables, columns);
+        bool remainSorted = true;
+        for(int i = 0; i < posKnownVariables.size(); ++i) {
+            if (posKnownVariables[i] != i) {
+                remainSorted = false;
+                break;
+            }
+        }
         return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
-                    tuples->getNRows(), false, 0, trackProvenance));
+                    tuples->getNRows(), remainSorted, 0, trackProvenance));
     }
 }
 
@@ -310,27 +317,27 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
 
     auto &table = edbTables[p];
     /*if (table->canChange()) {
-        //I cannot use structure sharing because I might get duplicates.
-        //Force a materialization of the table in main memory
-        if (atom.getTupleSize() == 2) {
-            std::vector<std::pair<Term_t, Term_t>> tuples;
-            auto itr = table->getIterator(atom);
-            while (itr->hasNext()) {
-                itr->next();
-                tuples.push_back(std::make_pair(itr->getElementAt(0),
-                            itr->getElementAt(1)));
-            }
-            if (trackProvenance) {
-                return std::shared_ptr<const TGSegment>(
-                        new BinaryWithConstProvTGSegment(tuples, ~0ul, false, 0));
-            } else {
-                LOG(ERRORL) << "Not supported";
-                throw 10;
-            }
-        } else {
-            LOG(ERRORL) << "Not supported";
-            throw 10;
-        }
+    //I cannot use structure sharing because I might get duplicates.
+    //Force a materialization of the table in main memory
+    if (atom.getTupleSize() == 2) {
+    std::vector<std::pair<Term_t, Term_t>> tuples;
+    auto itr = table->getIterator(atom);
+    while (itr->hasNext()) {
+    itr->next();
+    tuples.push_back(std::make_pair(itr->getElementAt(0),
+    itr->getElementAt(1)));
+    }
+    if (trackProvenance) {
+    return std::shared_ptr<const TGSegment>(
+    new BinaryWithConstProvTGSegment(tuples, ~0ul, false, 0));
+    } else {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+    }
+    } else {
+    LOG(ERRORL) << "Not supported";
+    throw 10;
+    }
     }*/
 
     //I can apply structure sharing safetly
@@ -1222,11 +1229,11 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
                 nsharedvars++;
         shouldDelDupl = nsharedvars != varsInBody.size();
 
-
         uint32_t prevVar = -1;
         size_t posInBody = 0;
+        int i = 0;
         bool sortOk = true;
-        for(int i = 0; i < th.getSize(); ++i) {
+        for(; i < th.getSize(); ++i) {
             if (th.get(i).isVariable() && th.get(i).getId() != prevVar) {
                 if (varsInBody.count(th.get(i).getId())) {
                     if (listVarsInBody[posInBody] !=
@@ -1239,13 +1246,18 @@ void GBRuleExecutor::shouldSortDelDupls(const Literal &head,
                             break;
                     }
                     prevVar = th.get(i).getId();
+                } else {
+                    //There is an existential variable. Force sorting...
+                    sortOk = false;
+                    break;
                 }
             }
         }
+        //This check verifies whether there are some trailing existential
+        //variables (which require sorting)
+        sortOk = sortOk && i == th.getSize();
         shouldSort = (!sortOk) ||
             (bodyNodes.size() > 0 && bodyNodes[0].size() > 1);
-
-
     } else {
         shouldSort = shouldDelDupl = true;
     }
