@@ -116,9 +116,15 @@ class TGSegment {
         }
 
         virtual void appendTo(const std::vector<int> &posFields,
-                std::vector<std::vector<Term_t>> &out) const {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
+                std::vector<std::vector<Term_t>> &out,
+                bool withProv = false) const {
+            if (posFields.size() == 0) {
+                assert(out.size() == 1);
+                out[0].push_back(getNodeId());
+            } else {
+                LOG(ERRORL) << "Not implemented";
+                throw 10;
+            }
         }
 
         virtual void projectTo(uint8_t colPos, std::vector<Term_t> &out) const {

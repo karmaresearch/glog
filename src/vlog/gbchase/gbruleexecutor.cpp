@@ -1574,9 +1574,12 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
 #ifdef DEBUG
     if (rule.getFrontierVariables().empty()) {
-        LOG(ERRORL) << "The system does not yet support the execution of rules"
-            " with empty frontier variables set";
-        throw 10;
+        if (rule.getBody().size() == 2 ||
+                rule.getBody()[0].getPredicate().getType() == EDB) {
+            LOG(ERRORL) << "The system does not yet support the execution of rules"
+                " with empty frontier variables set";
+            throw 10;
+        }
     }
     LOG(INFOL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif

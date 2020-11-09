@@ -219,11 +219,11 @@ outputNode.queryHead = std::move(queryHead);
 assert(outputNode.queryHead.get() != NULL);
 }*/
 
-    outputNode.incomingEdges = incomingEdges;
-    pred2Nodes[predid].push_back(nodeId);
-    LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
-    data->getNRows();
-    }
+            outputNode.incomingEdges = incomingEdges;
+            pred2Nodes[predid].push_back(nodeId);
+            LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
+            data->getNRows();
+            }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,
         std::shared_ptr<const TGSegment> data) {
@@ -910,8 +910,9 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
 
     assert(nodeIdxs.size() > 0);
     auto ncols = copyVarPos.size();
-    bool project = ncols < getNodeData(nodeIdxs[0])->getNColumns();
-    bool shouldSortAndUnique = project || copyVarPos[0] != 0;
+    bool project = ncols > 0 && ncols < getNodeData(nodeIdxs[0])->getNColumns();
+    bool shouldSortAndUnique = project ||
+        (copyVarPos.size() > 0 && copyVarPos[0] != 0);
 
     if (copyVarPos.size() == 1) {
         //Special cases
@@ -1042,32 +1043,48 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             }
         }
     } else {
-        assert(copyVarPos.size() > 2);
-        if (trackProvenance) {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
-        } else {
-            std::vector<std::vector<Term_t>> tuples(copyVarPos.size());
-            for(auto i : nodeIdxs) {
-                auto data = getNodeData(i);
-                data->appendTo(copyVarPos, tuples);
-            }
-            size_t nrows = tuples[0].size();
-            //Create columns from the content of tuples
-            std::vector<std::shared_ptr<Column>> columns;
-            for(int i = 0; i < copyVarPos.size(); ++i) {
-                columns.push_back(std::shared_ptr<Column>(
-                            new InmemoryColumn(tuples[i], true)));
-            }
-            auto seg = std::shared_ptr<const TGSegment>(
-                    new TGSegmentLegacy(columns, nrows));
-            if (shouldSortAndUnique) {
-                auto sortedSeg = seg->sort();
-                return sortedSeg->unique();
+        //Could be 0 or > 2
+        assert(copyVarPos.size() == 0 || copyVarPos.size() > 2);
+        /*if (trackProvenance) {
+          LOG(ERRORL) << "Not implemented";
+          throw 10;
+          } else {*/
+        const size_t ncolumns = trackProvenance ?
+            copyVarPos.size() + 1 : copyVarPos.size();
+        std::vector<std::vector<Term_t>> tuples(ncolumns);
+        for(auto i : nodeIdxs) {
+            auto data = getNodeData(i);
+            if (trackProvenance) {
+                data->appendTo(copyVarPos, tuples, true);
             } else {
-                return seg;
+                data->appendTo(copyVarPos, tuples, false);
             }
         }
+        size_t nrows = tuples[0].size();
+        //Create columns from the content of tuples
+        std::vector<std::shared_ptr<Column>> columns;
+        for(int i = 0; i < copyVarPos.size(); ++i) {
+            columns.push_back(std::shared_ptr<Column>(
+                        new InmemoryColumn(tuples[i], true)));
+        }
+        std::shared_ptr<const TGSegment> seg;
+        if (!trackProvenance) {
+            seg = std::shared_ptr<const TGSegment>(
+                    new TGSegmentLegacy(columns, nrows, false, 0, false));
+        } else {
+            //Add the column with the node IDs
+            columns.push_back(std::shared_ptr<Column>(
+                        new InmemoryColumn(tuples.back(), true)));
+            seg = std::shared_ptr<const TGSegment>(
+                    new TGSegmentLegacy(columns, nrows, false, 0, true));
+        }
+        if (shouldSortAndUnique) {
+            auto sortedSeg = seg->sort();
+            return sortedSeg->unique();
+        } else {
+            return seg;
+        }
+        //}
     }
 }
 

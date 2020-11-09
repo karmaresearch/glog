@@ -264,11 +264,15 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
 }
 
 void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
-        std::vector<std::vector<Term_t>> &out) const {
+        std::vector<std::vector<Term_t>> &out,
+        bool withProv) const {
     //The current implementation does not copy the nodeID, thus the size of
     //out should reflect the positions
-    assert(posFields.size() == out.size());
-    assert(posFields.size() > 0);
+    if (!withProv) {
+        assert(posFields.size() == out.size());
+    } else {
+        assert(posFields.size() == out.size() - 1);
+    }
     size_t i = 0;
     for(auto pos : posFields) {
         auto c = columns[pos];
@@ -277,6 +281,19 @@ void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
             out[i].push_back(itr->next());
         }
         i++;
+    }
+    if (trackProvenance) { //Add the nodeID
+        auto &o = out.back();
+        auto itr = columns.back()->getReader();
+        if (posFields.size() > 0) {
+            while (itr->hasNext()) {
+                o.push_back(itr->next());
+            }
+        } else {
+            if (itr->hasNext()) {
+                o.push_back(itr->next());
+            }
+        }
     }
 }
 

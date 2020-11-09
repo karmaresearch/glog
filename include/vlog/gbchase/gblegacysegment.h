@@ -90,7 +90,8 @@ class TGSegmentLegacy : public TGSegment {
                 std::vector<BinWithProv> &out) const;
 
         void appendTo(const std::vector<int> &posFields,
-                std::vector<std::vector<Term_t>> &out) const;
+                std::vector<std::vector<Term_t>> &out,
+                bool withProv = false) const;
 
         void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const;
