@@ -15,7 +15,8 @@ std::shared_ptr<Column> CompressedColumn::slice(size_t start, size_t end) const 
     size_t len = end  - start;
     assert(len > 0);
     size_t sizeSoFar = 0;
-    for (auto &b : blocks) {
+    for (size_t i = 0; i < blocks.size(); ++i) {
+        auto &b = blocks[i];
         size_t endBlock = sizeSoFar + b.size + 1;
         if (sizeSoFar == start) {
             if (len == b.size + 1) {
@@ -25,6 +26,13 @@ std::shared_ptr<Column> CompressedColumn::slice(size_t start, size_t end) const 
             } else if (len < b.size + 1) {
                 std::vector<CompressedColumnBlock> blocks;
                 blocks.push_back(CompressedColumnBlock(b.value, b.delta, len - 1));
+                return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
+            } else if (len == (_size - sizeSoFar)) {
+                //Copy all remaining blocks
+                std::vector<CompressedColumnBlock> blocks;
+                for(size_t j = i; j < blocks.size(); ++j) {
+                    blocks.push_back(blocks[j]);
+                }
                 return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
             } else {
                 break;
@@ -36,7 +44,6 @@ std::shared_ptr<Column> CompressedColumn::slice(size_t start, size_t end) const 
                 auto newvalue = b.value + b.delta * diff;
                 blocks.push_back(CompressedColumnBlock(newvalue, b.delta, len - 1));
                 return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
-
             } else {
                 break;
             }
