@@ -1027,6 +1027,11 @@ void GBRuleExecutor::leftjoin(
                     auto el = itrLeft->get(leftPos);
                     currentrow[idx] = el;
                 }
+                if (trackProvenance) {
+                    currentrow[sizerow] = itrLeft->getNodeId();
+                    if (!copyOnlyLeftNode)
+                        currentrow[sizerow + 1] = 0;
+                }
                 output->add(currentrow);
             }
             if (itrLeft->hasNext()) {
