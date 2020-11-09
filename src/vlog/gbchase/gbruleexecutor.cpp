@@ -1292,6 +1292,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         Rule &rule,
         std::shared_ptr<const TGSegment> tuples,
         std::vector<size_t> &vars) {
+    assert(tuples->getNRows() > 0);
+
     //Get list existential variables
     std::set<size_t> extvars;
     for(auto &v :rule.getExistentialVariables())
@@ -1460,8 +1462,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 break;
             case 1:
                 tuples = std::shared_ptr<const TGSegment>(
-                        new UnaryWithConstProvTGSegment(terms1, ~0ul, false,
-                            0));
+                        new UnaryWithConstProvTGSegment(terms1,
+                            tuples->getNodeId(), false, 0));
                 break;
             case 2:
                 tuples = std::shared_ptr<const TGSegment>(
@@ -1474,8 +1476,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 break;
             case 4:
                 tuples = std::shared_ptr<const TGSegment>(
-                        new BinaryWithConstProvTGSegment(terms2, ~0ul, false,
-                            0));
+                        new BinaryWithConstProvTGSegment(terms2,
+                            tuples->getNodeId(), false, 0));
                 break;
             case 5:
                 tuples = std::shared_ptr<const TGSegment>(
@@ -1546,25 +1548,35 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
             //Prepare the container that will store the retained tuples
             const int extraColumns = trackProvenance &&
                 tuples->getProvenanceType() == 2 ? 1 : 0;
-            const int nfields = tuples->getNColumns() + extraColumns;
+            int nfields = tuples->getNColumns() + extraColumns;
             const bool copyNode = tuples->getProvenanceType() == 2;
             std::unique_ptr<GBSegmentInserter> outputJoin = GBSegmentInserter::
                 getInserter(nfields, extraColumns, false);
 
-            //Perform a left join
-            leftjoin(tuples,
-                    nodes,
-                    inputRight,
-                    joinVarPos,
-                    copyVarPosLeft,
-                    outputJoin,
-                    true);
+            if (tuples->getNColumns() == 0) {
+                //Frontier is empty. In this case, if there are non-empty
+                //nodes (as it is), then the check fails immediately.
+                assert(copyVarPosLeft.size() == 0);
+                //Create an empty set of tuples
+            } else {
+                //Perform a left join
+                leftjoin(tuples,
+                        nodes,
+                        inputRight,
+                        joinVarPos,
+                        copyVarPosLeft,
+                        outputJoin,
+                        true);
+            }
 
             //Create a TGSegment from SegmentInserter
             //std::shared_ptr<const Segment> seg = outputJoin->getSegment();
             //tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
+            const auto nodeId = (!trackProvenance ||
+                    tuples->getProvenanceType() == 2) ? ~0ul :
+                tuples->getNodeId();
             tuples = outputJoin->getSegment(
-                    ~0ul,
+                    nodeId,
                     false,
                     0,
                     trackProvenance,
@@ -1818,30 +1830,34 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             //Perform restricted check
             intermediateResults = performRestrictedCheck(rule,
                     intermediateResults, varsIntermediate);
-            //If there are existential variables, add values for them
-            intermediateResults = addExistentialVariables(rule,
-                    intermediateResults, varsIntermediate);
+            if (!intermediateResults->isEmpty()) {
+                //If there are existential variables, add values for them
+                intermediateResults = addExistentialVariables(rule,
+                        intermediateResults, varsIntermediate);
+            }
             uniqueTuples = true;
         }
 
         //Compute the head atoms
-        for (auto &head : rule.getHeads()) {
-            bool shouldSort = true, shouldDelDupl = true;
-            shouldSortDelDupls(head, bodyAtoms, bodyNodes,
-                    shouldSort, shouldDelDupl);
-            auto results = projectHead(head,
-                    varsIntermediate, intermediateResults,
-                    shouldSort,
-                    shouldDelDupl);
-            std::chrono::steady_clock::time_point end =
-                std::chrono::steady_clock::now();
-            lastDurationCreateHead += end - start;
-            durationCreateHead += lastDurationCreateHead;
-            GBRuleOutput o;
-            o.segment = results;
-            o.nodes = intermediateResultsNodes;
-            o.uniqueTuples = uniqueTuples;
-            output.push_back(o);
+        if (!intermediateResults->isEmpty()) {
+            for (auto &head : rule.getHeads()) {
+                bool shouldSort = true, shouldDelDupl = true;
+                shouldSortDelDupls(head, bodyAtoms, bodyNodes,
+                        shouldSort, shouldDelDupl);
+                auto results = projectHead(head,
+                        varsIntermediate, intermediateResults,
+                        shouldSort,
+                        shouldDelDupl);
+                std::chrono::steady_clock::time_point end =
+                    std::chrono::steady_clock::now();
+                lastDurationCreateHead += end - start;
+                durationCreateHead += lastDurationCreateHead;
+                GBRuleOutput o;
+                o.segment = results;
+                o.nodes = intermediateResultsNodes;
+                o.uniqueTuples = uniqueTuples;
+                output.push_back(o);
+            }
         }
     }
     return output;

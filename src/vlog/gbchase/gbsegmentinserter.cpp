@@ -19,7 +19,9 @@ std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
                     new GBSegmentInserterNAry(card));
         }
     } else {
-        throw 10; //singleton not yet supported
+        //singleton 
+        return std::unique_ptr<GBSegmentInserter>(
+                    new GBSegmentInserterNAry(card));
     }
 }
 

@@ -183,12 +183,22 @@ class GBSegmentInserterUnary :
                 bool trackProvenance,
                 bool lastColumnIsNode = false) {
             if (trackProvenance) {
-                assert(lastColumnIsNode == false); //Otherwise
-                //the arity is zero
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithConstProvTGSegment(tuples, nodeId, isSorted,
-                            sortedField));
-
+                if (lastColumnIsNode) {
+                    //In this case, the arity is zero and the contains
+                    //stores only the provenance
+                    size_t nrows = tuples.size();
+                    std::vector<std::shared_ptr<Column>> columns;
+                    columns.push_back(std::shared_ptr<Column>(
+                                new InmemoryColumn(tuples, true))); //swap
+                    return std::shared_ptr<const TGSegment>(
+                            new TGSegmentLegacy(columns, nrows, isSorted,
+                                sortedField, true));
+                } else {
+                    //The arity is zero
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithConstProvTGSegment(
+                                tuples, nodeId, isSorted, sortedField));
+                }
             } else {
                 return std::shared_ptr<const TGSegment>(
                         new UnaryTGSegment(tuples, nodeId, isSorted,

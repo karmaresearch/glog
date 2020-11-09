@@ -11,6 +11,41 @@
   deltas(o.deltas), _size(o._size) {
   }*/
 
+std::shared_ptr<Column> CompressedColumn::slice(size_t start, size_t end) const {
+    size_t len = end  - start;
+    assert(len > 0);
+    size_t sizeSoFar = 0;
+    for (auto &b : blocks) {
+        size_t endBlock = sizeSoFar + b.size + 1;
+        if (sizeSoFar == start) {
+            if (len == b.size + 1) {
+                std::vector<CompressedColumnBlock> blocks;
+                blocks.push_back(b);
+                return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
+            } else if (len < b.size + 1) {
+                std::vector<CompressedColumnBlock> blocks;
+                blocks.push_back(CompressedColumnBlock(b.value, b.delta, len - 1));
+                return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
+            } else {
+                break;
+            }
+        } else if (start < endBlock) {
+            if (start + len <= endBlock) {
+                std::vector<CompressedColumnBlock> blocks;
+                auto diff = start - sizeSoFar;
+                auto newvalue = b.value + b.delta * diff;
+                blocks.push_back(CompressedColumnBlock(newvalue, b.delta, len - 1));
+                return std::shared_ptr<Column>(new CompressedColumn(blocks, len));
+
+            } else {
+                break;
+            }
+        }
+        sizeSoFar += b.size + 1;
+    }
+    throw 10; //not supported
+}
+
 bool CompressedColumn::isIn(const Term_t t) const {
     //Not implemented yet. Assume the element is there.
     return true;
@@ -276,11 +311,11 @@ size_t EDBColumn::size() const {
         /*
         // TODO: check this! It seems to assume that arity == 3? --Ceriel
         if (l.getNVars() == 2) {
-            retval = layer.getCardinalityColumn(*query.getLiteral(), l.getPosVars()[posColumn]);
+        retval = layer.getCardinalityColumn(*query.getLiteral(), l.getPosVars()[posColumn]);
         } else {
-            LOG(WARNL) << "Must go through all the column"
-                " to count the size";
-            retval = EDBColumnReader(l, posColumn, presortPos, layer, unq).size();
+        LOG(WARNL) << "Must go through all the column"
+        " to count the size";
+        retval = EDBColumnReader(l, posColumn, presortPos, layer, unq).size();
         }
         */
     }

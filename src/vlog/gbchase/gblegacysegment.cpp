@@ -37,6 +37,7 @@ std::vector<std::shared_ptr<const TGSegment>> TGSegmentLegacy::sliceByNodes(
                 out.push_back(dataToAdd);
             }
             startidx = i;
+            assert(itr->getNodeId() != ~0ul);
             currentNode = itr->getNodeId();
         }
         i++;
@@ -181,11 +182,13 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
     int ncols = trackProvenance ? columns.size() - 1 : columns.size();
     for(int i = 0; i < ncols; ++i) {
         if (start > 0 || end < nrows - 1) {
-            auto &v = columns[i]->getVectorRef();
-            std::vector<Term_t> slicedColumn(length);
-            std::copy(v.begin() + start, v.begin() + end, slicedColumn.begin());
-            std::shared_ptr<Column> c(new InmemoryColumn(slicedColumn, true));
+            auto c = columns[i]->slice(start, end);
+            //auto &v = columns[i]->getVectorRef();
+            //std::vector<Term_t> slicedColumn(length);
+            //std::copy(v.begin() + start, v.begin() + end, slicedColumn.begin());
+            //std::shared_ptr<Column> c(new InmemoryColumn(slicedColumn, true));
             newcols.push_back(c);
+
         } else {
             newcols.push_back(columns[i]);
         }

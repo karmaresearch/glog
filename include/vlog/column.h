@@ -54,6 +54,10 @@ class Column {
 
         virtual size_t size() const = 0;
 
+        virtual std::shared_ptr<Column> slice(size_t start, size_t end) const {
+            throw 10;
+        }
+
         virtual size_t getRepresentationSize() const = 0;
 
         virtual size_t estimateSize() const = 0;
@@ -201,6 +205,8 @@ class CompressedColumn final : public Column {
         std::shared_ptr<Column> sort_and_unique(const int nthreads) const;
 
         std::shared_ptr<Column> unique() const;
+
+        std::shared_ptr<Column> slice(size_t start, size_t end) const;
 
         bool isIn(const Term_t t) const;
 
@@ -465,6 +471,14 @@ class InmemoryColumn final : public Column {
 
         bool containsDuplicates() const {
             return values.size() > 1;
+        }
+
+        std::shared_ptr<Column> slice(size_t start, size_t end) const {
+            std::vector<Term_t> slicedColumn(end - start);
+            std::copy(this->values.begin() + start,
+                    this->values.begin() + end, slicedColumn.begin());
+            std::shared_ptr<Column> c(new InmemoryColumn(slicedColumn, true));
+            return c;
         }
 
         std::unique_ptr<ColumnReader> getReader() const {
