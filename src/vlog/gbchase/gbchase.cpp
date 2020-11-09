@@ -723,11 +723,16 @@ void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
             for (size_t i = 0; i < chunks.size(); ++i) {
                 auto c = chunks[i];
                 currentNodeList[0] = provNodes[i];
-                //assert(currentNodeList[0] != ~0ul);
-                g.addNodeProv(currentPredicate, ruleIdx, step, c,
-                        currentNodeList);
+                if (currentNodeList[0] == ~0ul) {
+                    assert(chunks.size() == 1);
+                    g.addNodeProv(currentPredicate, ruleIdx, step, c,
+                            std::vector<size_t>());
+                } else {
+                    g.addNodeProv(currentPredicate, ruleIdx, step, c,
+                            currentNodeList);
+                }
             }
-         } else {
+        } else {
             std::vector<size_t> provnodes;
             if (seg->getNodeId() == ~0ul) {
                 //EDB body atom

@@ -37,7 +37,7 @@ std::vector<std::shared_ptr<const TGSegment>> TGSegmentLegacy::sliceByNodes(
                 out.push_back(dataToAdd);
             }
             startidx = i;
-            assert(itr->getNodeId() != ~0ul);
+            //assert(itr->getNodeId() != ~0ul);
             currentNode = itr->getNodeId();
         }
         i++;
