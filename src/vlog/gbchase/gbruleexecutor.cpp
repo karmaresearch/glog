@@ -1527,7 +1527,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     " constants in the head during the restriction check"
                     ". Throw an exception ...";
                 throw 10;
-
             }
         }
 
@@ -1545,8 +1544,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
-            const int extraColumns = trackProvenance ? 1 : 0;
+            const int extraColumns = trackProvenance &&
+                tuples->getProvenanceType() == 2 ? 1 : 0;
             const int nfields = tuples->getNColumns() + extraColumns;
+            const bool copyNode = tuples->getProvenanceType() == 2;
             std::unique_ptr<GBSegmentInserter> outputJoin = GBSegmentInserter::
                 getInserter(nfields, extraColumns, false);
 
@@ -1562,7 +1563,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
             //Create a TGSegment from SegmentInserter
             //std::shared_ptr<const Segment> seg = outputJoin->getSegment();
             //tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
-            tuples = outputJoin->getSegment(~0ul, false, 0, trackProvenance);
+            tuples = outputJoin->getSegment(
+                    ~0ul,
+                    false,
+                    0,
+                    trackProvenance,
+                    copyNode);
         }
     }
     return tuples;
