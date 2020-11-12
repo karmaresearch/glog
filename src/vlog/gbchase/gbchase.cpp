@@ -529,6 +529,11 @@ size_t GBChase::executeRulesInStratum(
         executeRule(newnodes[idxNode]);
     }
 
+    //Retain all the predicates that should be cleaned at the end
+    for (auto &predId : predToBeRetainedEndStep) {
+        g.retainAndAddFromTmpNodes(predId);
+    }
+
     if (nnodes != g.getNNodes()) {
         auto derivedTuples = 0;
         for(size_t idx = nnodes; idx < g.getNNodes(); ++idx) {
@@ -548,6 +553,13 @@ void GBChase::run() {
     initRun();
     size_t nnodes = 0;
     size_t step = 0;
+
+    //Mark the predicates that should be cleaned at the end
+    for (auto &predId : program->getAllPredicateIDs()) {
+        if (program->getNRulesByPredicate(predId) > 100) {
+            predToBeRetainedEndStep.insert(predId);
+        }
+    }
 
     for (int currentStrat = 0;
             currentStrat < nStratificationClasses;
@@ -608,6 +620,11 @@ size_t GBChase::getNTriggers() {
     return triggers;
 }
 
+bool GBChase::shouldRetainAtEnd(PredId_t pred) {
+    bool outcome = predToBeRetainedEndStep.count(pred);
+    return outcome;
+}
+
 bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
@@ -616,7 +633,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #endif
 
 #ifdef DEBUG
-    LOG(INFOL) << "Executing rule " << node.ruleIdx << " "
+    LOG(DEBUGL) << "Executing rule " << node.ruleIdx << " "
         << rule.tostring(program, &layer);
 #endif
 
@@ -625,7 +642,6 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 
     size_t nders = 0;
     size_t nders_un = 0;
-
     auto &heads = rule.getHeads();
     int headIdx = 0;
     currentPredicate = heads[headIdx].getPredicate().getId();
@@ -648,34 +664,32 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         nonempty |= !(derivations == NULL || derivations->isEmpty());
 
         if (nonempty) {
-            //Keep only the new derivations
-            std::shared_ptr<const TGSegment> retainedTuples;
-            size_t oldNodeId = derivations->getNodeId();
-            if (shouldCleanDuplicates && !node.retainFree) {
-                retainedTuples = g.retain(currentPredicate, derivations);
+            if (shouldRetainAtEnd(currentPredicate) && !rule.isEGD()) {
+                g.addNodeToBeRetained(currentPredicate, derivations,
+                        derivationNodes, node.ruleIdx, node.step);
             } else {
-                retainedTuples = derivations;
-            }
-
-            nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
-            if (nonempty) {
-                nders += retainedTuples->getNRows();
-                if (rule.isEGD()) {
-                    g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
+                //Keep only the new derivations
+                std::shared_ptr<const TGSegment> retainedTuples;
+                if (shouldCleanDuplicates && !node.retainFree) {
+                    retainedTuples = g.retain(currentPredicate, derivations);
                 } else {
-                    //Add new nodes
-                    if (trackProvenance) {
-                        //std::chrono::system_clock::time_point start_d =
-                        //    std::chrono::system_clock::now();
-                        createNewNodesWithProv(node.ruleIdx, node.step,
-                                retainedTuples, derivationNodes);
-                        //std::chrono::duration<double, std::milli> dur_d =
-                        //    std::chrono::system_clock::now() - start_d;
-                        //durationDebug += dur_d;
+                    retainedTuples = derivations;
+                }
+                nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
+                if (nonempty) {
+                    nders += retainedTuples->getNRows();
+                    if (rule.isEGD()) {
+                        g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
                     } else {
-                        //Add a single node
-                        g.addNodeNoProv(currentPredicate, node.ruleIdx,
-                                node.step, retainedTuples);
+                        //Add new nodes
+                        if (trackProvenance) {
+                            g.addNodesProv(currentPredicate, node.ruleIdx,
+                                    node.step, retainedTuples, derivationNodes);
+                        } else {
+                            //Add a single node
+                            g.addNodeNoProv(currentPredicate, node.ruleIdx,
+                                    node.step, retainedTuples);
+                        }
                     }
                 }
             }
@@ -704,110 +718,6 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     }
 
     return nonempty;
-}
-
-void GBChase::createNewNodesWithProv(size_t ruleIdx, size_t step,
-        std::shared_ptr<const TGSegment> seg,
-        std::vector<std::shared_ptr<Column>> &provenance) {
-    if (provenance.size() == 0) {
-        //Single EDB or IDB atom
-        if (seg->getProvenanceType() == 2) {
-            //Must split the nodes
-            auto resortedSeg = seg->sortByProv();
-
-            std::vector<size_t> provNodes;
-            auto chunks = resortedSeg->sliceByNodes(g.getNNodes(),
-                    provNodes);
-            assert(chunks.size() == provNodes.size());
-            std::vector<size_t> currentNodeList(1);
-            for (size_t i = 0; i < chunks.size(); ++i) {
-                auto c = chunks[i];
-                currentNodeList[0] = provNodes[i];
-                if (currentNodeList[0] == ~0ul) {
-                    assert(chunks.size() == 1);
-                    g.addNodeProv(currentPredicate, ruleIdx, step, c,
-                            std::vector<size_t>());
-                } else {
-                    g.addNodeProv(currentPredicate, ruleIdx, step, c,
-                            currentNodeList);
-                }
-            }
-        } else {
-            std::vector<size_t> provnodes;
-            if (seg->getNodeId() == ~0ul) {
-                //EDB body atom
-#if DEBUG
-                assert(rules[ruleIdx].getBody().size() == 1 &&
-                        rules[ruleIdx].getBody()[0].getPredicate().getType() ==
-                        EDB);
-#endif
-            } else {
-                provnodes.push_back(seg->getNodeId());
-            }
-            auto nodeId = g.getNNodes();
-            auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-            g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd, provnodes);
-        }
-    } else {
-        const auto nnodes = (provenance.size() + 2) / 2;
-        const auto nrows = seg->getNRows();
-        std::vector<size_t> provnodes(nrows * nnodes);
-        for(size_t i = 0; i < nrows; ++i) {
-            size_t provRowIdx = i;
-            for(int j = nnodes - 1; j >= 0; j--) {
-                if (j == 0) {
-                    provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
-                } else {
-                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
-                        getValue(provRowIdx);
-                    if (j > 1) {
-                        auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
-                        if (tmp == ~0ul) {
-                            provRowIdx = 0;
-                        } else {
-                            provRowIdx = tmp;
-                        }
-                    }
-                }
-            }
-        }
-        //For each tuple, now I know the sequence of nodes that derived them.
-        //I re-sort the nodes depending on the sequence of nodes
-        std::vector<size_t> providxs;
-        auto resortedSeg = seg->sortByProv(nnodes, providxs, provnodes);
-        size_t startidx = 0;
-        std::vector<size_t> currentNodeList(nnodes);
-        for(size_t i = 0; i < nrows; ++i) {
-            bool hasChanged = i == 0;
-            for(size_t j = 0; j < nnodes && !hasChanged; ++j) {
-                const size_t m = providxs[i] * nnodes + j;
-                if (currentNodeList[j] != provnodes[m]) {
-                    hasChanged = true;
-                }
-            }
-            if (hasChanged) {
-                if (startidx < i) {
-                    //Create a new node
-                    auto nodeId = g.getNNodes();
-                    auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                    g.addNodeProv(currentPredicate, ruleIdx, step, dataToAdd,
-                            currentNodeList);
-                }
-                startidx = i;
-                for(size_t j = 0; j < nnodes; ++j) {
-                    const size_t m = providxs[i] * nnodes + j;
-                    currentNodeList[j] = provnodes[m];
-                }
-            }
-        }
-        //Copy the last segment
-        if (startidx < nrows) {
-            auto nodeId = g.getNNodes();
-            auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
-            g.addNodeProv(currentPredicate, ruleIdx,
-                    step, dataToAdd, currentNodeList);
-        }
-    }
 }
 
 size_t GBChase::getSizeTable(const PredId_t predid) const {

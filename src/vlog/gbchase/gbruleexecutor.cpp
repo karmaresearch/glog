@@ -1604,7 +1604,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             throw 10;
         }
     }
-    LOG(INFOL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
+    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);
@@ -1638,7 +1638,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             currentIDBBodyAtom++;
         }
         cardinalities.push_back(c);
-        LOG(INFOL) << "Cardinality " << c << " nnodes " << nnodes;
+        LOG(DEBUGL) << "Cardinality " << c << " nnodes " << nnodes;
     }
 
     currentIDBBodyAtom = 0;

@@ -140,6 +140,112 @@ void GBGraph::addNodeNoProv(PredId_t predId,
         data->getNRows();
 }
 
+void GBGraph::addNodesProv(PredId_t predId,
+        size_t ruleIdx, size_t step,
+        std::shared_ptr<const TGSegment> seg,
+        const std::vector<std::shared_ptr<Column>> &provenance) {
+    if (provenance.size() == 0) {
+        //Single EDB or IDB atom
+        if (seg->getProvenanceType() == 2) {
+            //Must split the nodes
+            auto resortedSeg = seg->sortByProv();
+
+            std::vector<size_t> provNodes;
+            auto chunks = resortedSeg->sliceByNodes(getNNodes(),
+                    provNodes);
+            assert(chunks.size() == provNodes.size());
+            std::vector<size_t> currentNodeList(1);
+            for (size_t i = 0; i < chunks.size(); ++i) {
+                auto c = chunks[i];
+                currentNodeList[0] = provNodes[i];
+                if (currentNodeList[0] == ~0ul) {
+                    assert(chunks.size() == 1);
+                    addNodeProv(predId, ruleIdx, step, c,
+                            std::vector<size_t>());
+                } else {
+                    addNodeProv(predId, ruleIdx, step, c,
+                            currentNodeList);
+                }
+            }
+        } else {
+            std::vector<size_t> provnodes;
+            if (seg->getNodeId() == ~0ul) {
+                //EDB body atom
+#if DEBUG
+                assert(allRules[ruleIdx].getBody().size() == 1 &&
+                        allRules[ruleIdx].getBody()[0].getPredicate().getType() ==
+                        EDB);
+#endif
+            } else {
+                provnodes.push_back(seg->getNodeId());
+            }
+            auto nodeId = getNNodes();
+            auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
+            addNodeProv(predId, ruleIdx, step, dataToAdd, provnodes);
+        }
+    } else {
+        const auto nnodes = (provenance.size() + 2) / 2;
+        const auto nrows = seg->getNRows();
+        std::vector<size_t> provnodes(nrows * nnodes);
+        for(size_t i = 0; i < nrows; ++i) {
+            size_t provRowIdx = i;
+            for(int j = nnodes - 1; j >= 0; j--) {
+                if (j == 0) {
+                    provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
+                } else {
+                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
+                        getValue(provRowIdx);
+                    if (j > 1) {
+                        auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
+                        if (tmp == ~0ul) {
+                            provRowIdx = 0;
+                        } else {
+                            provRowIdx = tmp;
+                        }
+                    }
+                }
+            }
+        }
+        //For each tuple, now I know the sequence of nodes that derived them.
+        //I re-sort the nodes depending on the sequence of nodes
+        std::vector<size_t> providxs;
+        auto resortedSeg = seg->sortByProv(nnodes, providxs, provnodes);
+        size_t startidx = 0;
+        std::vector<size_t> currentNodeList(nnodes);
+        for(size_t i = 0; i < nrows; ++i) {
+            bool hasChanged = i == 0;
+            for(size_t j = 0; j < nnodes && !hasChanged; ++j) {
+                const size_t m = providxs[i] * nnodes + j;
+                if (currentNodeList[j] != provnodes[m]) {
+                    hasChanged = true;
+                }
+            }
+            if (hasChanged) {
+                if (startidx < i) {
+                    //Create a new node
+                    auto nodeId = getNNodes();
+                    auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
+                    addNodeProv(predId, ruleIdx, step, dataToAdd,
+                            currentNodeList);
+                }
+                startidx = i;
+                for(size_t j = 0; j < nnodes; ++j) {
+                    const size_t m = providxs[i] * nnodes + j;
+                    currentNodeList[j] = provnodes[m];
+                }
+            }
+        }
+        //Copy the last segment
+        if (startidx < nrows) {
+            auto nodeId = getNNodes();
+            auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
+            addNodeProv(predId, ruleIdx,
+                    step, dataToAdd, currentNodeList);
+        }
+    }
+}
+
+
 void GBGraph::addNodeProv(PredId_t predid,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> data,
@@ -185,45 +291,11 @@ void GBGraph::addNodeProv(PredId_t predid,
     for(auto n : incomingEdges)
         if (isTmpNode(n))
             throw 10;
-
-    /*    if (queryContEnabled) {
-          assert(allRules != NULL && program != NULL && layer != NULL);
-    //Create a query and associate it to the node
-    std::chrono::system_clock::time_point start_d = std::chrono::system_clock::now();
-    auto queryHead = createQueryFromNode(outputNode.queryBody,
-    outputNode.rangeQueryBody,
-    allRules[ruleIdx],
-    incomingEdges);
-    std::chrono::duration<double, std::milli> dur_d =
-    std::chrono::system_clock::now() - start_d;
-    LOG(INFOL) << "Creating query (ms) " << dur_d.count();
-    durationDebug += dur_d;
-
-#ifdef DEBUG
-LOG(INFOL) << "Node " << nodeId << " created with rule " <<
-allRules[ruleIdx].tostring(program, layer);
-LOG(INFOL) << "     QH: " << queryHead->tostring(program, layer);
-std::string nodes = "";
-for(auto i : incomingEdges) {
-nodes += " " + std::to_string(i);
+    outputNode.incomingEdges = incomingEdges;
+    pred2Nodes[predid].push_back(nodeId);
+    LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
+        data->getNRows();
 }
-LOG(INFOL) << "     NO:" << nodes;
-std::string qb = "";
-for(auto &l : outputNode.queryBody) {
-qb += " " + l.tostring(program, layer);
-}
-LOG(INFOL) << "     QB:" << qb;
-#endif
-
-outputNode.queryHead = std::move(queryHead);
-assert(outputNode.queryHead.get() != NULL);
-}*/
-
-            outputNode.incomingEdges = incomingEdges;
-            pred2Nodes[predid].push_back(nodeId);
-            LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
-            data->getNRows();
-            }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,
         std::shared_ptr<const TGSegment> data) {
@@ -235,6 +307,23 @@ uint64_t GBGraph::addTmpNode(PredId_t predId,
     n.step = ~0ul;
     n.setData(data);
     return counterTmpNodes++;
+}
+
+void GBGraph::addNodeToBeRetained(PredId_t predId,
+        std::shared_ptr<const TGSegment> data,
+        std::vector<std::shared_ptr<Column>> &nodes,
+        size_t ruleIdx,
+        size_t step) {
+    if (!mapPredTmpNodes.count(predId)) {
+        mapPredTmpNodes.insert(std::make_pair(predId,
+                    std::vector<GBGraph_TmpPredNode>()));
+    }
+    GBGraph_TmpPredNode n;
+    n.data = data;
+    n.nodes = nodes;
+    n.ruleIdx = ruleIdx;
+    n.step = step;
+    mapPredTmpNodes[predId].push_back(n);
 }
 
 void GBGraph::replaceEqualTerms(
@@ -1045,10 +1134,6 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     } else {
         //Could be 0 or > 2
         assert(copyVarPos.size() == 0 || copyVarPos.size() > 2);
-        /*if (trackProvenance) {
-          LOG(ERRORL) << "Not implemented";
-          throw 10;
-          } else {*/
         const size_t ncolumns = trackProvenance ?
             copyVarPos.size() + 1 : copyVarPos.size();
         std::vector<std::vector<Term_t>> tuples(ncolumns);
@@ -1084,7 +1169,141 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         } else {
             return seg;
         }
-        //}
+    }
+}
+
+
+bool retainAndAddFromTmpNodes_uniq(
+        const std::pair<Term_t, Term_t> &a,
+        const std::pair<Term_t, Term_t> &b) {
+    return a.first == b.first;
+}
+
+void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
+    if (!mapPredTmpNodes.count(predId))
+        return;
+
+    const auto &nodes = mapPredTmpNodes[predId];
+    auto card = program->getPredicateCard(predId);
+    assert(nodes.size() > 0);
+    if (nodes.size() >  (1 << 24)) {
+        //The last three bytes are used for a
+        //counter
+        throw 10;
+    };
+    if (card == 1) {
+        std::vector<std::pair<Term_t, Term_t>> newTuples;
+        size_t counter = 0;
+        //Copy all the data into newTuples
+        for (auto &node : nodes) {
+            auto &d = node.data;
+            auto itr = d->iterator();
+            if (d->getProvenanceType() == 2) {
+                while (itr->hasNext()) {
+                    itr->next();
+                    assert(itr->getNodeId() != ~0ul);
+                    newTuples.push_back(std::make_pair(itr->get(0),
+                                itr->getNodeId() + counter));
+                }
+            } else {
+                while (itr->hasNext()) {
+                    itr->next();
+                    newTuples.push_back(std::make_pair(itr->get(0), counter));
+                }
+            }
+            counter += (size_t)1 << 40;
+        }
+
+        std::sort(newTuples.begin(), newTuples.end());
+        auto e = std::unique(newTuples.begin(), newTuples.end(),
+                retainAndAddFromTmpNodes_uniq);
+        newTuples.erase(e, newTuples.end());
+
+        auto newTuples_seg = std::shared_ptr<TGSegment>(
+                new UnaryWithProvTGSegment(newTuples, ~0ul, true, 0));
+        //Retain new tuples
+        auto retainedSeg = retain(predId, newTuples_seg);
+        if (retainedSeg.get() == NULL)
+            return;
+        //Add the nodes
+        std::shared_ptr<const TGSegment> toBeAddedSeg;
+        if (retainedSeg->getProvenanceType() == 2)
+            toBeAddedSeg = retainedSeg->sortByProv();
+        else
+            toBeAddedSeg = retainedSeg;
+
+        std::vector<Term_t> t1;
+        std::vector<std::pair<Term_t, Term_t>> t2;
+
+        auto itr = toBeAddedSeg->iterator();
+        auto node = nodes.begin();
+        size_t beginSegment = 0;
+        size_t endSegment = (size_t)1 << 40;
+        bool storeNode = node->data->getProvenanceType() == 2;
+
+        while (itr->hasNext()) {
+            itr->next();
+            auto counter = itr->getNodeId();
+            if (counter >= endSegment) {
+                assert(node != nodes.end());
+                retainAndAddFromTmpNodes_add_unary(storeNode, t1, t2, predId,
+                        *node, beginSegment);
+                //Advance to a node that has a limit
+                while (counter >= endSegment) {
+                    if (node >= nodes.end() - 1) {
+                        throw 10; //This should not happen!
+                    }
+                    node++;
+                    storeNode = node->data->getProvenanceType() == 2;
+                    beginSegment += (size_t)1 << 40;
+                    endSegment += (size_t)1 << 40;
+                }
+            }
+            if (storeNode) {
+                t2.push_back(std::make_pair(itr->get(0), itr->getNodeId()));
+            } else {
+                t1.push_back(itr->get(0));
+            }
+        }
+        assert(node != nodes.end());
+        retainAndAddFromTmpNodes_add_unary(storeNode, t1, t2, predId, *node,
+                beginSegment);
+    } else if (card == 2) {
+        LOG(ERRORL) << "Not implemented yet";
+        throw 10;
+    } else {
+        LOG(ERRORL) << "Not implemented yet";
+        throw 10;
+    }
+}
+
+void GBGraph::retainAndAddFromTmpNodes_add_unary(
+        bool storeNode,
+        std::vector<Term_t> &t1,
+        std::vector<std::pair<Term_t, Term_t>> &t2,
+        PredId_t predId,
+        const GBGraph_TmpPredNode &node,
+        size_t beginSegment) {
+    if (!storeNode && !t1.empty()) {
+        auto segToStore = std::shared_ptr<TGSegment>(
+                new UnaryWithConstProvTGSegment(t1, node.data->getNodeId(),
+                    true, 0));
+        addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
+        t1 = std::vector<Term_t>();
+    }
+    if (storeNode && !t2.empty()) {
+        //Rewrite the counters so that they will be equivalent
+        //to the ones in the original
+        for(auto &t : t2) {
+            assert(t.second >= beginSegment);
+            t.second = t.second - beginSegment;
+            if (t.second >= ((size_t)1 << 40))
+                throw 10;
+        }
+        auto segToStore = std::shared_ptr<TGSegment>(
+                new UnaryWithProvTGSegment(t2, node.data->getNodeId(), true, 0));
+        addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
+        t2 = std::vector<std::pair<Term_t, Term_t>>();
     }
 }
 

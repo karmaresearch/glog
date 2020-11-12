@@ -52,6 +52,13 @@ class GBGraph {
                 const std::vector<Literal> &getQueryBody(GBGraph &g);
         };
 
+        struct GBGraph_TmpPredNode {
+            std::shared_ptr<const TGSegment> data;
+            std::vector<std::shared_ptr<Column>> nodes;
+            size_t ruleIdx;
+            size_t step;
+        };
+
         struct CacheRetainEntry {
             size_t nnodes;
             std::shared_ptr<const TGSegment> seg;
@@ -63,7 +70,9 @@ class GBGraph {
 
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
         std::vector<GBGraph_Node> nodes;
+
         std::map<uint64_t, GBGraph_Node> mapTmpNodes;
+        std::map<PredId_t, std::vector<GBGraph_TmpPredNode>> mapPredTmpNodes;
         std::map<PredId_t, CacheRetainEntry> cacheRetain;
 
         //Counter variables
@@ -203,13 +212,6 @@ class GBGraph {
 
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
-        /*std::unique_ptr<Literal> createQueryFromNode(
-          std::vector<Literal> &outputQueryBody,
-          std::vector<size_t> &rangeOutputQueryBody,
-          const Rule &rule,
-          const std::vector<size_t> &incomingEdges,
-          bool incrementCounter = true);*/
-
         void addNode(PredId_t predId,
                 size_t ruleIdx,
                 size_t step,
@@ -240,6 +242,14 @@ class GBGraph {
             GBGraph_Node &n = nodes[nodeId];
             return n.getQueryBody(*this);
         }
+
+        void retainAndAddFromTmpNodes_add_unary(
+                bool storeNode,
+                std::vector<Term_t> &t1,
+                std::vector<std::pair<Term_t, Term_t>> &t2,
+                PredId_t predId,
+                const GBGraph_TmpPredNode &node,
+                size_t beginSegment);
 
     public:
         GBGraph(bool trackProvenance,
@@ -329,6 +339,17 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> data,
                 const std::vector<size_t> &incomingEdges);
 
+        void addNodesProv(PredId_t predId,
+                size_t ruleIdx, size_t step,
+                std::shared_ptr<const TGSegment> seg,
+                const std::vector<std::shared_ptr<Column>> &provenance);
+
+        void addNodeToBeRetained(PredId_t predId,
+                std::shared_ptr<const TGSegment> data,
+                std::vector<std::shared_ptr<Column>> &nodes,
+                size_t ruleIdx,
+                size_t step);
+
         void replaceEqualTerms(
                 size_t ruleIdx,
                 size_t step,
@@ -352,6 +373,7 @@ class GBGraph {
 
         void cleanTmpNodes() {
             mapTmpNodes.clear();
+            mapPredTmpNodes.clear();
         }
 
         std::shared_ptr<const TGSegment> retain(
@@ -361,6 +383,9 @@ class GBGraph {
         //Returns the number of retained tuples. The new node will get the last
         //step and will be assigned to rule ~0ul
         uint64_t mergeNodesWithPredicateIntoOne(PredId_t predId);
+
+        //Some predicates are not retained right after each rule
+        void retainAndAddFromTmpNodes(PredId_t predId);
 
         bool isRedundant(size_t ruleIdx,
                 std::vector<size_t> &bodyNodeIdx,

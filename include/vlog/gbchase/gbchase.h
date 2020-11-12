@@ -35,17 +35,13 @@ class GBChase : public Chase {
         std::string currentRule;
 #endif
         std::map<PredId_t, std::shared_ptr<FCTable>> cacheFCTables;
+        std::set<PredId_t> predToBeRetainedEndStep;
 
         //Used for statistics
         size_t triggers;
         std::chrono::duration<double, std::milli> durationPreparation;
         std::chrono::duration<double, std::milli> durationRuleExec;
         //std::chrono::duration<double, std::milli> durationDebug;
-
-        void createNewNodesWithProv(
-                size_t ruleIdx, size_t step,
-                std::shared_ptr<const TGSegment> seg,
-                std::vector<std::shared_ptr<Column>> &provenance);
 
         void prepareRuleExecutionPlans_queryContainment(
                 std::vector<GBRuleInput> &newnodes,
@@ -59,6 +55,8 @@ class GBChase : public Chase {
                 size_t step,
                 size_t prevstep,
                 std::vector<GBRuleInput> &newnodes);
+
+        bool shouldRetainAtEnd(PredId_t pred);
 
     protected:
         std::pair<bool, size_t> determineAdmissibleRule(
