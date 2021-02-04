@@ -1,5 +1,7 @@
 # GLog
 
+This project is a fork of <a href="https://github.com/karmaresearch/">VLog</a>.
+
 [![Build Status](https://travis-ci.org/karmaresearch/vlog.svg?branch=master)](https://travis-ci.org/karmaresearch/vlog)
 
 ## Installation 
