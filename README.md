@@ -1,10 +1,10 @@
-# VLog
+# GLog
 
 [![Build Status](https://travis-ci.org/karmaresearch/vlog.svg?branch=master)](https://travis-ci.org/karmaresearch/vlog)
 
 ## Installation 
 
-We used CMake to ease the installation process. To build VLog, the following
+We used CMake to ease the installation process. To build GLog, the following
 commands should suffice:
 
 ```
@@ -26,26 +26,3 @@ cd build_debug
 cmake -DWEBINTERFACE=1 -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
-
-## Docker
-
-In case you do not want to compile the program, you can use a Docker image that
-contains a precompiled version of the program. After you install Docker, you can launch
-the following commands:
-
-```
-docker pull karmaresearch/vlog
-docker run -ti karmaresearch/vlog
-```
-
-## Usage
-
-Please check:
-* The [Wiki](https://github.com/karmaresearch/vlog/wiki) for instructions on **how to run VLog from the command line**
-* A [screencast](https://iccl.inf.tu-dresden.de/w/images/1/18/Vlog-demo-iswc2016.mp4) was presented at *ISWC'16, Posters and Demos*.
-* You can **use VLog in Java** through the [Rulewerk](https://github.com/knowsys/rulewerk/) library, which also supports additional input formats for rules and data
-
-## License
-
-Vlog is released under the Apache license, Version 2.0.  A copy of the license may be obtained
-from [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
