@@ -328,6 +328,7 @@ class EDBLayer {
                 std::vector<uint8_t> &posInL2,
                 bool stopAfterFirst = false);
 
+        // Note: posInL2 contains positions in the literal.
         std::vector<std::shared_ptr<Column>> checkNewIn(
                 std::vector <
                 std::shared_ptr<Column >> &checkValues,
@@ -375,9 +376,11 @@ class EDBLayer {
 
         EDBIterator *getIterator(const Literal &query);
 
+        // Note: fields only counts variables in the query.
         EDBIterator *getSortedIterator(const Literal &query,
                 const std::vector<uint8_t> &fields);
 
+        // Note: posToFilter contains positions in the literal.
         bool isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
                 std::vector<Term_t> *valuesToFilter);
 
@@ -385,6 +388,7 @@ class EDBLayer {
 
         size_t getCardinality(const Literal &query);
 
+        // Note: posColumn contains a position in the literal.
         size_t getCardinalityColumn(const Literal &query,
                 uint8_t posColumn);
 

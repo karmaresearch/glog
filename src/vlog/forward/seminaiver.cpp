@@ -112,7 +112,7 @@ SemiNaiver::SemiNaiver(EDBLayer &layer,
 
         if (! program->stratify(stratification, nStratificationClasses)) {
             LOG(ERRORL) << "Program could not be stratified";
-            throw std::runtime_error("Program could not be stratified");
+            throw ("Program could not be stratified");
         }
         LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
 
@@ -127,12 +127,6 @@ SemiNaiver::SemiNaiver(EDBLayer &layer,
         }
         for (const auto& rule : ruleset){
             RuleExecutionDetails *d = new RuleExecutionDetails(rule, ruleid++);
-            std::vector<Literal> bodyLiterals = rule.getBody();
-            for (const auto& literal : bodyLiterals){
-                if (literal.getPredicate().getType() == IDB) {
-                    d->nIDBs++;
-                }
-            }
             if (d->nIDBs != 0) {
                 PredId_t id = rule.getFirstHead().getPredicate().getId();
                 this->allIDBRules[nStratificationClasses == 1 ? 0 : stratification[id]].push_back(*d);
@@ -489,6 +483,7 @@ bool SemiNaiver::executeUntilSaturation(
             // Don't use iteration here, because lastExecution determines which data we'll look at during the next round,
             // and limitView determines which data we are considering now. There should not be a gap.
             ruleset[currentRule].lastExecution = limitView;
+            LOG(DEBUGL) << "Setting lastExecution of this rule to " << limitView;
         } else {
             ruleset[currentRule].lastExecution = iteration;
         }
@@ -645,7 +640,7 @@ bool SemiNaiver::checkIfAtomsAreEmpty(const RuleExecutionDetails &ruleDetails,
         const RuleExecutionPlan &plan,
         size_t limitView,
         std::vector<size_t> &cards) {
-    const uint8_t nBodyLiterals = (uint8_t) plan.plan.size();
+    const int nBodyLiterals = plan.plan.size();
     bool isOneRelEmpty = false;
     //First I check if there are tuples in each relation.
     //And if there are, then I count how many
@@ -730,7 +725,7 @@ struct CreateParallelFirstAtom {
     }
 };
 
-void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
+void SemiNaiver::processRuleFirstAtom(const int nBodyLiterals,
         const Literal *bodyLiteral,
         std::vector<Literal> &heads,
         const size_t min,
@@ -739,7 +734,7 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
         const bool lastLiteral,
         const size_t iteration,
         const RuleExecutionDetails &ruleDetails,
-        const uint8_t orderExecution,
+        const int orderExecution,
         std::vector<std::pair<uint8_t, uint8_t>> *filterValueVars,
         ResultJoinProcessor *joinOutput) {
     //If the rule has only one body literal, has the same bindings list of the head,
@@ -783,7 +778,29 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
 
             literalItr.moveNextCount();
         }
-    } else if (nBodyLiterals == 1) {
+        return;
+    } 
+
+    // When the literal has repeated variables, we only need one copy of these variables.
+    bool hasRepeated = bodyLiteral->hasRepeatedVars();
+    std::vector<uint8_t> toCopy;
+    if (hasRepeated) {
+        std::set<Var_t> vars;
+        int cnt = 0;
+        for (int i = 0; i < bodyLiteral->getTupleSize(); i++) {
+            VTerm t = bodyLiteral->getTermAtPos(i);
+            if (t.isVariable()) {
+                Var_t v = t.getId();
+                if (vars.find(v) == vars.end()) {
+                    vars.insert(v);
+                    toCopy.push_back(cnt);
+                }
+                cnt++;
+            }
+        }
+    }
+    
+    if (nBodyLiterals == 1) {
         const bool uniqueResults =
             !ruleDetails.rule.isExistential() && opt_filtering
             && firstHeadLiteral.getNUniqueVars() == bodyLiteral->getNUniqueVars()
@@ -800,17 +817,25 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
 
                 std::shared_ptr<const FCInternalTable> table =
                     literalItr.getCurrentTable();
+
                 FCInternalTableItr *interitr = table->getIterator();
+                FCInternalTableItr *selectinginteritr = interitr;
+                if (hasRepeated) {
+                    selectinginteritr = new SelectingFCInternalTableItr(interitr, toCopy);
+                }
 
                 bool unique = uniqueResults && firstEndTable->isEmpty();
                 bool sorted = uniqueResults && firstHeadLiteral.
                     sameVarSequenceAs(*bodyLiteral);
-                joinOutput->addColumns(0, interitr,
+                joinOutput->addColumns(0, selectinginteritr,
                         unique,
                         sorted,
                         literalItr.getNTables() == 1);
 
                 table->releaseIterator(interitr);
+                if (hasRepeated) {
+                    delete selectinginteritr;
+                }
             }
             // No else-clause here? Yes, can only be duplicates
             literalItr.moveNextCount();
@@ -827,6 +852,10 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
             std::shared_ptr<const FCInternalTable> table = literalItr.getCurrentTable();
             LOG(DEBUGL) << "Creating iterator";
             FCInternalTableItr *interitr = table->getIterator();
+            FCInternalTableItr *selectinginteritr = interitr;
+            if (hasRepeated) {
+                selectinginteritr = new SelectingFCInternalTableItr(interitr, toCopy);
+            }
             std::pair<uint8_t, uint8_t> *fv = NULL;
             std::pair<uint8_t, uint8_t> psColumnsToFilter;
             if (filterValueVars != NULL) {
@@ -837,7 +866,7 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
             }
 
             std::vector<const std::vector<Term_t> *> vectors;
-            vectors = interitr->getAllVectors(nthreads);
+            vectors = selectinginteritr->getAllVectors(nthreads);
 
             if (vectors.size() > 0) {
                 size_t sz = vectors[0]->size();
@@ -881,14 +910,14 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
                         }
                     }
                 }
-                interitr->deleteAllVectors(vectors);
+                selectinginteritr->deleteAllVectors(vectors);
             } else {
-                while (interitr->hasNext()) {
-                    interitr->next();
+                while (selectinginteritr->hasNext()) {
+                    selectinginteritr->next();
                     if (fv != NULL) {
                         //otherwise I miss others
-                        if (interitr->getCurrentValue(fv->first) ==
-                                interitr->getCurrentValue(
+                        if (selectinginteritr->getCurrentValue(fv->first) ==
+                                selectinginteritr->getCurrentValue(
                                     fv->second)) {
                             continue;
                         }
@@ -896,11 +925,14 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
 
                     joinOutput->processResults(0,
                             (FCInternalTableItr*)NULL,
-                            interitr, uniqueResults);
+                            selectinginteritr, uniqueResults);
                 }
             }
             LOG(DEBUGL) << "Releasing iterator";
             table->releaseIterator(interitr);
+            if (hasRepeated) {
+                delete selectinginteritr;
+            }
             literalItr.moveNextCount();
         }
     }
@@ -922,8 +954,8 @@ void SemiNaiver::processRuleFirstAtom(const uint8_t nBodyLiterals,
  * */
 void SemiNaiver::reorderPlanForNegatedLiterals(RuleExecutionPlan &plan, const std::vector<Literal> &heads) {
     std::set<Var_t> bounded_vars;
-    std::vector<uint8_t> literal_indexes;
-    std::vector<uint8_t> new_order;
+    std::vector<int> literal_indexes;
+    std::vector<int> new_order;
     bounded_vars.clear();
     literal_indexes.clear();
     new_order.clear();
@@ -931,7 +963,7 @@ void SemiNaiver::reorderPlanForNegatedLiterals(RuleExecutionPlan &plan, const st
     bool c1; // isnegated
     bool c2; // are variables bounded?
 
-    for (uint8_t i=0; i < plan.plan.size(); ++i)
+    for (int i=0; i < plan.plan.size(); ++i)
         literal_indexes.push_back(i);
 
     // literal_indexes[i] is the index --from plan.plan-- of the next literal
@@ -951,8 +983,10 @@ void SemiNaiver::reorderPlanForNegatedLiterals(RuleExecutionPlan &plan, const st
             if (!c1 || (c1 && c2))
                 break;
         }
-        if (i >= literal_indexes.size())
-            throw std::runtime_error("Input Negation Error. Impossible to bound variables in negated atom.");
+        if (i >= literal_indexes.size()) {
+            LOG(ERRORL) << "Input Negation Error. Impossible to bind variables in negated atom.";
+            throw ("Input Negation Error. Impossible to bind variables in negated atom.");
+        }
 
         for (auto ele: vars_i)
             bounded_vars.insert(ele);
@@ -976,15 +1010,15 @@ void SemiNaiver::reorderPlan(RuleExecutionPlan &plan,
         const std::vector<Literal> &heads,
         bool copyAllVars) {
     //Reorder the atoms in terms of cardinality.
-    std::vector<std::pair<uint8_t, size_t>> positionCards;
-    for (uint8_t i = 0; i < cards.size(); ++i) {
+    std::vector<std::pair<int, size_t>> positionCards;
+    for (int i = 0; i < cards.size(); ++i) {
         LOG(DEBUGL) << "Atom " << (int) i << " has card " << cards[i];
         positionCards.push_back(std::make_pair(i, cards[i]));
     }
     sort(positionCards.begin(), positionCards.end(), _sortCards);
 
     //Ensure there are always variables
-    std::vector<std::pair<uint8_t, size_t>> adaptedPosCards;
+    std::vector<std::pair<int, size_t>> adaptedPosCards;
     adaptedPosCards.push_back(positionCards.front());
     std::vector<Var_t> vars = plan.plan[
         positionCards[0].first]
@@ -1029,7 +1063,7 @@ void SemiNaiver::reorderPlan(RuleExecutionPlan &plan,
         }
     }
     if (toReorder) {
-        std::vector<uint8_t> orderLiterals;
+        std::vector<int> orderLiterals;
         for (int i = 0; i < adaptedPosCards.size(); ++i) {
             LOG(DEBUGL) << "Reordered plan is " << (int)adaptedPosCards[i].first;
             orderLiterals.push_back(adaptedPosCards[i].first);
@@ -1038,7 +1072,7 @@ void SemiNaiver::reorderPlan(RuleExecutionPlan &plan,
     }
 }
 
-FCTable *SemiNaiver::getTable(const PredId_t pred, const uint8_t card) {
+FCTable *SemiNaiver::getTable(const PredId_t pred, const int card) {
     FCTable *endTable;
     if (predicatesTables[pred] != NULL) {
         endTable = predicatesTables[pred];
@@ -1129,7 +1163,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
         //Auxiliary relations to perform the joins
         std::vector<size_t> cards;
         RuleExecutionPlan plan = orderExecutions->at(orderExecution);
-        const uint8_t nBodyLiterals = (uint8_t) plan.plan.size();
+        const int nBodyLiterals = plan.plan.size();
 
         //**** Should I skip the evaluation because some atoms are empty? ***
         bool isOneRelEmpty = checkIfAtomsAreEmpty(ruleDetails, plan, limitView, cards);
@@ -1211,7 +1245,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                             plan.posFromSecond[optimalOrderIdx],
                             listDerivations,
                             heads, &ruleDetails,
-                            (uint8_t) orderExecution, iteration,
+                            orderExecution, iteration,
                             finalResultContainer == NULL,
                             !multithreaded ? -1 : nthreads,
                             this,
@@ -1231,7 +1265,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                                 heads[0],
                                 0,
                                 &ruleDetails,
-                                (uint8_t) orderExecution,
+                                orderExecution,
                                 iteration,
                                 finalResultContainer == NULL,
                                 !multithreaded ? -1 : nthreads,
@@ -1243,7 +1277,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                                 plan.posFromSecond[optimalOrderIdx],
                                 listDerivations,
                                 heads, &ruleDetails,
-                                (uint8_t) orderExecution, iteration,
+                                orderExecution, iteration,
                                 finalResultContainer == NULL,
                                 !multithreaded ? -1 : nthreads, this,
                                 ignoreDuplicatesElimination);
@@ -1259,6 +1293,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                 min = ruleDetails.lastExecution;
             if (max == 1)
                 max = ruleDetails.lastExecution - 1;
+            /*
             if (limitView != 0) {
                 // For execution of the restricted chase, we must limit the
                 // view: we may not include data from the current round.
@@ -1268,6 +1303,7 @@ bool SemiNaiver::executeRule(RuleExecutionDetails &ruleDetails,
                     max = limitView - 1;
                 }
             }
+            */
             if (min > max) {
                 optimalOrderIdx++;
                 continue;
@@ -1451,32 +1487,32 @@ bool SemiNaiver::checkEmpty(const Literal *lit) {
     std::vector<std::pair<uint8_t, uint8_t>> repeated = lit->getRepeatedVars();
 
     while (! tableIt.isEmpty()) {
-        std::shared_ptr<const FCInternalTable> table = tableIt.getCurrentTable();
-        FCInternalTableItr *itrTable = table->getIterator();
-        while (itrTable->hasNext()) {
-            itrTable->next();
-            bool found = true;
-            for (int i = 0; i < tuple.getSize(); i++) {
-                if (! tuple.get(i).isVariable()) {
-                    if (itrTable->getCurrentValue(i) != tuple.get(i).getValue()) {
-                        found = false;
-                        break;
-                    }
-                }
-                for (uint8_t i = 0; i < repeated.size(); ++i) {
-                    if (itrTable->getCurrentValue(repeated[i].first) != itrTable->getCurrentValue(repeated[i].second)) {
-                        found = false;
-                        break;
-                    }
-                }
-            }
-            if (found) {
-                table->releaseIterator(itrTable);
-                return false;
-            }
-        }
-        table->releaseIterator(itrTable);
-        tableIt.moveNextCount();
+	std::shared_ptr<const FCInternalTable> table = tableIt.getCurrentTable();
+	FCInternalTableItr *itrTable = table->getIterator();
+	while (itrTable->hasNext()) {
+	    itrTable->next();
+	    bool found = true;
+	    for (int i = 0; i < tuple.getSize(); i++) {
+		if (! tuple.get(i).isVariable()) {
+		    if (itrTable->getCurrentValue(i) != tuple.get(i).getValue()) {
+			found = false;
+			break;
+		    }
+		}
+		for (int i = 0; i < repeated.size(); ++i) {
+		    if (itrTable->getCurrentValue(repeated[i].first) != itrTable->getCurrentValue(repeated[i].second)) {
+			found = false;
+			break;
+		    }
+		}
+	    }
+	    if (found) {
+		table->releaseIterator(itrTable);
+		return false;
+	    }
+	}
+	table->releaseIterator(itrTable);
+	tableIt.moveNextCount();
     }
     return true;
 }
@@ -1564,7 +1600,7 @@ FCIterator SemiNaiver::getTableFromEDBLayer(const Literal & literal) {
 
         VTuple t = literal.getTuple();
         //Add all different variables
-        for (uint8_t i = 0; i < t.getSize(); ++i) {
+        for (int i = 0; i < t.getSize(); ++i) {
             t.set(VTerm(i + 1, 0), i);
         }
         Literal mostGenericLiteral(literal.getPredicate(), t);

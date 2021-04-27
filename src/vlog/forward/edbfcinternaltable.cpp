@@ -112,7 +112,7 @@ std::shared_ptr<Column> EDBFCInternalTable::getColumn(
 
     return std::shared_ptr<Column>(new EDBColumn(*layer,
                 *query.getLiteral(),
-                posFields[columnIdx],
+                columnIdx,
                 presortFields,
                 //unq));
            false));

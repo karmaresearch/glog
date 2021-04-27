@@ -791,6 +791,7 @@ JNIEXPORT jlong JNICALL Java_karmaresearch_vlog_VLog_nativeQuerySize(JNIEnv * en
 
 		if (f->sn != NULL) {
 			delete f->sn;
+            f->sn = NULL;
 		}
 
 		LOG(INFOL) << "Starting full materialization";
@@ -815,12 +816,21 @@ JNIEXPORT jlong JNICALL Java_karmaresearch_vlog_VLog_nativeQuerySize(JNIEnv * en
 			throwMaterializationException(env, e.what());
 			if (f->sn != NULL) {
 				delete f->sn;
+                f->sn = NULL;
+			}
+			return false;
+		} catch(const char *e) {
+			throwMaterializationException(env, e);
+			if (f->sn != NULL) {
+				delete f->sn;
+                f->sn = NULL;
 			}
 			return false;
 		} catch(std::bad_alloc e) {
 			throwMaterializationException(env, e.what());
 			if (f->sn != NULL) {
 				delete f->sn;
+                f->sn = NULL;
 			}
 			return false;
 		}

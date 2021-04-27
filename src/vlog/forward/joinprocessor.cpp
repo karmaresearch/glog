@@ -561,6 +561,20 @@ void JoinExecutor::join(SemiNaiver * naiver, const FCInternalTable * t1,
         const int currentLiteral,
         const int nthreads) {
 
+#ifdef DEBUG
+    LOG(TRACEL) << "joinsCoordinates.size() = " << joinsCoordinates.size();
+    for (int i = 0; i < joinsCoordinates.size(); i++) {
+        LOG(TRACEL) << "i = " << i << ", first = " << (int) joinsCoordinates[i].first << ", second = " << (int) joinsCoordinates[i].second;
+    }
+    LOG(TRACEL) << "posFromFirst.size = " << output->getNCopyFromFirst();
+    for (int i = 0; i < output->getNCopyFromFirst(); i++) {
+        LOG(TRACEL) << "i = " << i << ", first = " << (int) output->getPosFromFirst()[i].first << ", second = " << (int) output->getPosFromFirst()[i].second;
+    }
+    LOG(TRACEL) << "posFromSecond.size = " << output->getNCopyFromSecond();
+    for (int i = 0; i < output->getNCopyFromSecond(); i++) {
+        LOG(TRACEL) << "i = " << i << ", first = " << (int) output->getPosFromSecond()[i].first << ", second = " << (int) output->getPosFromSecond()[i].second;
+    }
+#endif
     // Input Negation. We check if the literal is negated before calling
     // isJoinVerificative and isJoinTwoToOneJoin. Check performance issues.
     if (literal.isNegated()) {
@@ -582,12 +596,6 @@ void JoinExecutor::join(SemiNaiver * naiver, const FCInternalTable * t1,
         //This code is to execute more generic joins. We do hash join if
         //keys are few and there is no ordering. Otherwise, merge join.
         int factor = literalIsExpensive(literal, naiver->getEDBLayer()) ? 50 : 1;
-#ifdef DEBUG
-        LOG(TRACEL) << "joinsCoordinates.size() = " << joinsCoordinates.size();
-        for (int i = 0; i < joinsCoordinates.size(); i++) {
-            LOG(TRACEL) << "i = " << i << ", first = " << (int) joinsCoordinates[i].first << ", second = " << (int) joinsCoordinates[i].second;
-        }
-#endif
         //No hash joins if there are functors
         /*if (t1->estimateNRows() <= factor * THRESHOLD_HASHJOIN
                 && joinsCoordinates.size() < 3 && joinsCoordinates.size() > 0
@@ -1171,20 +1179,37 @@ void JoinExecutor::mergejoin(const FCInternalTable * t1, SemiNaiver * naiver,
     //remove all constants from fields2 and update all the others
     std::vector<uint8_t> sortedIdx = idxColumnsLowCardInLiteral;
     std::sort(sortedIdx.begin(), sortedIdx.end());
+    std::vector<uint8_t> posVars = literalToQuery.getPosVars();
     for (int i = sortedIdx.size() - 1; i >= 0; --i) {
+        Var_t id = literalToQuery.getTermAtPos(posVars[sortedIdx[i]]).getId();
         //Adapt outputCopyCoordinates
+        //Note that variables to be replaced can occur more than once.
         const uint8_t nPosFromSecond = output->getNCopyFromSecond();
         std::pair<uint8_t, uint8_t> *posFromSecond = output->getPosFromSecond();
         for (uint8_t m = 0; m < nPosFromSecond; ++m) {
+            int cnt = 1;
             if (posFromSecond[m].second > sortedIdx[i]) {
-                posFromSecond[m].second--;
+                for (int j = sortedIdx[i] + 1; j < posFromSecond[m].second; j++) {
+                    Var_t t = literalToQuery.getTermAtPos(posVars[j]).getId();
+                    if (t == id) {
+                        cnt++;
+                    }
+                }
+                posFromSecond[m].second -= cnt;
             }
         }
 
         //Remove constants from fields2
         for (uint32_t j = 0; j < fields2.size(); ++j) {
+            int cnt = 1;
             if (fields2[j] > sortedIdx[i]) {
-                fields2[j]--;
+                for (int k = sortedIdx[i] + 1; k < fields2[j]; k++) {
+                    Var_t t = literalToQuery.getTermAtPos(posVars[k]).getId();
+                    if (t == id) {
+                        cnt++;
+                    }
+                }
+                fields2[j] -= cnt;
             }
         }
     }
@@ -1250,14 +1275,23 @@ void JoinExecutor::mergejoin(const FCInternalTable * t1, SemiNaiver * naiver,
             for (uint32_t j = 0; j < idxColumnsLowCardInLiteral.size(); ++j) {
                 uint8_t idxInLiteral = 0;
                 uint8_t nvars = 0;
-                Var_t var = 0;
                 for (uint8_t r = 0; r < literalToQuery.getTupleSize(); ++r) {
                     if (literalToQuery.getTermAtPos(r).isVariable()) {
-                        if (nvars == idxColumnsLowCardInLiteral[j]) {
-                            idxInLiteral = r;
-                            var = literalToQuery.getTermAtPos(r).getId();
+                        Var_t var = literalToQuery.getTermAtPos(r).getId();
+                        bool usedBefore = false;
+                        for (uint8_t k = 0; k < r; k++) {
+                            if (literalToQuery.getTermAtPos(k).isVariable() && var == literalToQuery.getTermAtPos(k).getId()) {
+                                usedBefore = true;
+                                break;
+                            }
                         }
-                        nvars++;
+                        if (! usedBefore) {
+                            if (nvars == idxColumnsLowCardInLiteral[j]) {
+                                idxInLiteral = r;
+                                break;
+                            }
+                            nvars++;
+                        }
                     }
                 }
                 // t.set(VTerm(0, bagValuesColumns[j][idxs[j]]), idxInLiteral);
