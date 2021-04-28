@@ -98,7 +98,7 @@ class TGSegmentLegacy : public TGSegment {
 
         std::shared_ptr<TGSegment> swap() const;
 
-        int getProvenanceType() const;
+        ProvenanceType getProvenanceType() const;
 
         size_t getNodeId() const;
 

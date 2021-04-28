@@ -80,14 +80,14 @@ class CompositeTGSegment : public TGSegment {
 
         //0 = no provenance, 1 = all tuples come from the same node
         //2 = tuples from different nodes
-        int getProvenanceType() const {
+        ProvenanceType getProvenanceType() const {
             if (trackProvenance) {
                 if (nodes.size() == 1)
-                    return 1;
+                    return SAMENODE;
                 else
-                    return 2;
+                    return DIFFNODES;
             } else
-                return 0;
+                return NOPROV;
         }
 
         size_t getNodeId() const {
