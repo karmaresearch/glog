@@ -334,16 +334,16 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
     }
 }
 
-ProvenanceType TGSegmentLegacy::getProvenanceType() const {
+SegProvenanceType TGSegmentLegacy::getProvenanceType() const {
     if (trackProvenance) {
         assert(columns.size() > 0);
         if (columns.back()->isEmpty() || columns.back()->isConstant()) {
-            return SAMENODE;
+            return SEG_SAMENODE;
         } else {
-            return DIFFNODES;
+            return SEG_DIFFNODES;
         }
     } else {
-        return NOPROV;
+        return SEG_NOPROV;
     }
 }
 

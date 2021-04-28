@@ -8,6 +8,12 @@
 
 #include <map>
 
+typedef enum ProvenanceType {
+    NOPROV, //no provenance
+    NODEPROV, //we know the nodes used to produce the derivations
+    FULLPROV //for each fact, we know the facts that generated it
+} ProvenanceType;
+
 class GBGraph {
     private:
         struct GBGraph_Node {
@@ -64,7 +70,7 @@ class GBGraph {
             std::shared_ptr<const TGSegment> seg;
         };
 
-        const bool trackProvenance;
+        const ProvenanceType provenanceType;
         const bool cacheRetainEnabled;
         const bool queryContEnabled;
 
@@ -212,6 +218,10 @@ class GBGraph {
 
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
+        bool shouldTrackProvenance() const {
+            return provenanceType != NOPROV;
+        }
+
         void addNode(PredId_t predId,
                 size_t ruleIdx,
                 size_t step,
@@ -224,7 +234,7 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> data);
 
         const GBGraph_Node &getNode(size_t nodeId) const {
-            if (trackProvenance && nodeId >= startCounterTmpNodes) {
+            if (shouldTrackProvenance() && nodeId >= startCounterTmpNodes) {
                 assert(mapTmpNodes.count(nodeId));
                 return mapTmpNodes.find(nodeId)->second;
             } else {
@@ -252,10 +262,10 @@ class GBGraph {
                 size_t beginSegment);
 
     public:
-        GBGraph(bool trackProvenance,
+        GBGraph(ProvenanceType provenanceType,
                 bool cacheRetainEnabled,
                 bool useQueryContainmentForRedundancyElim = false) :
-            trackProvenance(trackProvenance),
+            provenanceType(provenanceType),
             cacheRetainEnabled(cacheRetainEnabled),
             queryContEnabled(useQueryContainmentForRedundancyElim),
             durationRetain(0),
@@ -339,9 +349,17 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> data,
                 const std::vector<size_t> &incomingEdges);
 
+        void addNodeFullProv(PredId_t predId,
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data,
+                const std::vector<size_t> &incomingEdges,
+                const std::vector<size_t> &offsetIncomingEdges);
+
         void addNodesProv(PredId_t predId,
-                size_t ruleIdx, size_t step,
-                std::shared_ptr<const TGSegment> seg,
+                size_t ruleIdx,
+                size_t step,
+                std::shared_ptr<const TGSegment> data,
                 const std::vector<std::shared_ptr<Column>> &provenance);
 
         void addNodeToBeRetained(PredId_t predId,

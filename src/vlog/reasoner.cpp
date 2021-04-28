@@ -858,7 +858,6 @@ std::shared_ptr<TriggerSemiNaiver> Reasoner::getTriggeredSemiNaiver(EDBLayer &la
     return sn;
 }
 
-
 std::shared_ptr<GBChase> Reasoner::getGBChase(
         EDBLayer &layer,
         Program *p,
@@ -868,14 +867,14 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
         bool rewriteCliques,
         std::string param1) {
     if (typeChase == GBChaseAlgorithm::GBCHASE) {
-        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, false, false));
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, NOPROV, false));
         return sn;
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_STATIC) {
         std::shared_ptr<GBChase> sn(new TGChaseStatic(layer, p, param1));
         return sn;
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC) {
         std::shared_ptr<GBChase> sn(new GBChase(layer, p,
-                    true, true,
+                    true, NODEPROV,
                     queryCont,
                     edbCheck,
                     rewriteCliques));

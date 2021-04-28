@@ -107,7 +107,7 @@ void GBGraph::addNodeNoProv(PredId_t predId,
         size_t ruleIdx,
         size_t step,
         std::shared_ptr<const TGSegment> data) {
-    if (trackProvenance) {
+    if (shouldTrackProvenance()) {
         LOG(ERRORL) << "This method should not be called if provenance is"
             " activated";
         throw 10;
@@ -245,7 +245,6 @@ void GBGraph::addNodesProv(PredId_t predId,
     }
 }
 
-
 void GBGraph::addNodeProv(PredId_t predid,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> data,
@@ -295,6 +294,16 @@ void GBGraph::addNodeProv(PredId_t predid,
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
+}
+
+void GBGraph::addNodeFullProv(PredId_t predId,
+        size_t ruleIdx,
+        size_t step,
+        std::shared_ptr<const TGSegment> data,
+        const std::vector<size_t> &incomingEdges,
+        const std::vector<size_t> &offsetIncomingEdges)
+{
+    throw 10;
 }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,
@@ -397,7 +406,7 @@ void GBGraph::replaceEqualTerms(
         auto &nodeIDs = pair.second;
         assert(!nodes.empty());
         const auto card = getNodeData(nodeIDs[0])->getNColumns();
-        const int extraColumns = trackProvenance ? 1 : 0;
+        const int extraColumns = shouldTrackProvenance() ? 1 : 0;
         const auto nfields = card + extraColumns;
         std::unique_ptr<GBSegmentInserter> rewrittenTuples =
             GBSegmentInserter::getInserter(nfields, extraColumns, false);
@@ -422,7 +431,7 @@ void GBGraph::replaceEqualTerms(
                     }
                 }
                 if (found) {
-                    if (trackProvenance) {
+                    if (shouldTrackProvenance()) {
                         row[card] = ~0ul;
                     }
                     rewrittenTuples->add(row.get());
@@ -438,14 +447,14 @@ void GBGraph::replaceEqualTerms(
                             for(int i = 0; i < card; ++i) {
                                 row[i] = itr2->get(i);
                             }
-                            if (trackProvenance) {
+                            if (shouldTrackProvenance()) {
                                 row[card] = itr2->getNodeId();
                             }
                             oldTuples->add(row.get());
                         }
                     }
                 } else {
-                    if (trackProvenance) {
+                    if (shouldTrackProvenance()) {
                         row[card] = itr->getNodeId();
                     }
                     if (countAffectedTuples > 0 &&
@@ -461,14 +470,14 @@ void GBGraph::replaceEqualTerms(
             }
             if (oldTuples.get() != NULL) {
                 auto tuples = oldTuples->getSegment(nodes[nodeId].step,
-                        true, 0, trackProvenance);
+                        true, 0, shouldTrackProvenance());
                 nodes[nodeId].setData(tuples);
             } else {
                 if (rewrittenTuples->getNRows() == data->getNRows()) {
                     oldTuples = GBSegmentInserter::getInserter(nfields,
                             extraColumns, false);
                     auto tuples = oldTuples->getSegment(nodes[nodeId].step,
-                            true, 0, trackProvenance);
+                            true, 0, shouldTrackProvenance());
                     nodes[nodeId].setData(tuples);
                 } else {
                     assert(countUnaffectedTuples == data->getNRows());
@@ -484,7 +493,7 @@ void GBGraph::replaceEqualTerms(
             auto tuples = rewrittenTuples->getSegment(~0ul,
                     false,
                     0,
-                    trackProvenance);
+                    shouldTrackProvenance());
             tuples = tuples->sort()->unique();
             //Retain
             auto retainedTuples = retain(predid, tuples);
@@ -492,7 +501,7 @@ void GBGraph::replaceEqualTerms(
                     retainedTuples->isEmpty());
             if (nonempty) {
                 //Add new nodes
-                if (trackProvenance) {
+                if (shouldTrackProvenance()) {
                     auto nodeId = getNNodes();
                     auto dataToAdd = tuples->slice(nodeId, 0,
                             tuples->getNRows());
@@ -559,7 +568,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
                     assert(retainedColumn->isBackedByVector());
                     std::vector<Term_t> tuples;
                     ((InmemoryColumn*)retainedColumn.get())->swap(tuples);
-                    if (trackProvenance) {
+                    if (shouldTrackProvenance()) {
                         return std::shared_ptr<const TGSegment>(
                                 new UnaryWithConstProvTGSegment(tuples,
                                     newtuples->getNodeId(),
@@ -581,7 +590,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
                     } else {
                         std::vector<Term_t> tuples;
                         tuples.swap(writer.getValues());
-                        if (trackProvenance) {
+                        if (shouldTrackProvenance()) {
                             return std::shared_ptr<const TGSegment>(
                                     new UnaryWithConstProvTGSegment(tuples,
                                         newtuples->getNodeId(),
@@ -674,7 +683,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
                             tuples.push_back(std::make_pair(v1[i], v2[i]));
                         }
 
-                        if (trackProvenance) {
+                        if (shouldTrackProvenance()) {
                             return std::shared_ptr<const TGSegment>(
                                     new BinaryWithConstProvTGSegment(tuples,
                                         newtuples->getNodeId(),
@@ -700,7 +709,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
                 if (retained.empty()) {
                     return std::shared_ptr<const TGSegment>();
                 } else {
-                    if (trackProvenance) {
+                    if (shouldTrackProvenance()) {
                         return std::shared_ptr<const TGSegment>(
                                 new BinaryWithConstProvTGSegment(retained,
                                     newtuples->getNodeId(),
@@ -725,7 +734,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
     std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
-    const uint8_t extracol = trackProvenance &&
+    const uint8_t extracol = shouldTrackProvenance() &&
         newtuples->getProvenanceType() == 2 ? 1 : 0;
     Term_t row[ncols + extracol];
     const bool copyNode = newtuples->getProvenanceType() == 2;
@@ -829,7 +838,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             inserter->add(row);
         }
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
-                trackProvenance, copyNode);
+                shouldTrackProvenance(), copyNode);
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -856,7 +865,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                     i++;
                 }
                 return inserter->getSegment(newtuples->getNodeId(),
-                        true, 0, trackProvenance, copyNode);
+                        true, 0, shouldTrackProvenance(), copyNode);
             }
         } else {
             //They are all duplicates
@@ -1015,7 +1024,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 std::vector<std::shared_ptr<Column>> projectedColumns;
                 std::vector<std::shared_ptr<Column>> outColumns;
                 seg->projectTo(copyVarPos, projectedColumns);
-                assert(trackProvenance || projectedColumns.size() == 1);
+                assert(shouldTrackProvenance() || projectedColumns.size() == 1);
                 if (shouldSortAndUnique) {
                     auto col = projectedColumns[0]->sort();
                     outColumns.push_back(col->unique());
@@ -1024,7 +1033,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 }
                 size_t nrows = outColumns[0]->size();
 
-                if (trackProvenance) {
+                if (shouldTrackProvenance()) {
                     //Add one column with the provenance
                     assert(projectedColumns[1]->isConstant());
                     outColumns.push_back(std::shared_ptr<Column>(
@@ -1052,10 +1061,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         if (lazyMode) {
             return std::shared_ptr<const TGSegment>(
                     new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                        false, 0, trackProvenance));
+                        false, 0, shouldTrackProvenance()));
         }
 
-        if (trackProvenance) {
+        if (shouldTrackProvenance()) {
             std::vector<std::pair<Term_t,Term_t>> tuples;
             for(auto idbBodyAtomIdx : nodeIdxs) {
                 getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
@@ -1094,10 +1103,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             if (lazyMode) {
                 return std::shared_ptr<const TGSegment>(
                         new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                            false, 0, trackProvenance));
+                            false, 0, shouldTrackProvenance()));
             }
 
-            if (trackProvenance) {
+            if (shouldTrackProvenance()) {
                 std::vector<BinWithProv> tuples;
                 for(auto idbBodyAtomIdx : nodeIdxs) {
                     getNodeData(idbBodyAtomIdx)->appendTo(
@@ -1134,12 +1143,12 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     } else {
         //Could be 0 or > 2
         assert(copyVarPos.size() == 0 || copyVarPos.size() > 2);
-        const size_t ncolumns = trackProvenance ?
+        const size_t ncolumns = shouldTrackProvenance() ?
             copyVarPos.size() + 1 : copyVarPos.size();
         std::vector<std::vector<Term_t>> tuples(ncolumns);
         for(auto i : nodeIdxs) {
             auto data = getNodeData(i);
-            if (trackProvenance) {
+            if (shouldTrackProvenance()) {
                 data->appendTo(copyVarPos, tuples, true);
             } else {
                 data->appendTo(copyVarPos, tuples, false);
@@ -1153,7 +1162,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                         new InmemoryColumn(tuples[i], true)));
         }
         std::shared_ptr<const TGSegment> seg;
-        if (!trackProvenance) {
+        if (!shouldTrackProvenance()) {
             seg = std::shared_ptr<const TGSegment>(
                     new TGSegmentLegacy(columns, nrows, false, 0, false));
         } else {
@@ -1354,7 +1363,7 @@ uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     }
 
     //Create a new node
-    if (trackProvenance) {
+    if (shouldTrackProvenance()) {
         std::vector<size_t> nodes;
         addNodeProv(predId, ~0ul, lastStep, tuples, nodes);
     } else {

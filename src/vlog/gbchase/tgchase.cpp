@@ -6,7 +6,7 @@ TGChase::TGChase(EDBLayer &layer, Program *program) : GBChase(layer, program) {
 }
 
 void TGChase::executeRule(const size_t ruleIdx, TGChase_RuleIO &io) {
-    if (trackProvenance) {
+    if (shouldTrackProvenance()) {
         size_t nOutputNodes = io.inNodes[0].size();
         for(size_t i = 1; i < io.inNodes.size(); ++i) {
             nOutputNodes = nOutputNodes * io.inNodes[i].size();
@@ -40,7 +40,7 @@ void TGChase::executeRule(const size_t ruleIdx, TGChase_RuleIO &io) {
     bool newNodes = GBChase::executeRule(input, false);
     io.outSizes.clear();
     if (newNodes) {
-        if (trackProvenance) {
+        if (shouldTrackProvenance()) {
             LOG(ERRORL) << "Not implemented (yet)";
             throw 10;
         } else {

@@ -2,17 +2,17 @@
 #include <vlog/gbchase/gbsegmentcache.h>
 
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
-        bool trackProvenance,
+        ProvenanceType provenanceType,
         bool filterQueryCont,
         bool edbCheck,
         bool rewriteCliques) :
     layer(layer),
     program(program),
-    trackProvenance(trackProvenance),
+    provenanceType(provenanceType),
     filterQueryCont(filterQueryCont),
     edbCheck(edbCheck),
-    g(trackProvenance, useCacheRetain, filterQueryCont),
-    executor(trackProvenance, g, layer, program),
+    g(provenanceType, useCacheRetain, filterQueryCont),
+    executor(shouldTrackProvenance(), g, layer, program),
     triggers(0),
     durationPreparation(0),
     durationRuleExec(0)/*,
@@ -32,7 +32,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
 
     rules = program->getAllRules();
-    if (trackProvenance) {
+    if (shouldTrackProvenance()) {
         g.setRulesProgramLayer(rules.data(), program, &layer);
     }
 }
@@ -682,7 +682,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                         g.replaceEqualTerms(node.ruleIdx, node.step, retainedTuples);
                     } else {
                         //Add new nodes
-                        if (trackProvenance) {
+                        if (shouldTrackProvenance()) {
                             g.addNodesProv(currentPredicate, node.ruleIdx,
                                     node.step, retainedTuples, derivationNodes);
                         } else {

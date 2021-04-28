@@ -16,7 +16,7 @@ typedef enum { GBCHASE, TGCHASE_STATIC, TGCHASE_DYNAMIC } GBChaseAlgorithm;
 
 class GBChase : public Chase {
     protected:
-        const bool trackProvenance;
+        const ProvenanceType provenanceType;
         const bool filterQueryCont;
         const bool edbCheck;
         Program *program;
@@ -59,6 +59,10 @@ class GBChase : public Chase {
         bool shouldRetainAtEnd(PredId_t pred);
 
     protected:
+        bool shouldTrackProvenance() const {
+            return provenanceType != NOPROV;
+        }
+
         std::pair<bool, size_t> determineAdmissibleRule(
                 const size_t &ruleIdx,
                 const size_t stratumLevel,
@@ -89,7 +93,7 @@ class GBChase : public Chase {
     public:
         VLIBEXP GBChase(EDBLayer &layer, Program *program,
                 bool useCacheRetain = true,
-                bool trackProvenance = false,
+                ProvenanceType provenanceType = NOPROV,
                 bool filterQueryCont = false,
                 bool edbCheck = false,
                 bool rewriteCliques = false);
