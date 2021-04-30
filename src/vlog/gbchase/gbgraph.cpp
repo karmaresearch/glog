@@ -144,6 +144,13 @@ void GBGraph::addNodesProv(PredId_t predId,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
         const std::vector<std::shared_ptr<Column>> &provenance) {
+
+    if (provenanceType != ProvenanceType::NODEPROV) {
+        LOG(ERRORL) << "This method should be called only if type provenance is"
+            " set to NODEPROV";
+        throw 10;
+    }
+
     if (provenance.size() == 0) {
         //Single EDB or IDB atom
         if (seg->getProvenanceType() == 2) {
@@ -249,6 +256,13 @@ void GBGraph::addNodeProv(PredId_t predid,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
+
+    if (provenanceType != ProvenanceType::NODEPROV) {
+        LOG(ERRORL) << "This method should be called only if type provenance is"
+            " set to NODEPROV";
+        throw 10;
+    }
+
     auto nodeId = getNNodes();
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
@@ -294,16 +308,6 @@ void GBGraph::addNodeProv(PredId_t predid,
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
-}
-
-void GBGraph::addNodeFullProv(PredId_t predId,
-        size_t ruleIdx,
-        size_t step,
-        std::shared_ptr<const TGSegment> data,
-        const std::vector<size_t> &incomingEdges,
-        const std::vector<size_t> &offsetIncomingEdges)
-{
-    throw 10;
 }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,

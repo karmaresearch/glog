@@ -23,12 +23,11 @@ struct GBRuleOutput {
     std::shared_ptr<const TGSegment> segment;
     std::vector<std::shared_ptr<Column>> nodes;
     bool uniqueTuples;
-
     GBRuleOutput() : uniqueTuples(false) {}
 };
 
 typedef enum {DUR_FIRST, DUR_MERGE, DUR_JOIN, DUR_HEAD //,DUR_PREP2TO1
-    } DurationType;
+} DurationType;
 typedef enum { N_BDY_ATOMS } StatType;
 
 
@@ -51,21 +50,18 @@ class GBRuleExecutor {
         std::chrono::duration<double, std::milli> durationMergeSort;
         std::chrono::duration<double, std::milli> durationJoin;
         std::chrono::duration<double, std::milli> durationCreateHead;
-        //std::chrono::duration<double, std::milli> durationPrep2to1;
 
         std::chrono::duration<double, std::milli> lastDurationFirst;
         std::chrono::duration<double, std::milli> lastDurationMergeSort;
         std::chrono::duration<double, std::milli> lastDurationJoin;
         std::chrono::duration<double, std::milli> lastDurationCreateHead;
-        //std::chrono::duration<double, std::milli> lastDurationPrep2to1;
         std::string bdyAtoms;
-
 
         Program *program; //used only for debugging purposes
         EDBLayer &layer;
         std::map<PredId_t, std::shared_ptr<EDBTable>> edbTables;
 
-        const bool trackProvenance;
+        const GBGraph::ProvenanceType provenanceType;
         GBGraph &g;
         std::vector<size_t> noBodyNodes;
 
@@ -176,8 +172,12 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> tuples,
                 std::vector<size_t> &vars);
 
+        bool shouldTrackProvenance() {
+            return provenanceType != GBGraph::ProvenanceType::NOPROV;
+        }
+
     public:
-        GBRuleExecutor(bool trackProvenance, GBGraph &g, EDBLayer &layer,
+        GBRuleExecutor(GBGraph &g, EDBLayer &layer,
                 Program *program) :
             durationMergeSort(0),
             durationJoin(0),
@@ -189,9 +189,10 @@ class GBRuleExecutor {
             lastDurationFirst(0),
             bdyAtoms(""),
             program(program),
-            trackProvenance(trackProvenance),
-            g(g), layer(layer) {
-            }
+            provenanceType(g.getProvenanceType()),
+            g(g), layer(layer)
+    {
+    }
 
         std::vector<GBRuleOutput> executeRule(Rule &rule, GBRuleInput &node);
 

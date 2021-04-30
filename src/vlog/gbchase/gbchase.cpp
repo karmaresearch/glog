@@ -2,7 +2,7 @@
 #include <vlog/gbchase/gbsegmentcache.h>
 
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
-        ProvenanceType provenanceType,
+        GBGraph::ProvenanceType provenanceType,
         bool filterQueryCont,
         bool edbCheck,
         bool rewriteCliques) :
@@ -12,7 +12,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     filterQueryCont(filterQueryCont),
     edbCheck(edbCheck),
     g(provenanceType, useCacheRetain, filterQueryCont),
-    executor(shouldTrackProvenance(), g, layer, program),
+    executor(g, layer, program),
     triggers(0),
     durationPreparation(0),
     durationRuleExec(0)/*,

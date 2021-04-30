@@ -867,14 +867,15 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
         bool rewriteCliques,
         std::string param1) {
     if (typeChase == GBChaseAlgorithm::GBCHASE) {
-        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true, NOPROV, false));
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p, true,
+                    GBGraph::ProvenanceType::NOPROV, false));
         return sn;
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_STATIC) {
         std::shared_ptr<GBChase> sn(new TGChaseStatic(layer, p, param1));
         return sn;
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC) {
         std::shared_ptr<GBChase> sn(new GBChase(layer, p,
-                    true, NODEPROV,
+                    true, GBGraph::ProvenanceType::NODEPROV,
                     queryCont,
                     edbCheck,
                     rewriteCliques));

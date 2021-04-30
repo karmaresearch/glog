@@ -16,6 +16,49 @@ struct BinWithProv {
     }
 };
 
+struct BinWithOff {
+    size_t first, second, off;
+
+    bool operator <(const BinWithOff &rhs) const {
+        return first < rhs.first || (first == rhs.first && second < rhs.second) ||
+            (first == rhs.first && second == rhs.second && off < rhs.off);
+    }
+
+    bool operator==(const BinWithOff & rhs) const {
+        return first == rhs.first && second == rhs.second && off == rhs.off;
+    }
+};
+
+
+struct UnWithFullProv {
+    size_t first, node, prov;
+
+    bool operator <(const UnWithFullProv &rhs) const {
+        return first < rhs.first ||
+            (first == rhs.first && node < rhs.node) ||
+            (first == rhs.first && node == rhs.node && prov < rhs.prov);
+    }
+
+    bool operator==(const UnWithFullProv& rhs) const {
+        return first == rhs.first && node == rhs.node && prov == rhs.prov;
+    }
+};
+
+struct BinWithFullProv {
+    size_t first, second, node, prov;
+
+    bool operator <(const BinWithFullProv &rhs) const {
+        return first < rhs.first || (first == rhs.first && second < rhs.second) ||
+            (first == rhs.first && second == rhs.second && node < rhs.node) ||
+            (first == rhs.first && second == rhs.second && node == rhs.node && prov < rhs.prov);
+    }
+
+    bool operator==(const BinWithFullProv& rhs) const {
+        return first == rhs.first && second == rhs.second && node == rhs.node
+            && prov == rhs.prov;
+    }
+};
+
 class TGSegmentItr {
     public:
         virtual bool hasNext() = 0;
@@ -25,6 +68,8 @@ class TGSegmentItr {
         virtual Term_t get(const int colIdx) = 0;
 
         virtual size_t getNodeId() const = 0;
+
+        virtual size_t getProvenanceOffset(int pos) const = 0;
 
         virtual int getNFields() const = 0;
 
@@ -121,6 +166,12 @@ class TGSegmentLegacyItr : public TGSegmentItr {
             return values.back();
         }
 
+        size_t getProvenanceOffset(int pos) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
+
         int getNFields() const {
             return trackProvenance ? columns.size() - 1 : columns.size();
         }
@@ -167,6 +218,10 @@ class TGSegmentImplItr : public TGSegmentItr {
             return nodeId;
         }
 
+        virtual size_t getProvenanceOffset(int pos) const {
+            return currentIdx;
+        }
+
         virtual ~TGSegmentImplItr() {}
 };
 
@@ -199,6 +254,47 @@ class UnaryWithProvTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_
 
         size_t getNodeId() const {
             return tuples[currentIdx].second;
+        }
+};
+
+class UnaryWithConstNodeFullProvTGSegmentItr : public TGSegmentImplItr<std::pair<Term_t,Term_t>> {
+    public:
+        UnaryWithConstNodeFullProvTGSegmentItr(const size_t nodeId,
+                const std::vector<std::pair<Term_t,Term_t>> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
+
+        Term_t get(const int colIdx) {
+            return tuples[currentIdx].first;
+        }
+
+        int getNFields() const { return 1; }
+
+        size_t getProvenanceOffset() const {
+            return tuples[currentIdx].second;
+        }
+};
+
+class UnaryWithFullProvTGSegmentItr : public TGSegmentImplItr<UnWithFullProv> {
+    public:
+        UnaryWithFullProvTGSegmentItr(const size_t nodeId,
+                const std::vector<UnWithFullProv> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
+
+        Term_t get(const int colIdx) {
+            return tuples[currentIdx].first;
+        }
+
+        int getNFields() const { return 1; }
+
+        size_t getNodeId() const {
+            return tuples[currentIdx].node;
+        }
+
+        size_t getProvenanceOffset(int pos) const {
+            assert(pos == 0);
+            return tuples[currentIdx].prov;
         }
 };
 
@@ -239,6 +335,56 @@ class BinaryWithProvTGSegmentItr : public TGSegmentImplItr<BinWithProv> {
 
         size_t getNodeId() const {
             return tuples[currentIdx].node;
+        }
+};
+
+class BinaryWithOffTGSegmentItr : public TGSegmentImplItr<BinWithOff> {
+    public:
+        BinaryWithOffTGSegmentItr(const size_t nodeId,
+                const std::vector<BinWithOff> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
+
+        Term_t get(const int colIdx) {
+            if (colIdx == 0) {
+                return tuples[currentIdx].first;
+            } else {
+                return tuples[currentIdx].second;
+            }
+        }
+
+        int getNFields() const { return 2; }
+
+        size_t getProvenanceOffset() const {
+            return tuples[currentIdx].off;
+        }
+};
+
+
+class BinaryWithFullProvTGSegmentItr : public TGSegmentImplItr<BinWithFullProv> {
+    public:
+        BinaryWithFullProvTGSegmentItr(const size_t nodeId,
+                const std::vector<BinWithFullProv> &tuples,
+                std::shared_ptr<const TGSegment> selfref = NULL) :
+            TGSegmentImplItr(nodeId, tuples, selfref) {}
+
+        Term_t get(const int colIdx) {
+            if (colIdx == 0) {
+                return tuples[currentIdx].first;
+            } else {
+                return tuples[currentIdx].second;
+            }
+        }
+
+        int getNFields() const { return 2; }
+
+        size_t getNodeId() const {
+            return tuples[currentIdx].node;
+        }
+
+        size_t getProvenanceOffset(int pos) const {
+            assert(pos == 0);
+            return tuples[currentIdx].prov;
         }
 };
 

@@ -14,9 +14,8 @@ typedef enum SegProvenanceType {
     SEG_NOPROV, //no provenance
     SEG_SAMENODE, //all tuples come from the same node
     SEG_DIFFNODES, //tuples from different nodes
-    SEG_FULLPROV //for each fact, we know the facts that generated it
+    SEG_FULLPROV
 } SegProvenanceType;
-
 
 class TGSegment {
     private:
@@ -110,6 +109,12 @@ class TGSegment {
             throw 10;
         }
 
+        virtual void appendTo(uint8_t colPos,
+                std::vector<UnWithFullProv> &out) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
         virtual void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t,Term_t>> &out) const {
             LOG(ERRORL) << "Not implemented";
@@ -118,6 +123,12 @@ class TGSegment {
 
         virtual void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithProv> &out) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
+
+        virtual void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<BinWithFullProv> &out) const {
             LOG(ERRORL) << "Not implemented";
             throw 10;
         }
@@ -205,6 +216,7 @@ class TGSegmentImpl : public TGSegment {
                 tuples = std::shared_ptr<std::vector<K>>(new std::vector<K>());
                 tuples->swap(t);
             }
+
         TGSegmentImpl(std::shared_ptr<std::vector<K>> t, const size_t nodeId, bool isSorted=false,
                 uint8_t sortedField=0) :
             tuples(t), nodeId(nodeId), f_isSorted(isSorted), sortedField(sortedField) {
@@ -254,7 +266,8 @@ class TGSegmentImpl : public TGSegment {
                             TGSegmentImpl<S,K,I,CP>::sortedField));
             } else {
                 std::vector<K> out(end - start);
-                std::copy(TGSegmentImpl<S,K,I,CP>::tuples->begin() + start, TGSegmentImpl<S,K,I,CP>::tuples->begin() + end, out.begin());
+                std::copy(TGSegmentImpl<S,K,I,CP>::tuples->begin() + start,
+                        TGSegmentImpl<S,K,I,CP>::tuples->begin() + end, out.begin());
                 return std::shared_ptr<TGSegment>(new S(out,
                             nodeId,
                             TGSegmentImpl<S,K,I,CP>::f_isSorted,
@@ -376,522 +389,9 @@ class TGSegmentImpl : public TGSegment {
         virtual ~TGSegmentImpl() {}
 };
 
-template<typename S, typename K, typename I, SegProvenanceType CP>
-class UnaryTGSegmentImpl : public TGSegmentImpl<S,K,I,CP> {
-    public:
-        UnaryTGSegmentImpl(std::vector<K> &tuples,
-                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0)
-            : TGSegmentImpl<S,K,I,CP>(tuples, nodeId, isSorted, sortedField) {}
+#include <vlog/gbchase/gbsegment_unary.h>
 
-        UnaryTGSegmentImpl(std::shared_ptr<std::vector<K>> tuples,
-                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0)
-            : TGSegmentImpl<S,K,I,CP>(tuples, nodeId, isSorted, sortedField) {}
+#include <vlog/gbchase/gbsegment_binary.h>
 
-        size_t getNColumns() const {
-            return 1;
-        }
-
-        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
-            assert(fields.size() == 0 || (fields.size() == 1 && fields[0] == 0));
-            std::vector<K> sortedTuples(*TGSegmentImpl<S,K,I,CP>::tuples.get());
-            std::sort(sortedTuples.begin(), sortedTuples.end());
-            return std::shared_ptr<TGSegment>(
-                    new S(sortedTuples, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, 0));
-        }
-
-        virtual std::string getName() const {
-            return "TGUnarySegment";
-        }
-};
-
-template<typename K>
-bool invertedSorter(const K &a, const K &b) {
-    return a.second < b.second || (a.second == b.second && a.first < b.first);
-}
-
-template<typename S, typename K, typename I, SegProvenanceType CP>
-class BinaryTGSegmentImpl : public TGSegmentImpl<S,K,I,CP> {
-    public:
-        BinaryTGSegmentImpl(std::vector<K> &tuples,
-                const size_t nodeId,
-                bool isSorted=false, uint8_t sortedField = 0) : TGSegmentImpl<S,K,I,CP>(tuples, nodeId,
-                    isSorted, sortedField) {}
-
-        BinaryTGSegmentImpl(std::shared_ptr<std::vector<K>> tuples,
-                const size_t nodeId, bool isSorted=false, uint8_t sortedField = 0)
-            : TGSegmentImpl<S,K,I,CP>(tuples, nodeId, isSorted, sortedField) {}
-
-        size_t getNColumns() const {
-            return 2;
-        }
-
-        virtual std::string getName() const {
-            return "TGBinarySegment";
-        }
-
-        std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const {
-            uint8_t field = (fields.size() == 0 || fields[0] == 0) ? 0 : 1;
-            std::vector<K> sortedTuples(*TGSegmentImpl<S,K,I,CP>::tuples.get());
-            if (field == 0) {
-                std::sort(sortedTuples.begin(), sortedTuples.end());
-            } else {
-                assert(field == 1);
-                std::sort(sortedTuples.begin(), sortedTuples.end(), invertedSorter<K>);
-            }
-            return std::shared_ptr<TGSegment>(
-                    new S(sortedTuples, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, field));
-        }
-
-        std::shared_ptr<TGSegment> swap() const {
-            std::vector<K> newtuples;
-            for(const K &t : *TGSegmentImpl<S,K,I,CP>::tuples.get()) {
-                K newt = t;
-                newt.first = t.second;
-                newt.second = t.first;
-                newtuples.push_back(newt);
-            }
-            return std::shared_ptr<TGSegment>(new S(newtuples,
-                        TGSegmentImpl<S,K,I,CP>::getNodeId(), false, 0));
-        }
-
-        void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
-            if (colPos == 0) {
-                for(const K &t : *TGSegmentImpl<S,K,I,CP>::tuples.get()) {
-                    out.push_back(t.first);
-                }
-            } else {
-                assert(colPos == 1);
-                for(const K &t : *TGSegmentImpl<S,K,I,CP>::tuples.get()) {
-                    out.push_back(t.second);
-                }
-            }
-        }
-};
-
-class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTGSegmentItr, SEG_NOPROV> {
-    public:
-        UnaryTGSegment(std::vector<Term_t> &tuples, const size_t nodeId,
-                bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        UnaryTGSegment(std::shared_ptr<std::vector<Term_t>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) {}
-
-        void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
-            std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<std::pair<Term_t,Term_t>> &out) const {
-            assert(colPos1 == colPos2 == 0);
-            for(const auto &t : *tuples.get()) {
-                out.push_back(std::make_pair(t, t));
-            }
-        }
-};
-
-class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
-                                    UnaryWithConstProvTGSegment,
-                                    Term_t,
-                                    UnaryTGSegmentItr,
-                                    SEG_SAMENODE>
-{
-    public:
-        UnaryWithConstProvTGSegment(std::vector<Term_t> &tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        UnaryWithConstProvTGSegment(std::shared_ptr<std::vector<Term_t>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) {}
-
-        void appendTo(uint8_t colPos,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            for(const auto &value : *tuples.get())
-                out.push_back(std::make_pair(value, nodeId));
-        }
-
-        void appendTo(uint8_t colPos,
-                std::vector<Term_t> &out) const {
-            std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<BinWithProv> &out) const {
-            assert(colPos1 == colPos2);
-            assert(colPos1 == 0);
-            for(const auto &value : *tuples.get()) {
-                BinWithProv p;
-                p.first = value;
-                p.second = value;
-                p.node = nodeId;
-                out.push_back(p);
-            }
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            assert(colPos1 == colPos2);
-            assert(colPos1 == 0);
-            for(const auto &value : *tuples.get()) {
-                out.push_back(std::make_pair(value, value));
-            }
-        }
-
-        size_t countHits(const std::vector<Term_t> &terms,
-                int column) const {
-            assert(column == 0);
-            size_t c = 0;
-            for(auto &t : terms) {
-                if (std::binary_search(tuples->begin(),
-                            tuples->end(), t))
-                    c++;
-            }
-            return c;
-        }
-};
-
-class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
-    std::pair<Term_t,Term_t>, UnaryWithProvTGSegmentItr, SEG_DIFFNODES>
-{
-    private:
-        static bool cmpFirstTerm(const std::pair<Term_t,Term_t> &a,
-                const std::pair<Term_t, Term_t> &b) {
-            return a.first == b.first;
-        }
-        static bool sortSecondTerm(const std::pair<Term_t,Term_t> &a,
-                const std::pair<Term_t, Term_t> &b) {
-            return a.second < b.second || (a.second == b.second &&
-                    a.first < b.first);
-        }
-    public:
-        UnaryWithProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        UnaryWithProvTGSegment(std::shared_ptr<std::vector<std::pair<Term_t,Term_t>>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        void appendTo(uint8_t colPos,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<BinWithProv> &out) const {
-            assert(colPos1 == colPos2 == 0);
-            for(const auto &value : *tuples.get()) {
-                BinWithProv p;
-                p.first = value.first;
-                p.second = value.first;
-                p.node = value.second;
-                out.push_back(p);
-            }
-        }
-
-        std::shared_ptr<const TGSegment> unique() const {
-            auto t = std::vector<std::pair<Term_t,Term_t>>(
-                    *TGSegmentImpl<UnaryWithProvTGSegment,
-                    std::pair<Term_t,Term_t>, UnaryWithProvTGSegmentItr, SEG_DIFFNODES>::tuples.get());
-            auto itr = std::unique(t.begin(), t.end(), cmpFirstTerm);
-            t.erase(itr, t.end());
-            return std::shared_ptr<const TGSegment>(
-                    new UnaryWithProvTGSegment(
-                        t,
-                        TGSegmentImpl<UnaryWithProvTGSegment,
-                        std::pair<Term_t, Term_t>,
-                        UnaryWithProvTGSegmentItr, SEG_DIFFNODES>::getNodeId(),
-                        true, 0));
-        }
-
-        std::shared_ptr<const TGSegment> sortByProv() const {
-            auto t = std::vector<std::pair<Term_t,Term_t>>(
-                    *TGSegmentImpl<UnaryWithProvTGSegment,
-                    std::pair<Term_t,Term_t>,
-                    UnaryWithProvTGSegmentItr, SEG_DIFFNODES>::tuples.get());
-            std::sort(t.begin(), t.end(), sortSecondTerm);
-            return std::shared_ptr<const TGSegment>(
-                    new UnaryWithProvTGSegment(
-                        t,
-                        TGSegmentImpl<UnaryWithProvTGSegment,
-                        std::pair<Term_t, Term_t>,
-                        UnaryWithProvTGSegmentItr, SEG_DIFFNODES>::getNodeId(),
-                        false, 0));
-        }
-
-        std::shared_ptr<TGSegment> slice(size_t nodeId,
-                const size_t start, const size_t end) const {
-            std::vector<Term_t> out(end - start);
-            size_t m = 0;
-            for(size_t j = start; j < end; ++j) {
-                out[m++] = tuples->at(j).first;
-            }
-            return std::shared_ptr<TGSegment>(
-                    new UnaryWithConstProvTGSegment(out,
-                        nodeId,
-                        f_isSorted,
-                        sortedField));
-        }
-};
-
-class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment,
-    std::pair<Term_t,Term_t>,BinaryTGSegmentItr, SEG_NOPROV>
-{
-    public:
-        BinaryTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        BinaryTGSegment(std::shared_ptr<std::vector<std::pair<Term_t,Term_t>>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
-            if (colPos == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(t.first);
-                }
-            } else {
-                assert(colPos == 1);
-                for(auto &t : *tuples.get()) {
-                    out.push_back(t.second);
-                }
-            }
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<std::pair<Term_t,Term_t>> &out) const {
-            if (colPos1 == 0 && colPos2 == 1) {
-                std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-            } else if (colPos1 == 1 && colPos2 == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, t.first));
-                }
-            } else if (colPos1 == colPos2 && colPos1 == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.first, t.first));
-                }
-            } else {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, t.second));
-                }
-            }
-        }
-};
-
-class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<
-                                     BinaryWithConstProvTGSegment,
-                                     std::pair<Term_t,Term_t>,
-                                     BinaryTGSegmentItr, SEG_SAMENODE>
-{
-    public:
-        BinaryWithConstProvTGSegment(std::vector<std::pair<Term_t,Term_t>> &tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        BinaryWithConstProvTGSegment(std::shared_ptr<std::vector<std::pair<Term_t,Term_t>>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<BinWithProv> &out) const {
-            if (colPos1 == 0 && colPos2 == 1) {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.first;
-                    p.second = t.second;
-                    p.node = nodeId;
-                    out.push_back(p);
-                }
-            } else if (colPos1 == 1 && colPos2 == 0){
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.second;
-                    p.second = t.first;
-                    p.node = nodeId;
-                    out.push_back(p);
-                }
-            } else if (colPos1 == 0 && colPos2 == 0) {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.first;
-                    p.second = t.first;
-                    p.node = nodeId;
-                    out.push_back(p);
-                }
-            } else {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.second;
-                    p.second = t.second;
-                    p.node = nodeId;
-                    out.push_back(p);
-                }
-            }
-        }
-
-        void appendTo(uint8_t colPos,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            if (colPos == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.first, nodeId));
-                }
-            } else if (colPos == 1) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, nodeId));
-                }
-            } else {
-                LOG(ERRORL) << "Not implemented";
-                throw 10;
-            }
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            if (colPos1 == 0 && colPos2 == 1) {
-                std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-            } else if (colPos1 == 1 && colPos2 == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, t.first));
-                }
-            } else if (colPos1 == colPos2 && colPos1 == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.first, t.first));
-                }
-            } else {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, t.second));
-                }
-            }
-        }
-
-        size_t countHits(const std::vector<
-                std::pair<Term_t,Term_t>> &terms,
-                int column1, int column2) const {
-            assert(column1 == 0 && column2 == 1);
-            size_t c = 0;
-            for(auto &t : terms) {
-                if (std::binary_search(tuples->begin(),
-                            tuples->end(), t))
-                    c++;
-            }
-            return c;
-        }
-};
-
-class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<
-                                BinaryWithProvTGSegment,
-                                BinWithProv,
-                                BinaryWithProvTGSegmentItr, SEG_DIFFNODES>
-{
-    private:
-        static bool cmpFirstSecondTerm(const BinWithProv &a,
-                const BinWithProv &b) {
-            return a.first == b.first && a.second == b.second;
-        }
-        static bool sortNode(const BinWithProv &a,
-                const BinWithProv &b) {
-            return a.node < b.node;
-        }
-
-    public:
-        BinaryWithProvTGSegment(std::vector<BinWithProv> &tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        BinaryWithProvTGSegment(std::shared_ptr<std::vector<BinWithProv>> tuples,
-                const size_t nodeId, bool isSorted, uint8_t sortedField) :
-            BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
-
-        void appendTo(uint8_t colPos,
-                std::vector<std::pair<Term_t, Term_t>> &out) const {
-            if (colPos == 0) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.first, t.node));
-                }
-            } else if (colPos == 1) {
-                for(auto &t : *tuples.get()) {
-                    out.push_back(std::make_pair(t.second, t.node));
-                }
-            } else {
-                LOG(ERRORL) << "Not implemented";
-                throw 10;
-            }
-        }
-
-        void appendTo(uint8_t colPos1, uint8_t colPos2,
-                std::vector<BinWithProv> &out) const {
-            if (colPos1 == 0 && colPos2 == 1) {
-                std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
-            } else if (colPos1 == 1 && colPos2 == 0) {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.second;
-                    p.second = t.first;
-                    p.node = t.node;
-                    out.push_back(p);
-                }
-            } else if (colPos1 == colPos2 && colPos1 == 0) {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.first;
-                    p.second = t.first;
-                    p.node = t.node;
-                    out.push_back(p);
-                }
-            } else {
-                for(auto &t : *tuples.get()) {
-                    BinWithProv p;
-                    p.first = t.second;
-                    p.second = t.second;
-                    p.node = t.node;
-                    out.push_back(p);
-                }
-            }
-        }
-
-        std::shared_ptr<const TGSegment> unique() const {
-            auto t = std::vector<BinWithProv>(
-                    *TGSegmentImpl<BinaryWithProvTGSegment, BinWithProv,
-                    BinaryWithProvTGSegmentItr, SEG_DIFFNODES>::tuples.get());
-            auto itr = std::unique(t.begin(), t.end(), cmpFirstSecondTerm);
-            t.erase(itr, t.end());
-            return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(t,
-                        TGSegmentImpl<
-                        BinaryWithProvTGSegment,
-                        BinWithProv,
-                        BinaryWithProvTGSegmentItr, SEG_DIFFNODES>::getNodeId(), true, 0));
-        }
-
-        std::shared_ptr<TGSegment> slice(size_t nodeId,
-                const size_t start, const size_t end) const {
-            std::vector<std::pair<Term_t,Term_t>> out(end - start);
-            size_t m = 0;
-            for(size_t j = start; j < end; ++j) {
-                out[m].first = tuples->at(j).first;
-                out[m].second = tuples->at(j).second;
-                m++;
-            }
-            return std::shared_ptr<TGSegment>(
-                    new BinaryWithConstProvTGSegment(out,
-                        nodeId,
-                        f_isSorted,
-                        sortedField));
-        }
-
-        std::shared_ptr<const TGSegment> sortByProv() const {
-            auto t = std::vector<BinWithProv>(
-                    *TGSegmentImpl<BinaryWithProvTGSegment,
-                    BinWithProv, BinaryWithProvTGSegmentItr, SEG_DIFFNODES>::tuples.get());
-            std::sort(t.begin(), t.end(), sortNode);
-            return std::shared_ptr<const TGSegment>(new BinaryWithProvTGSegment(t,
-                        TGSegmentImpl<
-                        BinaryWithProvTGSegment,
-                        BinWithProv,
-                        BinaryWithProvTGSegmentItr, SEG_DIFFNODES>::getNodeId(), false, 0));
-        }
-};
 
 #endif

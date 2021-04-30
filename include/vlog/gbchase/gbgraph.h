@@ -8,13 +8,14 @@
 
 #include <map>
 
-typedef enum ProvenanceType {
-    NOPROV, //no provenance
-    NODEPROV, //we know the nodes used to produce the derivations
-    FULLPROV //for each fact, we know the facts that generated it
-} ProvenanceType;
-
 class GBGraph {
+    public:
+        typedef enum ProvenanceType {
+            NOPROV, //no provenance
+            NODEPROV, //we know the nodes used to produce the derivations
+            FULLPROV //for each fact, we know the facts that generated it
+        } ProvenanceType;
+
     private:
         struct GBGraph_Node {
             private:
@@ -96,8 +97,6 @@ class GBGraph {
         std::chrono::duration<double, std::milli> durationQueryContain1;
         std::chrono::duration<double, std::milli> durationQueryContain2;
         std::chrono::duration<double, std::milli> durationEDBCheck;
-
-        //std::chrono::duration<double, std::milli> durationDebug;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -296,6 +295,10 @@ class GBGraph {
             return getNode(nodeId).step;
         }
 
+        ProvenanceType getProvenanceType() const {
+            return provenanceType;
+        }
+
         size_t getNodeRuleIdx(size_t nodeId) const {
             return getNode(nodeId).ruleIdx;
         }
@@ -348,13 +351,6 @@ class GBGraph {
                 size_t step,
                 std::shared_ptr<const TGSegment> data,
                 const std::vector<size_t> &incomingEdges);
-
-        void addNodeFullProv(PredId_t predId,
-                size_t ruleIdx,
-                size_t step,
-                std::shared_ptr<const TGSegment> data,
-                const std::vector<size_t> &incomingEdges,
-                const std::vector<size_t> &offsetIncomingEdges);
 
         void addNodesProv(PredId_t predId,
                 size_t ruleIdx,
