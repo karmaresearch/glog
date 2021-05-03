@@ -64,6 +64,8 @@ void printHelp(const char *programName, ProgramArgs &desc) {
     cout << "gbchase\t\t launch the graph-based chase." << endl;
     cout << "tgchase_static\t\t perform a full materialization guided by a trigger graph computed statically (new version)." << endl;
     cout << "tgchase\t\t perform a full materialization guided by a trigger graph computed on-the-fly (new version)." << endl;
+    cout << "tgchasefullprov\t\t perform a full materialization guided by a trigger graph computed on-the-fly keeping a full provenance." << endl;
+    cout << "probtgchase\t\t perform a full materialization guided by a probabilistic trigger graph." << endl;
     cout << "query\t\t execute a SPARQL query." << endl;
     cout << "queryLiteral\t\t execute a Literal query." << endl;
     cout << "server\t\t starts in server mode." << endl;
@@ -96,7 +98,8 @@ bool checkParams(ProgramArgs &vm, int argc, const char** argv) {
     if (cmd != "help" && cmd != "query" && cmd != "lookup" && cmd != "load" && cmd != "queryLiteral"
             && cmd != "mat" && cmd != "mat_tg" && cmd != "rulesgraph" && cmd != "server" && cmd != "gentq" &&
             cmd != "tat" && cmd != "cycles" && cmd !="deps" && cmd != "trigger"
-            && cmd != "gbchase" && cmd != "tgchase_static" && cmd != "tgchase") {
+            && cmd != "gbchase" && cmd != "tgchase_static" && cmd != "tgchase"
+            && cmd != "tgchasefullprov" && cmd != "probtgchase") {
         printErrorMsg("The command \"" + cmd + "\" is unknown.");
         return false;
     }
@@ -524,6 +527,118 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
     LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
 }
 
+void launchProbTGChase(int argc,
+        const char** argv,
+        std::string pathExec,
+        EDBLayer &db,
+        ProgramArgs &vm,
+        std::string pathRules) {
+    //Load a program with all the rules
+    Program p(&db);
+    std::string s = p.readFromFile(pathRules,vm["rewriteMultihead"].as<bool>());
+    if (!s.empty()) {
+        LOG(ERRORL) << s;
+        return;
+    }
+
+    //Obtain the chase procedure
+    GBChaseAlgorithm tc = GBChaseAlgorithm::PROBTGCHASE;
+    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(db, &p, tc,
+            vm["querycont"].as<bool>(),
+            vm["edbcheck"].as<bool>(),
+            vm["rewritecliques"].as<bool>(),
+            "");
+
+    if (vm["profiler"].as<std::string>() != "") {
+        sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
+    }
+
+#ifdef WEBINTERFACE
+    //Start the web interface if requested
+    std::unique_ptr<WebInterface> webint;
+    std::string fullpath = "";
+    std::string webinterface = vm["webpages"].as<string>();
+    if (Utils::isAbsolutePath(webinterface)) {
+        //Absolute path
+        fullpath = webinterface;
+    } else {
+        //Relative path
+        fullpath = pathExec + "/" + webinterface;
+    }
+    if (vm["webinterface"].as<bool>()) {
+        webint = std::unique_ptr<WebInterface>(
+                new WebInterface(vm, sn, fullpath,
+                    flattenAllArgs(argc, argv),
+                    vm["edb"].as<string>()));
+        int port = vm["port"].as<int>();
+        webint->start(port);
+    }
+#endif
+
+    //Starting monitoring thread
+#if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+    std::thread monitor;
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool isFinished = false;
+    if (vm["monitorThread"].as<bool>()) {
+        //Activate it only for Linux systems
+        monitor = std::thread(
+                std::bind(TridentUtils::monitorPerformance,
+                    1, &cv, &mtx, &isFinished));
+    }
+#endif
+
+    LOG(INFOL) << "Starting probabilistic TG chase";
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    sn->run();
+    std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
+    LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
+    LOG(INFOL) << "Derived tuples = " << sn->getNDerivedFacts();
+    LOG(INFOL) << "N. nodes = " << sn->getNnodes();
+    LOG(INFOL) << "N. edges = " << sn->getNedges();
+    LOG(INFOL) << "Triggers = " << sn->getNTriggers();
+
+#if defined(__linux__) || defined(__linux) || defined(linux) || defined(__gnu_linux__)
+    if (vm["monitorThread"].as<bool>()) {
+        isFinished = true;
+        LOG(INFOL) << "Waiting until logging thread is finished ...";
+        monitor.join(); //Wait until the monitor thread is finished
+    }
+#endif
+
+    if (!vm["storemat_path"].as<string>().empty()) {
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+        Exporter exp(sn);
+        std::string storemat_format = vm["storemat_format"].as<string>();
+        if (storemat_format == "files" || storemat_format == "csv") {
+            exp.storeOnFiles(vm["storemat_path"].as<string>(),
+                    vm["decompressmat"].as<bool>(), 0, storemat_format == "csv");
+        } else if (storemat_format == "db") {
+            //I will store the details on a Trident index
+            exp.generateTridentDiffIndex(vm["storemat_path"].as<string>());
+        } else if (storemat_format == "nt") {
+            exp.generateNTTriples(vm["storemat_path"].as<string>(),
+                    vm["decompressmat"].as<bool>());
+        } else {
+            LOG(ERRORL) << "Option 'storemat_format' not recognized";
+            throw 10;
+        }
+
+        std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+        LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
+    }
+#ifdef WEBINTERFACE
+    if (webint) {
+        //Sleep for max 1 second, to allow the fetching of the last statistics
+        LOG(INFOL) << "Sleeping for one second to allow the web interface to get the last stats ...";
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        LOG(INFOL) << "Done.";
+        webint->stop();
+    }
+#endif
+}
+
 void launchGBChase(
         std::string cmd,
         int argc,
@@ -553,6 +668,8 @@ void launchGBChase(
         }
     } else if (cmd == "tgchase") {
         tc = GBChaseAlgorithm::TGCHASE_DYNAMIC;
+    } else if (cmd == "tgchasefullprov") {
+        tc = GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV;
     }
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc,
             vm["querycont"].as<bool>(),
@@ -1475,11 +1592,18 @@ int main(int argc, const char** argv) {
                 vm["rules"].as<string>(), vm["trigger_paths"].as<string>());
         delete layer;
     } else if (cmd == "gbchase" || cmd == "tgchase_static" ||
-            cmd == "tgchase") {
+            cmd == "tgchase" || cmd == "tgchasefullprov") {
         EDBConf conf(edbFile);
         conf.setRootPath(Utils::parentDir(edbFile));
         EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
         launchGBChase(cmd, argc, argv, full_path, *layer, vm,
+                vm["rules"].as<string>());
+        delete layer;
+    } else if (cmd == "probtgchase") {
+        EDBConf conf(edbFile);
+        conf.setRootPath(Utils::parentDir(edbFile));
+        EDBLayer *layer = new EDBLayer(conf, ! vm["multithreaded"].empty());
+        launchProbTGChase(argc, argv, full_path, *layer, vm,
                 vm["rules"].as<string>());
         delete layer;
     } else if (cmd == "trigger") {

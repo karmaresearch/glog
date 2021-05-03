@@ -176,6 +176,8 @@ class GBRuleExecutor {
             return provenanceType != GBGraph::ProvenanceType::NOPROV;
         }
 
+        SegProvenanceType getSegProvenanceType() const;
+
     public:
         GBRuleExecutor(GBGraph &g, EDBLayer &layer,
                 Program *program) :

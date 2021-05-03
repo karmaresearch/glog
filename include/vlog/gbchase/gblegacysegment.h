@@ -9,17 +9,27 @@ class TGSegmentLegacy : public TGSegment {
         const bool f_isSorted;
         const uint8_t sortedField;
         const std::vector<std::shared_ptr<Column>> columns;
-        const bool trackProvenance;
+        const SegProvenanceType provenanceType;
+        const size_t nprovcolumns;
+
+        bool shouldTrackProvenance() const {
+            return provenanceType != SegProvenanceType::SEG_NOPROV;
+        }
+
+        bool isProvenanceConstant() const;
 
     public:
         TGSegmentLegacy(const std::vector<std::shared_ptr<Column>> &columns,
                 size_t nrows, bool isSorted=false, uint8_t sortedField = 0,
-                bool trackProvenance = false) :
+                SegProvenanceType provenanceType = SegProvenanceType::SEG_NOPROV,
+                size_t nprovcolumns = 0) :
             nrows(nrows),
             f_isSorted(isSorted),
             sortedField(sortedField),
             columns(columns),
-            trackProvenance(trackProvenance) {
+            provenanceType(provenanceType),
+            nprovcolumns(nprovcolumns)
+            {
             }
 
         size_t getNRows() const {
@@ -27,7 +37,7 @@ class TGSegmentLegacy : public TGSegment {
         }
 
         size_t getNColumns() const {
-            return trackProvenance ? columns.size() - 1 : columns.size();
+            return columns.size() - nprovcolumns;
         }
 
         bool isEmpty() const {

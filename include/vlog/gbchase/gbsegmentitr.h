@@ -3,6 +3,13 @@
 
 #include <vlog/column.h>
 
+typedef enum SegProvenanceType {
+    SEG_NOPROV, //no provenance
+    SEG_SAMENODE, //all tuples come from the same node
+    SEG_DIFFNODES, //tuples from different nodes
+    SEG_FULLPROV
+} SegProvenanceType;
+
 struct BinWithProv {
     size_t first, second, node;
 
@@ -111,22 +118,30 @@ class TGSegmentItr {
 
 class TGSegmentLegacyItr : public TGSegmentItr {
     private:
-        const bool trackProvenance;
+        const SegProvenanceType provenanceType;
         const std::vector<std::shared_ptr<Column>> &columns;
+        const size_t nprovcolumns;
         std::vector<std::shared_ptr<ColumnReader>> readers;
         std::vector<Term_t> values;
         std::vector<Term_t> m_values;
 
+        bool shouldTrackProvenance() const {
+            return provenanceType != SEG_NOPROV;
+        }
+
     public:
         TGSegmentLegacyItr(const std::vector<std::shared_ptr<Column>> &columns,
-                const bool trackProvenance) :
-            trackProvenance(trackProvenance),
-            columns(columns) {
-                for (const auto &c : columns)
-                    readers.push_back(c->getReader());
-                values.resize(columns.size());
-                m_values.resize(columns.size());
-            }
+                const SegProvenanceType provenanceType,
+                size_t nprovcolumns) :
+            provenanceType(provenanceType),
+            columns(columns),
+            nprovcolumns(nprovcolumns)
+    {
+        for (const auto &c : columns)
+            readers.push_back(c->getReader());
+        values.resize(columns.size());
+        m_values.resize(columns.size());
+    }
 
         bool hasNext() {
             bool o = true;
@@ -173,7 +188,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
 
 
         int getNFields() const {
-            return trackProvenance ? columns.size() - 1 : columns.size();
+            return shouldTrackProvenance() ? columns.size() - 1 : columns.size();
         }
 };
 

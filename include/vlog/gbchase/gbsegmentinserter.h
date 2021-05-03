@@ -57,7 +57,7 @@ class GBSegmentInserter {
         virtual std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance,
+                SegProvenanceType provenanceType,
                 bool lastColumnIsNode = false) = 0;
 
         virtual void postprocessJoin(std::vector<std::shared_ptr<Column>>
@@ -180,9 +180,9 @@ class GBSegmentInserterUnary :
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance,
+                SegProvenanceType provenanceType,
                 bool lastColumnIsNode = false) {
-            if (trackProvenance) {
+            if (provenanceType != SegProvenanceType::SEG_NOPROV) {
                 if (lastColumnIsNode) {
                     //In this case, the arity is zero and the contains
                     //stores only the provenance
@@ -192,7 +192,7 @@ class GBSegmentInserterUnary :
                                 new InmemoryColumn(tuples, true))); //swap
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(columns, nrows, isSorted,
-                                sortedField, true));
+                                sortedField, provenanceType));
                 } else {
                     //The arity is zero
                     return std::shared_ptr<const TGSegment>(
@@ -257,9 +257,9 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance,
+                SegProvenanceType provenanceType,
                 bool lastColumnIsNode = false) {
-            if (trackProvenance) {
+            if (provenanceType != SegProvenanceType::SEG_NOPROV) {
                 //lsatColumnIsNode indicates whether the second column contains
                 //nodes instead of terms
                 if (lastColumnIsNode) {
@@ -373,9 +373,9 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance,
+                SegProvenanceType provenanceType,
                 bool lastColumnIsNode = false) {
-            if (!trackProvenance || !lastColumnIsNode) {
+            if (provenanceType == SegProvenanceType::SEG_NOPROV || !lastColumnIsNode) {
                 //lsatColumnIsNode indicates whether the last column contains
                 //nodes instead of terms. With this data structure it should
                 //always be equal to true
@@ -460,7 +460,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
                 bool isSorted,
                 uint8_t sortedField,
-                bool trackProvenance,
+                SegProvenanceType provenanceType,
                 bool lastColumnIsNode = false) {
 
             if (!isFinal) {
@@ -479,7 +479,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 assert(lastColumnIsNode == true);
                 auto &col1 = columns[0]->getVectorRef();
                 size_t nrows = col1.size();
-                if (trackProvenance) {
+                if (provenanceType != SegProvenanceType::SEG_NOPROV) {
                     bool constantNodeVal = columns[1]->isConstant();
                     if (constantNodeVal) {
                         std::vector<Term_t> tuples(col1);
@@ -504,7 +504,9 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                     //This case should not happen
                     throw 10;
                 }
-            } else if (ncols == 3 && trackProvenance && lastColumnIsNode) {
+            } else if (ncols == 3 &&
+                    provenanceType != SegProvenanceType::SEG_NOPROV &&
+                    lastColumnIsNode) {
                 //Another special case. We had two columns with terms
                 //and two columns with nodes. The last two were replaced by
                 //a single one
@@ -537,11 +539,11 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                 out, ~0ul, isSorted, sortedField));
                 }
             } else {
-                if (trackProvenance) {
+                if (provenanceType != SegProvenanceType::SEG_NOPROV) {
                     if (lastColumnIsNode) {
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(columns, addedRows, isSorted,
-                                    sortedField, true));
+                                    sortedField, provenanceType));
                     } else {
                         //In this case, I must add a special column with a
                         //constant node because all the columns in ``columns''
@@ -551,12 +553,12 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                     new CompressedColumn(nodeId, addedRows)));
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(newcolumns, addedRows,
-                                    isSorted, sortedField, true));
+                                    isSorted, sortedField, provenanceType));
                     }
                 } else {
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(columns, addedRows, isSorted,
-                                sortedField, false));
+                                sortedField, provenanceType));
                 }
             }
         }

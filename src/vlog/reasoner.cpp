@@ -858,6 +858,22 @@ std::shared_ptr<TriggerSemiNaiver> Reasoner::getTriggeredSemiNaiver(EDBLayer &la
     return sn;
 }
 
+std::shared_ptr<GBChase> Reasoner::getProbTGChase(
+        EDBLayer &layer,
+        Program *p,
+        GBChaseAlgorithm typeChase,
+        bool queryCont,
+        bool edbCheck,
+        bool rewriteCliques,
+        std::string param1) {
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p,
+                    true, GBGraph::ProvenanceType::FULLPROV,
+                    queryCont,
+                    edbCheck,
+                    rewriteCliques));
+        return sn;
+}
+
 std::shared_ptr<GBChase> Reasoner::getGBChase(
         EDBLayer &layer,
         Program *p,
@@ -876,6 +892,13 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
     } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC) {
         std::shared_ptr<GBChase> sn(new GBChase(layer, p,
                     true, GBGraph::ProvenanceType::NODEPROV,
+                    queryCont,
+                    edbCheck,
+                    rewriteCliques));
+        return sn;
+    } else if (typeChase == GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV) {
+        std::shared_ptr<GBChase> sn(new GBChase(layer, p,
+                    true, GBGraph::ProvenanceType::FULLPROV,
                     queryCont,
                     edbCheck,
                     rewriteCliques));

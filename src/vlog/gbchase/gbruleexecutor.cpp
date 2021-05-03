@@ -10,7 +10,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
     std::vector<std::shared_ptr<Column>> columns;
     tuples->projectTo(posKnownVariables, columns);
     return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
-                tuples->getNRows(), isSorted, 0, shouldTrackProvenance()));
+                tuples->getNRows(), isSorted, 0, getSegProvenanceType()));
 }
 
 std::chrono::duration<double, std::milli> GBRuleExecutor::getDuration(DurationType typ) {
@@ -106,7 +106,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
             }
         }
         return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
-                    tuples->getNRows(), remainSorted, 0, shouldTrackProvenance()));
+                    tuples->getNRows(), remainSorted, 0, getSegProvenanceType()));
     }
 }
 
@@ -364,7 +364,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
     }
 
     auto seg = std::shared_ptr<const TGSegment>(
-            new TGSegmentLegacy(columns, nrows, true, 0, shouldTrackProvenance()));
+            new TGSegmentLegacy(columns, nrows, true, 0, getSegProvenanceType()));
     std::shared_ptr<const TGSegment> output;
 
     if (copyVarPos.size() != atom.getTupleSize()) {
@@ -1475,7 +1475,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 }
                 tuples = std::shared_ptr<const TGSegment>(
                         new TGSegmentLegacy(columns, seg->getNRows(), false,
-                            0, mode == 7));
+                            0, getSegProvenanceType()));
                 break;
         }
     }
@@ -1561,11 +1561,23 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     nodeId,
                     false,
                     0,
-                    shouldTrackProvenance(),
+                    getSegProvenanceType(),
                     copyNode);
         }
     }
     return tuples;
+}
+
+SegProvenanceType GBRuleExecutor::getSegProvenanceType() const {
+    if (provenanceType == GBGraph::ProvenanceType::NOPROV) {
+        return SegProvenanceType::SEG_NOPROV;
+    } else if (provenanceType == GBGraph::ProvenanceType::NODEPROV) {
+        return SegProvenanceType::SEG_SAMENODE;
+    } else if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+        return SegProvenanceType::SEG_FULLPROV;
+    } else {
+        throw 10;
+    }
 }
 
 std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
@@ -1770,7 +1782,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     newIntermediateResults->postprocessJoin(
                             intermediateResultsNodes);
                     intermediateResults = newIntermediateResults->getSegment(
-                            ~0ul, false, 0, shouldTrackProvenance(), true);
+                            ~0ul, false, 0, getSegProvenanceType(), true);
                 } else {
                     //Add two columns in intermediateResultsNodes
                     intermediateResultsNodes.push_back(std::shared_ptr<Column>(
@@ -1789,11 +1801,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     //As node, I use 0 because it indicates the first row
                     //for retrieving the provenance
                     intermediateResults = newIntermediateResults->getSegment(
-                            0, false, 0, shouldTrackProvenance(), false);
+                            0, false, 0, getSegProvenanceType(), false);
                 }
             } else {
                 intermediateResults = newIntermediateResults->getSegment(
-                        ~0ul, false, 0, shouldTrackProvenance(), false);
+                        ~0ul, false, 0, getSegProvenanceType(), false);
             }
             currentBodyNode++;
         }

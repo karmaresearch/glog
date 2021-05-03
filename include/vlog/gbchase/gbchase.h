@@ -12,7 +12,7 @@
 
 #include <chrono>
 
-typedef enum { GBCHASE, TGCHASE_STATIC, TGCHASE_DYNAMIC } GBChaseAlgorithm;
+typedef enum { GBCHASE, TGCHASE_STATIC, TGCHASE_DYNAMIC,TGCHASE_DYNAMIC_FULLPROV, PROBTGCHASE } GBChaseAlgorithm;
 
 class GBChase : public Chase {
     protected:

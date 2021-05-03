@@ -10,13 +10,6 @@
 #include <vector>
 #include <map>
 
-typedef enum SegProvenanceType {
-    SEG_NOPROV, //no provenance
-    SEG_SAMENODE, //all tuples come from the same node
-    SEG_DIFFNODES, //tuples from different nodes
-    SEG_FULLPROV
-} SegProvenanceType;
-
 class TGSegment {
     private:
 

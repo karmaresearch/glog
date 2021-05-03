@@ -217,9 +217,7 @@ class GBGraph {
 
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
-        bool shouldTrackProvenance() const {
-            return provenanceType != NOPROV;
-        }
+        SegProvenanceType getSegProvenanceType() const;
 
         void addNode(PredId_t predId,
                 size_t ruleIdx,
@@ -232,8 +230,13 @@ class GBGraph {
         uint64_t addTmpNode(PredId_t predId,
                 std::shared_ptr<const TGSegment> data);
 
+        bool shouldTrackProvenance() const {
+            return provenanceType != NOPROV;
+        }
+
         const GBGraph_Node &getNode(size_t nodeId) const {
-            if (shouldTrackProvenance() && nodeId >= startCounterTmpNodes) {
+            if (provenanceType != ProvenanceType::NOPROV &&
+                    nodeId >= startCounterTmpNodes) {
                 assert(mapTmpNodes.count(nodeId));
                 return mapTmpNodes.find(nodeId)->second;
             } else {

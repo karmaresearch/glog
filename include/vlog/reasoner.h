@@ -134,6 +134,15 @@ class Reasoner {
                 bool rewriteCliques = true,
                 std::string param1 = "");
 
+        VLIBEXP static std::shared_ptr<GBChase> getProbTGChase(
+                EDBLayer &layer,
+                Program *p,
+                GBChaseAlgorithm typeChase,
+                bool queryCont = true,
+                bool edbCheck = true,
+                bool rewriteCliques = true,
+                std::string param1 = "");
+
         int getNumberOfIDBPredicates(Literal&, Program&);
 
         ~Reasoner() {
