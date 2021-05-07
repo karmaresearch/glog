@@ -1096,19 +1096,45 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         }
 
         if (shouldTrackProvenance()) {
-            std::vector<std::pair<Term_t,Term_t>> tuples;
-            for(auto idbBodyAtomIdx : nodeIdxs) {
-                getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
-            }
-            if (shouldSortAndUnique) {
-                std::sort(tuples.begin(), tuples.end());
-                auto itr = std::unique(tuples.begin(), tuples.end());
-                tuples.erase(itr, tuples.end());
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
+            if (provenanceType == FULLPROV) {
+                    size_t maxOffset = 0;
+                    for(auto idbBodyAtomIdx : nodeIdxs) {
+                        auto n = getNodeData(idbBodyAtomIdx)->getNOffsetColumns();
+                        if (n > maxOffset) {
+                            maxOffset = n;
+                        }
+                    }
+                    assert(maxOffset > 0);
+                    if (maxOffset == 1) {
+                        throw 10;
+                    } else if (maxOffset == 2) {
+                        std::vector<UnWithFullProv> tuples;
+                        for(auto idbBodyAtomIdx : nodeIdxs) {
+                            getNodeData(idbBodyAtomIdx)->appendTo(
+                                    copyVarPos[0], tuples);
+                        }
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryWithFullProvTGSegment(tuples, ~0ul,
+                                    false, 0));
+                    } else {
+                        throw 10;
+                    }
             } else {
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                assert(provenanceType != FULLPROV);
+                std::vector<std::pair<Term_t,Term_t>> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
+                }
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                }
             }
         } else {
             std::vector<Term_t> tuples;
@@ -1130,7 +1156,6 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 copyVarPos[0] == 0 && copyVarPos[1] == 1) {
             return getNodeData(nodeIdxs[0]);
         } else {
-
             if (lazyMode) {
                 return std::shared_ptr<const TGSegment>(
                         new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
@@ -1138,20 +1163,46 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             }
 
             if (shouldTrackProvenance()) {
-                std::vector<BinWithProv> tuples;
-                for(auto idbBodyAtomIdx : nodeIdxs) {
-                    getNodeData(idbBodyAtomIdx)->appendTo(
-                            copyVarPos[0], copyVarPos[1], tuples);
-                }
-                if (shouldSortAndUnique) {
-                    std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
-                    return std::shared_ptr<const TGSegment>(
-                            new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                if (provenanceType == FULLPROV) {
+                    size_t maxOffset = 0;
+                    for(auto idbBodyAtomIdx : nodeIdxs) {
+                        auto n = getNodeData(idbBodyAtomIdx)->getNOffsetColumns();
+                        if (n > maxOffset) {
+                            maxOffset = n;
+                        }
+                    }
+                    assert(maxOffset > 0);
+                    if (maxOffset == 1) {
+                        throw 10;
+                    } else if (maxOffset == 2) {
+                        std::vector<BinWithFullProv> tuples;
+                        for(auto idbBodyAtomIdx : nodeIdxs) {
+                            getNodeData(idbBodyAtomIdx)->appendTo(
+                                    copyVarPos[0],
+                                    copyVarPos[1], tuples);
+                        }
+                        return std::shared_ptr<const TGSegment>(
+                                new BinaryWithFullProvTGSegment(tuples, ~0ul,
+                                    false, 0));
+                    } else {
+                        throw 10;
+                    }
                 } else {
-                    return std::shared_ptr<const TGSegment>(
-                            new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                    std::vector<BinWithProv> tuples;
+                    for(auto idbBodyAtomIdx : nodeIdxs) {
+                        getNodeData(idbBodyAtomIdx)->appendTo(
+                                copyVarPos[0], copyVarPos[1], tuples);
+                    }
+                    if (shouldSortAndUnique) {
+                        std::sort(tuples.begin(), tuples.end());
+                        auto itr = std::unique(tuples.begin(), tuples.end());
+                        tuples.erase(itr, tuples.end());
+                        return std::shared_ptr<const TGSegment>(
+                                new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                    } else {
+                        return std::shared_ptr<const TGSegment>(
+                                new BinaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                    }
                 }
             } else {
                 std::vector<std::pair<Term_t,Term_t>> tuples;

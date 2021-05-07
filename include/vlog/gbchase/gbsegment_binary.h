@@ -466,6 +466,63 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
             }
         }
 
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<BinWithFullProv> &out) const {
+            if (colPos1 == 0 && colPos2 == 1) {
+                for(auto &t : *tuples.get()) {
+                    BinWithFullProv p;
+                    p.first = t.first;
+                    p.second = t.second;
+                    p.node =  getNodeId();
+                    p.prov = t.off;
+                    out.push_back(p);
+                }
+            } else if (colPos1 == 1 && colPos2 == 0) {
+                for(auto &t : *tuples.get()) {
+                    BinWithFullProv p;
+                    p.first = t.second;
+                    p.second = t.first;
+                    p.node =  getNodeId();
+                    p.prov = t.off;
+                    out.push_back(p);
+                }
+            } else if (colPos1 == colPos2 && colPos1 == 0) {
+                for(auto &t : *tuples.get()) {
+                    BinWithFullProv p;
+                    p.first = t.first;
+                    p.second = t.first;
+                    p.node = getNodeId();
+                    p.prov = t.off;
+                    out.push_back(p);
+                }
+            } else {
+                for(auto &t : *tuples.get()) {
+                    BinWithFullProv p;
+                    p.first = t.second;
+                    p.second = t.second;
+                    p.node = getNodeId();
+                    p.prov = t.off;
+                    out.push_back(p);
+                }
+            }
+        }
+
+        void appendTo(uint8_t colPos1,
+                std::vector<UnWithFullProv> &out) const {
+            assert(colPos1 == 0 || colPos1 == 1);
+            auto nrows = tuples->size();
+            for(size_t i = 0; i < nrows; ++i) {
+                UnWithFullProv v;
+                if (colPos1 == 0)
+                    v.first = tuples->at(i).first;
+                else
+                    v.first = tuples->at(i).second;
+                v.node = getNodeId();
+                v.prov= tuples->at(i).off;
+                out.push_back(v);
+            }
+        }
+
         std::shared_ptr<const TGSegment> unique() const {
             auto t = std::vector<BinWithOff>(
                     *TGSegmentImpl<BinaryWithConstNodeFullProvTGSegment, BinWithOff,
@@ -605,31 +662,46 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
                     BinaryWithFullProvTGSegmentItr, SEG_FULLPROV>::tuples.get());
             auto itr = std::unique(t.begin(), t.end(), cmpFirstSecondTerm);
             t.erase(itr, t.end());
-            return std::shared_ptr<const TGSegment>(new BinaryWithFullProvTGSegment(t,
+            return std::shared_ptr<const TGSegment>(
+                    new BinaryWithFullProvTGSegment(t,
                         TGSegmentImpl<
                         BinaryWithFullProvTGSegment,
                         BinWithFullProv,
-                        BinaryWithFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(), true, 0));
+                        BinaryWithFullProvTGSegmentItr,
+                        SEG_FULLPROV>::getNodeId(), true, 0));
         }
 
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
+            std::vector<BinWithOff> out(end - start);
+            size_t m = 0;
+            for(size_t j = start; j < end; ++j) {
+                out[m].first = tuples->at(j).first;
+                out[m].second = tuples->at(j).second;
+                out[m].off = tuples->at(j).prov;
+                m++;
+            }
+            return std::shared_ptr<TGSegment>(
+                    new BinaryWithConstNodeFullProvTGSegment(out,
+                        nodeId,
+                        f_isSorted,
+                        sortedField));
         }
 
         std::shared_ptr<const TGSegment> sortByProv() const {
             auto t = std::vector<BinWithFullProv>(
                     *TGSegmentImpl<BinaryWithFullProvTGSegment,
-                    BinWithFullProv, BinaryWithFullProvTGSegmentItr, SEG_FULLPROV>::tuples.get());
+                    BinWithFullProv, BinaryWithFullProvTGSegmentItr,
+                    SEG_FULLPROV>::tuples.get());
             std::sort(t.begin(), t.end(), sortNode);
-            return std::shared_ptr<const TGSegment>(new BinaryWithFullProvTGSegment(t,
+            return std::shared_ptr<const TGSegment>(
+                    new BinaryWithFullProvTGSegment(t,
                         TGSegmentImpl<
                         BinaryWithFullProvTGSegment,
                         BinWithFullProv,
-                        BinaryWithFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(), false, 0));
+                        BinaryWithFullProvTGSegmentItr,
+                        SEG_FULLPROV>::getNodeId(), false, 0));
         }
 };
-
 
 #endif

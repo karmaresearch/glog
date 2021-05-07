@@ -263,6 +263,18 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
         }
 
+        void appendTo(uint8_t colPos1,
+                std::vector<UnWithFullProv> &out) const {
+            auto nrows = tuples->size();
+            for(size_t i = 0; i < nrows; ++i) {
+                UnWithFullProv v;
+                v.first = tuples->at(i).first;
+                v.node = getNodeId();
+                v.prov= tuples->at(i).second;
+                out.push_back(v);
+            }
+        }
+
         size_t getNOffsetColumns() const {
             return 2;
         }

@@ -139,7 +139,7 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
                         nrows)));
         for(size_t i = 1; i < nprovcolumns; ++i) {
             newcols.push_back(
-                        retained->getColumn(nfieldsToCheck + i - 1));
+                    retained->getColumn(nfieldsToCheck + i - 1));
         }
     }
     return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(newcols,
@@ -305,6 +305,64 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
             throw 10;
         }
         v.node = itrProv->next();
+        out.push_back(v);
+    }
+}
+
+void TGSegmentLegacy::appendTo(uint8_t colPos1, uint8_t colPos2,
+        std::vector<BinWithFullProv> &out) const {
+    assert(shouldTrackProvenance());
+    assert(provenanceType == SEG_FULLPROV);
+    assert(columns.size() > colPos1);
+    assert(columns.size() > colPos2);
+    auto &c1 = columns[colPos1];
+    auto &c2 = columns[colPos2];
+    auto &node = columns[columns.size() - nprovcolumns];
+    auto &prov = columns.back();
+    auto itr1 = c1->getReader();
+    auto itr2 = c2->getReader();
+    auto itrNode = node->getReader();
+    auto itrProv = prov->getReader();
+    auto nrows = c1->size();
+    for(size_t i = 0; i < nrows; ++i) {
+        BinWithFullProv v;
+        v.first = itr1->next();
+        v.second = itr2->next();
+        if (!itrNode->hasNext()) {
+            throw 10;
+        }
+        if (!itrProv->hasNext()) {
+            throw 10;
+        }
+        v.node = itrNode->next();
+        v.prov= itrProv->next();
+        out.push_back(v);
+    }
+}
+
+void TGSegmentLegacy::appendTo(uint8_t colPos1,
+        std::vector<UnWithFullProv> &out) const {
+    assert(shouldTrackProvenance());
+    assert(provenanceType == SEG_FULLPROV);
+    assert(columns.size() > colPos1);
+    auto &c1 = columns[colPos1];
+    auto &node = columns[columns.size() - nprovcolumns];
+    auto &prov = columns.back();
+    auto itr1 = c1->getReader();
+    auto itrNode = node->getReader();
+    auto itrProv = prov->getReader();
+    auto nrows = c1->size();
+    for(size_t i = 0; i < nrows; ++i) {
+        UnWithFullProv v;
+        v.first = itr1->next();
+        if (!itrNode->hasNext()) {
+            throw 10;
+        }
+        if (!itrProv->hasNext()) {
+            throw 10;
+        }
+        v.node = itrNode->next();
+        v.prov= itrProv->next();
         out.push_back(v);
     }
 }

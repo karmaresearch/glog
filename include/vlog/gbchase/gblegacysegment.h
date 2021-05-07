@@ -29,9 +29,9 @@ class TGSegmentLegacy : public TGSegment {
             columns(columns),
             provenanceType(provenanceType),
             nprovcolumns(nprovcolumns)
-            {
-                assert(!shouldTrackProvenance() || nprovcolumns > 0);
-            }
+    {
+        assert(!shouldTrackProvenance() || nprovcolumns > 0);
+    }
 
         size_t getNRows() const {
             return nrows;
@@ -107,6 +107,12 @@ class TGSegmentLegacy : public TGSegment {
         void appendTo(const std::vector<int> &posFields,
                 std::vector<std::vector<Term_t>> &out,
                 bool withProv = false) const;
+
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<BinWithFullProv> &out) const;
+
+        void appendTo(uint8_t colPos1,
+                std::vector<UnWithFullProv> &out) const;
 
         void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const;
