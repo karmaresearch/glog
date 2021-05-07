@@ -30,6 +30,7 @@ class TGSegmentLegacy : public TGSegment {
             provenanceType(provenanceType),
             nprovcolumns(nprovcolumns)
             {
+                assert(!shouldTrackProvenance() || nprovcolumns > 0);
             }
 
         size_t getNRows() const {
@@ -38,6 +39,10 @@ class TGSegmentLegacy : public TGSegment {
 
         size_t getNColumns() const {
             return columns.size() - nprovcolumns;
+        }
+
+        size_t getNOffsetColumns() const {
+            return nprovcolumns;
         }
 
         bool isEmpty() const {

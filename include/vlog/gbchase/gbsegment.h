@@ -165,6 +165,10 @@ class TGSegment {
             return false;
         }
 
+        virtual size_t getNOffsetColumns() const {
+            return 0;
+        }
+
         virtual ~TGSegment() {}
 };
 

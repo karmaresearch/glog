@@ -500,6 +500,16 @@ class InmemoryColumn final : public Column {
             return std::shared_ptr<Column>(new InmemoryColumn(newvals, true));
         }
 
+        size_t countHits(const std::vector<Term_t> &terms) const {
+            size_t c = 0;
+            for(auto &t : terms) {
+                if (std::binary_search(values.begin(),
+                            values.end(), t))
+                    c++;
+            }
+            return c;
+        }
+
         std::shared_ptr<Column> sort(const int nthreads) const {
             if (nthreads <= 1) {
                 return sort();

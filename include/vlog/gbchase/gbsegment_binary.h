@@ -79,6 +79,10 @@ class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment,
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
 
+        size_t getNOffsetColumns() const {
+            return 0;
+        }
+
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
             if (colPos == 0) {
                 for(auto &t : *tuples.get()) {
@@ -163,6 +167,10 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<
             }
         }
 
+        size_t getNOffsetColumns() const {
+            return 1;
+        }
+
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {
             if (colPos == 0) {
@@ -235,6 +243,10 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<
         BinaryWithProvTGSegment(std::shared_ptr<std::vector<BinWithProv>> tuples,
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
+
+        size_t getNOffsetColumns() const {
+            return 1;
+        }
 
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {
@@ -354,6 +366,10 @@ class BinaryWithConstNodeOffFullProvTGSegment : public BinaryTGSegmentImpl<
             }
         }
 
+        size_t getNOffsetColumns() const {
+            return 2;
+        }
+
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t,Term_t>> &out) const {
             if (colPos1 == 0 && colPos2 == 1) {
@@ -398,6 +414,10 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                 std::shared_ptr<std::vector<BinWithOff>> tuples,
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
+
+        size_t getNOffsetColumns() const {
+            return 2;
+        }
 
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {
@@ -516,6 +536,10 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
         BinaryWithFullProvTGSegment(std::shared_ptr<std::vector<BinWithFullProv>> tuples,
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             BinaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
+
+        size_t getNOffsetColumns() const {
+            return 2;
+        }
 
         void appendTo(uint8_t colPos,
                 std::vector<UnWithFullProv> &out) const {

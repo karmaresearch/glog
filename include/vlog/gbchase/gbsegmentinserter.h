@@ -58,7 +58,7 @@ class GBSegmentInserter {
                 bool isSorted,
                 uint8_t sortedField,
                 SegProvenanceType provenanceType,
-                bool lastColumnIsNode = false) = 0;
+                size_t nProvenanceColumns = 0) = 0;
 
         virtual void postprocessJoin(std::vector<std::shared_ptr<Column>>
                 &intermediateResultsNodes) = 0;
@@ -181,9 +181,11 @@ class GBSegmentInserterUnary :
                 bool isSorted,
                 uint8_t sortedField,
                 SegProvenanceType provenanceType,
-                bool lastColumnIsNode = false) {
-            if (provenanceType != SegProvenanceType::SEG_NOPROV) {
-                if (lastColumnIsNode) {
+                size_t nProvenanceColumns = 0) {
+            if (provenanceType != SegProvenanceType::SEG_FULLPROV &&
+                    provenanceType != SegProvenanceType::SEG_NOPROV) {
+                assert(nProvenanceColumns == 1);
+                if (nProvenanceColumns > 0) {
                     //In this case, the arity is zero and the contains
                     //stores only the provenance
                     size_t nrows = tuples.size();
@@ -192,13 +194,15 @@ class GBSegmentInserterUnary :
                                 new InmemoryColumn(tuples, true))); //swap
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(columns, nrows, isSorted,
-                                sortedField, provenanceType));
+                                sortedField, provenanceType, nProvenanceColumns));
                 } else {
                     //The arity is zero
                     return std::shared_ptr<const TGSegment>(
                             new UnaryWithConstProvTGSegment(
                                 tuples, nodeId, isSorted, sortedField));
                 }
+            } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
+                throw 10;
             } else {
                 return std::shared_ptr<const TGSegment>(
                         new UnaryTGSegment(tuples, nodeId, isSorted,
@@ -258,11 +262,11 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                 bool isSorted,
                 uint8_t sortedField,
                 SegProvenanceType provenanceType,
-                bool lastColumnIsNode = false) {
-            if (provenanceType != SegProvenanceType::SEG_NOPROV) {
-                //lsatColumnIsNode indicates whether the second column contains
-                //nodes instead of terms
-                if (lastColumnIsNode) {
+                size_t nProvenanceColumns = 0) {
+            if (provenanceType != SegProvenanceType::SEG_FULLPROV &&
+                    provenanceType != SegProvenanceType::SEG_NOPROV) {
+                if (nProvenanceColumns > 0) {
+                    assert(nProvenanceColumns == 1);
                     if (secondFieldConstant) {
                         std::vector<Term_t> t;
                         for(auto tuple : tuples) {
@@ -284,6 +288,18 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                                 isSorted,
                                 sortedField));
                 }
+            } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
+                /*if (nProvenanceColumns == 2) {
+                  throw 10;
+                  } else if (nProvenanceColumns == 1) {
+                //The second column is the offset
+                return std::shared_ptr<const TGSegment>(
+                new UnaryWithConstNodeFullProvTGSegment(
+                tuples, nodeId, isSorted, sortedField));
+                } else {
+                throw 10;
+                }*/
+                throw 10;
             } else {
                 return std::shared_ptr<const TGSegment>(
                         new BinaryTGSegment(tuples, nodeId,
@@ -374,22 +390,27 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
                 bool isSorted,
                 uint8_t sortedField,
                 SegProvenanceType provenanceType,
-                bool lastColumnIsNode = false) {
-            if (provenanceType == SegProvenanceType::SEG_NOPROV || !lastColumnIsNode) {
+                size_t nProvenanceColumns = 0) {
+            if (provenanceType == SegProvenanceType::SEG_NOPROV ||
+                    nProvenanceColumns == 0) {
                 //lsatColumnIsNode indicates whether the last column contains
                 //nodes instead of terms. With this data structure it should
                 //always be equal to true
                 throw 10;
             }
-            std::vector<BinWithProv> out(tuples.size());
-            for(size_t i = 0; i < tuples.size(); ++i) {
-                out[i].first = tuples[i].first;
-                out[i].second = tuples[i].second;
-                out[i].node = i;
+            if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
+                throw 10;
+            } else {
+                std::vector<BinWithProv> out(tuples.size());
+                for(size_t i = 0; i < tuples.size(); ++i) {
+                    out[i].first = tuples[i].first;
+                    out[i].second = tuples[i].second;
+                    out[i].node = i;
+                }
+                return std::shared_ptr<const TGSegment>(
+                        new BinaryWithProvTGSegment(out, ~0ul,
+                            isSorted, sortedField));
             }
-            return std::shared_ptr<const TGSegment>(
-                    new BinaryWithProvTGSegment(out, ~0ul,
-                        isSorted, sortedField));
 
         }
 
@@ -461,7 +482,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 bool isSorted,
                 uint8_t sortedField,
                 SegProvenanceType provenanceType,
-                bool lastColumnIsNode = false) {
+                size_t nProvenanceColumns = 0) {
 
             if (!isFinal) {
                 for(int i = 0; i < card; ++i) {
@@ -472,14 +493,15 @@ class GBSegmentInserterNAry : public GBSegmentInserter
 
             auto ncols = columns.size();
             if (ncols == 2) {
-                //In this case, we had the original vector with three
-                //columns. One for terms, the other two for nodes. Then,
-                //the last two columns have been replaced. Thus,
-                //lastColumnIsNode == true and trackProvenance == true
-                assert(lastColumnIsNode == true);
+                assert(nProvenanceColumns > 0);
                 auto &col1 = columns[0]->getVectorRef();
                 size_t nrows = col1.size();
-                if (provenanceType != SegProvenanceType::SEG_NOPROV) {
+                if (provenanceType != SegProvenanceType::SEG_NOPROV &&
+                        provenanceType != SegProvenanceType::SEG_FULLPROV) {
+                    //In this case, we had the original vector with three
+                    //columns. One for terms, the other two for nodes. Then,
+                    //the last two columns have been replaced. Thus,
+                    //lastColumnIsNode == true and trackProvenance == true
                     bool constantNodeVal = columns[1]->isConstant();
                     if (constantNodeVal) {
                         std::vector<Term_t> tuples(col1);
@@ -500,50 +522,105 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                 new UnaryWithProvTGSegment(out, ~0ul,
                                     isSorted, sortedField));
                     }
+                } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
+                    bool constantNodeVal = columns[1]->isConstant();
+                    if (constantNodeVal) {
+                        std::vector<Term_t> tuples(col1);
+                        return std::shared_ptr<const TGSegment>(
+                                new UnaryWithConstNodeOffFullProvTGSegment(
+                                    tuples, nodeId, isSorted, sortedField));
+                    } else {
+                        //Not yet supported
+                        throw 10;
+                    }
                 } else {
                     //This case should not happen
                     throw 10;
                 }
             } else if (ncols == 3 &&
                     provenanceType != SegProvenanceType::SEG_NOPROV &&
-                    lastColumnIsNode) {
-                //Another special case. We had two columns with terms
-                //and two columns with nodes. The last two were replaced by
-                //a single one
-                auto &col1 = columns[0]->getVectorRef();
-                auto &col2 = columns[1]->getVectorRef();
-                bool constantNodeVal = columns[2]->isConstant();
-                size_t nrows = col1.size();
-                if (constantNodeVal) {
-                    std::vector<std::pair<Term_t, Term_t>> out(nrows);
-                    for(size_t i = 0; i < nrows; ++i) {
-                        out[i].first = col1[i];
-                        out[i].second = col2[i];
-                    }
-                    return std::shared_ptr<const TGSegment>(
-                            new BinaryWithConstProvTGSegment(
-                                out, columns[2]->first(), isSorted, sortedField));
-                } else {
-                    std::vector<BinWithProv> out(nrows);
-                    auto itrNode = columns[2]->getReader();
-                    for(size_t i = 0; i < nrows; ++i) {
-                        out[i].first = col1[i];
-                        out[i].second = col2[i];
-                        if (!itrNode->hasNext()) {
-                            throw 10;
+                    nProvenanceColumns > 0) {
+                if (provenanceType != SegProvenanceType::SEG_FULLPROV) {
+                    //Another special case. We had two columns with terms
+                    //and two columns with nodes. The last two were replaced by
+                    //a single one
+                    auto &col1 = columns[0]->getVectorRef();
+                    auto &col2 = columns[1]->getVectorRef();
+                    bool constantNodeVal = columns[2]->isConstant();
+                    size_t nrows = col1.size();
+                    if (constantNodeVal) {
+                        std::vector<std::pair<Term_t, Term_t>> out(nrows);
+                        for(size_t i = 0; i < nrows; ++i) {
+                            out[i].first = col1[i];
+                            out[i].second = col2[i];
                         }
-                        out[i].node = itrNode->next();
+                        return std::shared_ptr<const TGSegment>(
+                                new BinaryWithConstProvTGSegment(
+                                    out, columns[2]->first(), isSorted, sortedField));
+                    } else {
+                        std::vector<BinWithProv> out(nrows);
+                        auto itrNode = columns[2]->getReader();
+                        for(size_t i = 0; i < nrows; ++i) {
+                            out[i].first = col1[i];
+                            out[i].second = col2[i];
+                            if (!itrNode->hasNext()) {
+                                throw 10;
+                            }
+                            out[i].node = itrNode->next();
+                        }
+                        return std::shared_ptr<const TGSegment>(
+                                new BinaryWithProvTGSegment(
+                                    out, ~0ul, isSorted, sortedField));
                     }
-                    return std::shared_ptr<const TGSegment>(
-                            new BinaryWithProvTGSegment(
-                                out, ~0ul, isSorted, sortedField));
+                } else {
+                    assert(nProvenanceColumns < 3);
+                    if (nProvenanceColumns == 1) {
+                        //Binary
+                        throw 10;
+                    } else {
+                        //Unary
+                        auto &col1 = columns[0]->getVectorRef();
+                        auto &col2 = columns[1]->getVectorRef();
+                        auto &col3 = columns[2]->getVectorRef();
+                        bool constantNodeVal = true;
+                        for(size_t i = 1; i < columns[1]->size(); ++i) {
+                            if (columns[1]->getValue(i-1) !=
+                                    columns[1]->getValue(i)) {
+                                constantNodeVal = false;
+                                break;
+                            }
+                        }
+                        size_t nrows = col1.size();
+                        if (constantNodeVal) {
+                            std::vector<std::pair<Term_t, Term_t>> out(nrows);
+                            for(size_t i = 0; i < nrows; ++i) {
+                                out[i].first = col1[i];
+                                out[i].second = col3[i];
+                            }
+                            return std::shared_ptr<const TGSegment>(
+                                    new UnaryWithConstNodeFullProvTGSegment(
+                                        out, nodeId, isSorted, sortedField));
+                        } else {
+                            std::vector<UnWithFullProv> out(nrows);
+                            for(size_t i = 0; i < nrows; ++i) {
+                                out[i].first = col1[i];
+                                out[i].node = col2[i];
+                                out[i].prov = col3[i];
+                            }
+                            return std::shared_ptr<const TGSegment>(
+                                    new UnaryWithFullProvTGSegment(
+                                        out, nodeId, isSorted, sortedField));
+                        }
+                    }
                 }
             } else {
-                if (provenanceType != SegProvenanceType::SEG_NOPROV) {
-                    if (lastColumnIsNode) {
+                if (provenanceType != SegProvenanceType::SEG_FULLPROV &&
+                        provenanceType != SegProvenanceType::SEG_NOPROV) {
+                    if (nProvenanceColumns > 0) {
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(columns, addedRows, isSorted,
-                                    sortedField, provenanceType));
+                                    sortedField, provenanceType,
+                                    nProvenanceColumns));
                     } else {
                         //In this case, I must add a special column with a
                         //constant node because all the columns in ``columns''
@@ -553,12 +630,36 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                     new CompressedColumn(nodeId, addedRows)));
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(newcolumns, addedRows,
-                                    isSorted, sortedField, provenanceType));
+                                    isSorted, sortedField, provenanceType,
+                                    nProvenanceColumns));
                     }
+                } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
+                    if (nProvenanceColumns > 0) {
+                        bool constantNodeVal = true;
+                        size_t nodeIdColumn = columns.size() - nProvenanceColumns;
+                        for(size_t i = 1;
+                                i < columns[nodeIdColumn]->size();
+                                ++i) {
+                            if (columns[nodeIdColumn]->getValue(i-1) !=
+                                    columns[nodeIdColumn]->getValue(i)) {
+                                constantNodeVal = false;
+                                break;
+                            }
+                        }
+                        if (constantNodeVal) {
+                            columns[nodeIdColumn] =
+                                std::shared_ptr<Column>(
+                                        new CompressedColumn(nodeId, addedRows));
+                        }
+                    }
+
+                    return std::shared_ptr<const TGSegment>(
+                            new TGSegmentLegacy(columns, addedRows, isSorted,
+                                sortedField, provenanceType, nProvenanceColumns));
                 } else {
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(columns, addedRows, isSorted,
-                                sortedField, provenanceType));
+                                sortedField, provenanceType, nProvenanceColumns));
                 }
             }
         }

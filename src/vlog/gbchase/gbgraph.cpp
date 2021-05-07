@@ -146,29 +146,16 @@ void GBGraph::addNodesProv(PredId_t predId,
         const std::vector<std::shared_ptr<Column>> &provenance) {
 
 #ifdef DEBUG
-    if (provenanceType == ProvenanceType::NODEPROV) {
+    if (provenanceType == ProvenanceType::NOPROV) {
         LOG(ERRORL) << "This method should be called only if type provenance is"
-            " not set to NODEPROV";
-        throw 10;
-    }
-
-    if (provenanceType == ProvenanceType::NODEPROV &&
-            seg->getProvenanceType() != SegProvenanceType::SEG_SAMENODE &&
-            seg->getProvenanceType() != SegProvenanceType::SEG_DIFFNODES) {
-        LOG(ERRORL) << "The segment does not record the right type of provenance";
-        throw 10;
-    }
-
-    if (provenanceType == ProvenanceType::FULLPROV &&
-            seg->getProvenanceType() != SegProvenanceType::SEG_FULLPROV) {
-        LOG(ERRORL) << "The segment does not record the right type of provenance";
+            " not set to NOPROV";
         throw 10;
     }
 #endif
 
     if (provenance.size() == 0) {
         //Single EDB or IDB atom
-        if (seg->getProvenanceType() == 2) {
+        if (seg->getProvenanceType() == SEG_DIFFNODES) {
             //Must split the nodes
             auto resortedSeg = seg->sortByProv();
 
@@ -272,11 +259,17 @@ void GBGraph::addNodeProv(PredId_t predid,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
 
-    if (provenanceType != ProvenanceType::NODEPROV) {
+#ifdef DEBUG
+    if (provenanceType == ProvenanceType::NOPROV) {
         LOG(ERRORL) << "This method should be called only if type provenance is"
-            " set to NODEPROV";
+            " not set to NOPROV";
         throw 10;
     }
+    if (provenanceType == FULLPROV && data->getProvenanceType() != SEG_FULLPROV) {
+        LOG(ERRORL) << "The node does not have a good provenance type";
+        throw 10;
+    }
+#endif
 
     auto nodeId = getNNodes();
     nodes.emplace_back();
@@ -541,10 +534,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples) {
     //Special case for unary relations
-    if (existuples->getNColumns() == 1) {
+    if (provenanceType != FULLPROV && existuples->getNColumns() == 1) {
         return retainVsNodeFast_one(existuples,
                 newtuples);
-    } else if (existuples->getNColumns() == 2) {
+    } else if (provenanceType != FULLPROV && existuples->getNColumns() == 2) {
         return retainVsNodeFast_two(existuples, newtuples);
     } else {
         return retainVsNodeFast_generic(existuples, newtuples);
@@ -717,9 +710,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
                 }
             } else {
                 assert(existuples->getNColumns() == 2);
-                assert(existuples->getProvenanceType() != 2);
+                assert(existuples->getProvenanceType() != SEG_DIFFNODES);
                 const std::vector<std::pair<Term_t, Term_t>> &t =
-                    existuples->getProvenanceType() == 0 ?
+                    existuples->getProvenanceType() == SEG_NOPROV ?
                     ((BinaryTGSegment*)existuples.get())->getTuples() :
                     ((BinaryWithConstProvTGSegment*)existuples.get())->getTuples();
 
@@ -753,10 +746,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
     std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
-    const uint8_t extracol = shouldTrackProvenance() &&
-        newtuples->getProvenanceType() == 2 ? 1 : 0;
-    Term_t row[ncols + extracol];
-    const bool copyNode = newtuples->getProvenanceType() == 2;
+    const size_t extracols = newtuples->getNOffsetColumns();
+    Term_t row[ncols + extracols];
 
     //Do outer join
     auto leftItr = existuples->iterator();
@@ -798,8 +789,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 for(int i = 0; i < ncols; ++i) {
                     row[i] = rightItr->get(i);
                 }
-                if (copyNode) {
-                    row[ncols] = rightItr->getNodeId();
+                if (extracols > 0) {
+                    for(size_t i = 0; i < extracols; ++i) {
+                        row[ncols + i] = rightItr->getProvenanceOffset(i);
+                    }
                 }
                 inserter->add(row);
             } else {
@@ -813,8 +806,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
             //The tuple must be filtered
             if (!isFiltered && countNew > 0) {
-                inserter = GBSegmentInserter::getInserter(ncols + extracol,
-                        extracol, false);
+                inserter = GBSegmentInserter::getInserter(ncols + extracols,
+                        extracols, false);
                 //Copy all the previous new tuples in the right iterator
                 size_t i = 0;
                 auto itrTmp = newtuples->iterator();
@@ -824,8 +817,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
-                        if (copyNode) {
-                            row[ncols] = rightItr->getNodeId();
+                        if (extracols > 0) {
+                            for(size_t i = 0; i < extracols; ++i) {
+                                row[ncols + i] = rightItr->getProvenanceOffset(i);
+                            }
                         }
                         inserter->add(row);
                     }
@@ -841,8 +836,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
-            if (copyNode) {
-                row[ncols] = rightItr->getNodeId();
+            if (extracols > 0) {
+                for(size_t i = 0; i < extracols; ++i) {
+                    row[ncols + i] = rightItr->getProvenanceOffset(i);
+                }
             }
             inserter->add(row);
         }
@@ -851,13 +848,15 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             for(int i = 0; i < ncols; ++i) {
                 row[i] = rightItr->get(i);
             }
-            if (copyNode) {
-                row[ncols] = rightItr->getNodeId();
+            if (extracols > 0) {
+                for(size_t i = 0; i < extracols; ++i) {
+                    row[ncols + i] = rightItr->getProvenanceOffset(i);
+                }
             }
             inserter->add(row);
         }
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
-                getSegProvenanceType(), copyNode);
+                getSegProvenanceType(), extracols);
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -865,8 +864,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 return newtuples;
             } else {
                 //Remove the initial duplicates
-                inserter = GBSegmentInserter::getInserter(ncols + extracol,
-                        extracol, false);
+                inserter = GBSegmentInserter::getInserter(ncols + extracols,
+                        extracols, false);
                 //Copy all the previous new tuples in the right iterator
                 size_t i = 0;
                 auto itrTmp = newtuples->iterator();
@@ -876,15 +875,17 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         for(int i = 0; i < ncols; ++i) {
                             row[i] = itrTmp->get(i);
                         }
-                        if (copyNode) {
-                            row[ncols] = rightItr->getNodeId();
+                        if (extracols > 0) {
+                            for(size_t i = 0; i < extracols; ++i) {
+                                row[ncols + i] = rightItr->getProvenanceOffset(i);
+                            }
                         }
                         inserter->add(row);
                     }
                     i++;
                 }
                 return inserter->getSegment(newtuples->getNodeId(),
-                        true, 0, getSegProvenanceType(), copyNode);
+                        true, 0, getSegProvenanceType(), extracols);
             }
         } else {
             //They are all duplicates
@@ -905,7 +906,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
         return newtuples;
     }
     auto &nodeIdxs = getNodeIDsWithPredicate(p);
-    if (cacheRetainEnabled && nodeIdxs.size() > 1) {
+    if (cacheRetainEnabled &&
+            nodeIdxs.size() > 1) {
         //Merge and sort the segments
         if (!cacheRetain.count(p) || cacheRetain[p].nnodes < nodeIdxs.size()) {
             //Get the arity
@@ -954,11 +956,6 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
                 entry.nnodes = nodeIdxs.size();
                 entry.seg = seg;
                 cacheRetain[p] = entry;
-
-                //std::chrono::steady_clock::time_point end =
-                //    std::chrono::steady_clock::now();
-                //std::chrono::duration<double, std::milli> dur = end - start;
-                //LOG(INFOL) << "RETAIN: " << dur.count();
 
             } else if (newtuples->getNColumns() > 2) {
                 size_t ncolumns = newtuples->getNColumns();
@@ -1028,8 +1025,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     assert(nodeIdxs.size() > 0);
     auto ncols = copyVarPos.size();
     bool project = ncols > 0 && ncols < getNodeData(nodeIdxs[0])->getNColumns();
-    bool shouldSortAndUnique = project ||
-        (copyVarPos.size() > 0 && copyVarPos[0] != 0);
+    bool shouldSortAndUnique = (project ||
+            (copyVarPos.size() > 0 && copyVarPos[0] != 0));
 
     if (copyVarPos.size() == 1) {
         //Special cases
@@ -1044,27 +1041,42 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 std::vector<std::shared_ptr<Column>> outColumns;
                 seg->projectTo(copyVarPos, projectedColumns);
                 assert(shouldTrackProvenance() || projectedColumns.size() == 1);
-                if (shouldSortAndUnique) {
-                    auto col = projectedColumns[0]->sort();
-                    outColumns.push_back(col->unique());
-                } else {
-                    outColumns.push_back(projectedColumns[0]);
+                outColumns.push_back(projectedColumns[0]);
+                if (shouldSortAndUnique && provenanceType != FULLPROV) {
+                    if (outColumns.size() == 1) {
+                        auto sortedCol = outColumns[0]->sort();
+                        outColumns[0] = sortedCol->unique();
+                    } else {
+                        LOG(ERRORL) << "Should never happen";
+                        throw 10;
+                    }
                 }
                 size_t nrows = outColumns[0]->size();
 
                 if (shouldTrackProvenance()) {
-                    //Add one column with the provenance
                     assert(projectedColumns[1]->isConstant());
-                    outColumns.push_back(std::shared_ptr<Column>(
-                                new CompressedColumn(seg->getNodeId(), nrows)));
+                    bool isSorted = true;
+                    if (provenanceType != FULLPROV) {
+                        //Add one column with the provenance
+                        outColumns.push_back(std::shared_ptr<Column>(
+                                    new CompressedColumn(seg->getNodeId(),
+                                        nrows)));
+                    } else {
+                        size_t nprovcolumns = seg->getNOffsetColumns();
+                        for (size_t i = 0; i < nprovcolumns; ++i) {
+                            outColumns.push_back(projectedColumns[1 + i]);
+                        }
+                        isSorted = copyVarPos[0] == 0;
+                    }
 
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(
                                 outColumns,
                                 nrows,
-                                true,
+                                isSorted,
                                 0,
-                                getSegProvenanceType()));
+                                getSegProvenanceType(),
+                                seg->getNOffsetColumns()));
                 } else {
                     return std::shared_ptr<const TGSegment>(
                             new TGSegmentLegacy(
@@ -1225,7 +1237,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         for (auto &node : nodes) {
             auto &d = node.data;
             auto itr = d->iterator();
-            if (d->getProvenanceType() == 2) {
+            if (d->getProvenanceType() == SEG_DIFFNODES) {
                 while (itr->hasNext()) {
                     itr->next();
                     assert(itr->getNodeId() != ~0ul);
@@ -1254,7 +1266,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
             return;
         //Add the nodes
         std::shared_ptr<const TGSegment> toBeAddedSeg;
-        if (retainedSeg->getProvenanceType() == 2)
+        if (retainedSeg->getProvenanceType() == SEG_DIFFNODES)
             toBeAddedSeg = retainedSeg->sortByProv();
         else
             toBeAddedSeg = retainedSeg;
@@ -1266,7 +1278,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         auto node = nodes.begin();
         size_t beginSegment = 0;
         size_t endSegment = (size_t)1 << 40;
-        bool storeNode = node->data->getProvenanceType() == 2;
+        bool storeNode = node->data->getProvenanceType() == SEG_DIFFNODES;
 
         while (itr->hasNext()) {
             itr->next();
@@ -1281,7 +1293,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
                         throw 10; //This should not happen!
                     }
                     node++;
-                    storeNode = node->data->getProvenanceType() == 2;
+                    storeNode = node->data->getProvenanceType() == SEG_DIFFNODES;
                     beginSegment += (size_t)1 << 40;
                     endSegment += (size_t)1 << 40;
                 }

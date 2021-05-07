@@ -178,17 +178,16 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 
         size_t getNodeId() const {
-            return values.back();
+            return values[columns.size() - nprovcolumns];
         }
 
         size_t getProvenanceOffset(int pos) const {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
+            return values[columns.size() - nprovcolumns + pos];
         }
 
 
         int getNFields() const {
-            return shouldTrackProvenance() ? columns.size() - 1 : columns.size();
+            return shouldTrackProvenance() ? columns.size() - nprovcolumns : columns.size();
         }
 };
 

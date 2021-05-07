@@ -104,7 +104,7 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
         throw 10;
     }
     size_t nfields = 0;
-    size_t nfieldsToCheck = 0;
+    int nfieldsToCheck = 0;
     std::vector<std::shared_ptr<Column>> oldcols;
     if (shouldTrackProvenance() && isProvenanceConstant()) {
         nfields = columns.size() - nprovcolumns;
@@ -112,23 +112,34 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
         for(int i = 0; i < columns.size() - nprovcolumns; ++i)
             oldcols.push_back(columns[i]);
     } else {
-        nfields = columns.size();
-        nfieldsToCheck = nfields - nprovcolumns;
-        oldcols = columns;
+        nfieldsToCheck = columns.size() - nprovcolumns;
+        //I remove the column with the node ID since it's constant
+        assert(columns[nfieldsToCheck]->isConstant());
+        for(size_t i = 0; i < nfieldsToCheck; ++i) {
+            oldcols.push_back(columns[i]);
+        }
+        for(size_t i = 1; i < nprovcolumns; ++i) {
+            oldcols.push_back(columns[nfieldsToCheck + i]);
+        }
+        nfields = columns.size() - 1;
     }
     std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
             new Segment(nfields, oldcols));
     auto retained = SegmentInserter::unique(s, nfieldsToCheck);
 
     std::vector<std::shared_ptr<Column>> newcols;
-    for(int i = 0; i < retained->getNColumns(); ++i) {
+    for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
         newcols.push_back(retained->getColumn(i));
     }
     size_t nrows = retained->getNRows();
-    if (shouldTrackProvenance() && isProvenanceConstant()) {
-        for(size_t i = 0; i < nprovcolumns; ++i) {
-            newcols.push_back(std::shared_ptr<Column>(new CompressedColumn(
-                            columns[columns.size() - nprovcolumns + i]->first(), nrows)));
+    if (shouldTrackProvenance()) {
+        //Node
+        newcols.push_back(std::shared_ptr<Column>(new CompressedColumn(
+                        columns[columns.size() - nprovcolumns]->first(),
+                        nrows)));
+        for(size_t i = 1; i < nprovcolumns; ++i) {
+            newcols.push_back(
+                        retained->getColumn(nfieldsToCheck + i - 1));
         }
     }
     return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(newcols,
@@ -377,7 +388,7 @@ size_t TGSegmentLegacy::getNodeId() const {
         assert(columns.size() > 0);
         if (!columns[columns.size() - nprovcolumns]->isEmpty() &&
                 columns[columns.size() - nprovcolumns]->isConstant()) {
-            return columns.back()->first();
+            return columns[columns.size() - nprovcolumns]->first();
         } else {
             return ~0ul;
         }

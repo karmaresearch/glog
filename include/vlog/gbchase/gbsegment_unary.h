@@ -46,6 +46,10 @@ class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTG
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
         }
 
+        size_t getNOffsetColumns() const {
+            return 0;
+        }
+
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t,Term_t>> &out) const {
             assert(colPos1 == colPos2 == 0);
@@ -79,6 +83,10 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
         void appendTo(uint8_t colPos,
                 std::vector<Term_t> &out) const {
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
+        }
+
+        size_t getNOffsetColumns() const {
+            return 1;
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
@@ -141,6 +149,10 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
+        }
+
+        size_t getNOffsetColumns() const {
+            return 1;
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
@@ -213,6 +225,9 @@ class UnaryWithConstNodeOffFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWi
                 const size_t nodeId, bool isSorted, uint8_t sortedField) :
             UnaryTGSegmentImpl(tuples, nodeId, isSorted, sortedField) { }
 
+        size_t getNOffsetColumns() const {
+            return 2;
+        }
 
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
@@ -248,6 +263,16 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
         }
 
+        size_t getNOffsetColumns() const {
+            return 2;
+        }
+
+        void appendTo(uint8_t colPos,
+                std::vector<Term_t> &out) const {
+            for(auto &p : *tuples.get())
+                out.push_back(p.first);
+        }
+
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithFullProv> &out) const {
             assert(colPos1 == colPos2 == 0);
@@ -274,6 +299,24 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
                         std::pair<Term_t, Term_t>,
                         UnaryWithConstNodeFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(),
                         true, 0));
+        }
+
+        static bool cmp_hits(const std::pair<Term_t,Term_t> &a,
+                const std::pair<Term_t,Term_t> &b) {
+            return a.first < b.first;
+        }
+
+        size_t countHits(const std::vector<Term_t> &terms,
+                int column) const {
+            assert(column == 0);
+            size_t c = 0;
+            for(auto &t : terms) {
+                if (std::binary_search(tuples->begin(),
+                            tuples->end(), std::make_pair(t, 0),
+                            UnaryWithConstNodeFullProvTGSegment::cmp_hits))
+                    c++;
+            }
+            return c;
         }
 };
 
@@ -304,6 +347,10 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
         void appendTo(uint8_t colPos,
                 std::vector<UnWithFullProv> &out) const {
             std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));
+        }
+
+        size_t getNOffsetColumns() const {
+            return 2;
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
@@ -351,6 +398,19 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
 
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
+            /*if (start == 0 && end == tuples.size()) {
+              } else {
+              std::vector<Term_t> out(end - start);
+              size_t m = 0;
+              for(size_t j = start; j < end; ++j) {
+              out[m++] = tuples->at(j).first;
+              }
+              return std::shared_ptr<TGSegment>(
+              new UnaryWithConstProvTGSegment(out,
+              nodeId,
+              f_isSorted,
+              sortedField));
+              }*/
             throw 10;
         }
 };
