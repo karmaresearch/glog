@@ -9,11 +9,15 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator(
             new TGSegmentLegacyItr(columns, provenanceType, nprovcolumns));
 }
 
-bool TGSegmentLegacy::isProvenanceConstant() const {
+bool TGSegmentLegacy::isProvenanceAutomatic() const {
     assert(shouldTrackProvenance());
+    assert(nprovcolumns > 0);
     size_t begin = columns.size() - nprovcolumns;
-    for(size_t i = 0; i < nprovcolumns; i++) {
-        if (!columns[begin + i]->isConstant()) {
+    if (!columns[begin]->isConstant()) {
+        return false;
+    }
+    for(size_t i = 1; i < nprovcolumns; i++) {
+        if (columns[begin + i]->isBackedByVector()) {
             return false;
         }
     }
@@ -103,44 +107,43 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
         LOG(ERRORL) << "unique can only be called on sorted segments";
         throw 10;
     }
-    size_t nfields = 0;
-    int nfieldsToCheck = 0;
-    std::vector<std::shared_ptr<Column>> oldcols;
-    if (shouldTrackProvenance() && isProvenanceConstant()) {
-        nfields = columns.size() - nprovcolumns;
-        nfieldsToCheck = -1;
-        for(int i = 0; i < columns.size() - nprovcolumns; ++i)
-            oldcols.push_back(columns[i]);
-    } else {
-        nfieldsToCheck = columns.size() - nprovcolumns;
-        //I remove the column with the node ID since it's constant
-        assert(columns[nfieldsToCheck]->isConstant());
-        for(size_t i = 0; i < nfieldsToCheck; ++i) {
-            oldcols.push_back(columns[i]);
-        }
-        for(size_t i = 1; i < nprovcolumns; ++i) {
-            oldcols.push_back(columns[nfieldsToCheck + i]);
-        }
-        nfields = columns.size() - 1;
-    }
-    std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
-            new Segment(nfields, oldcols));
-    auto retained = SegmentInserter::unique(s, nfieldsToCheck);
 
+    std::vector<std::shared_ptr<Column>> oldcols;
     std::vector<std::shared_ptr<Column>> newcols;
-    for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
-        newcols.push_back(retained->getColumn(i));
-    }
-    size_t nrows = retained->getNRows();
-    if (shouldTrackProvenance()) {
-        //Node
+    size_t nrows;
+
+    if (shouldTrackProvenance() && isProvenanceAutomatic()) {
+        size_t nfields = columns.size() - nprovcolumns;
+        for(int i = 0; i < nfields; ++i)
+            oldcols.push_back(columns[i]);
+        for(size_t i = 1; i < nprovcolumns; ++i) {
+            oldcols.push_back(columns[nfields + i]);
+        }
+        std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
+                new Segment(oldcols.size(), oldcols));
+        auto retained = SegmentInserter::unique(s, nfields);
+        for(int i = 0; i < nfields; ++i) {
+            newcols.push_back(retained->getColumn(i));
+        }
         newcols.push_back(std::shared_ptr<Column>(new CompressedColumn(
-                        columns[columns.size() - nprovcolumns]->first(),
-                        nrows)));
+                        columns[nfields]->first(), nrows)));
         for(size_t i = 1; i < nprovcolumns; ++i) {
             newcols.push_back(
-                    retained->getColumn(nfieldsToCheck + i - 1));
+                    retained->getColumn(nfields + i - 1));
         }
+        nrows = retained->getNRows();
+    } else {
+        size_t nfields = columns.size() - nprovcolumns;
+        std::vector<std::shared_ptr<Column>> oldcols;
+        for(int i = 0; i < columns.size(); ++i)
+            oldcols.push_back(columns[i]);
+        std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
+                new Segment(columns.size(), oldcols));
+        auto retained = SegmentInserter::unique(s, nfields);
+        for(int i = 0; i < columns.size(); ++i) {
+            newcols.push_back(retained->getColumn(i));
+        }
+        nrows = retained->getNRows();
     }
     return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(newcols,
                 nrows, true, sortedField, provenanceType, nprovcolumns));
@@ -150,7 +153,7 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
     if (!f_isSorted || sortedField != 0) {
         auto nfields = columns.size();
         std::vector<std::shared_ptr<Column>> newcols;
-        if (shouldTrackProvenance() && isProvenanceConstant()) {
+        if (shouldTrackProvenance() && isProvenanceAutomatic()) {
             std::vector<std::shared_ptr<Column>> oldcols;
             for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
                 oldcols.push_back(columns[i]);
@@ -188,7 +191,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
     throw 10;
     assert(shouldTrackProvenance() == true);
     assert(columns.size() > 1);
-    if (!isProvenanceConstant()) {
+    if (!isProvenanceAutomatic()) {
         std::vector<uint8_t> sortedFields;
         for(size_t i = 0; i < nprovcolumns; i++) {
             sortedFields.push_back(columns.size() - nprovcolumns + i);
@@ -458,7 +461,7 @@ size_t TGSegmentLegacy::getNodeId() const {
 std::shared_ptr<const TGSegment> TGSegmentLegacy::sortByProv() const {
     assert(shouldTrackProvenance() == true);
     assert(columns.size() > 1);
-    if (!isProvenanceConstant()) {
+    if (!isProvenanceAutomatic()) {
         std::vector<uint8_t> sortedFields;
         for(size_t i = 0; i < nprovcolumns; i++) {
             sortedFields.push_back(columns.size() - nprovcolumns + i);

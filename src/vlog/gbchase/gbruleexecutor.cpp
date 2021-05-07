@@ -1537,7 +1537,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         }
     }
     LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
-    if (node.ruleIdx == 140) {
+    if (node.ruleIdx == 97) {
         std::cout << "Stop";
     }
 #endif
@@ -1546,6 +1546,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     lastDurationMergeSort = std::chrono::duration<double, std::milli>(0);
     lastDurationJoin = std::chrono::duration<double, std::milli>(0);
     lastDurationCreateHead = std::chrono::duration<double, std::milli>(0);
+    bdyAtoms = "";
 
     //Perform the joins and populate the head
     auto &bodyAtoms = rule.getBody();
@@ -1609,11 +1610,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
         }
     }
-
-
-
-
-
 
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
         if (skippedBodyAtoms.count(i)) {

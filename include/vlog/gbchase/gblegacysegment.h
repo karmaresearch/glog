@@ -16,7 +16,7 @@ class TGSegmentLegacy : public TGSegment {
             return provenanceType != SegProvenanceType::SEG_NOPROV;
         }
 
-        bool isProvenanceConstant() const;
+        bool isProvenanceAutomatic() const;
 
     public:
         TGSegmentLegacy(const std::vector<std::shared_ptr<Column>> &columns,
