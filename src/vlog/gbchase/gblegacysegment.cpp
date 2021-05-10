@@ -512,6 +512,11 @@ size_t TGSegmentLegacy::countHits(const std::vector<Term_t> &terms,
     return columns[column]->countHits(terms);
 }
 
+bool TGSegmentLegacy::isNodeConstant() const {
+    assert(nprovcolumns > 0);
+    return columns[columns.size() - nprovcolumns]->isConstant();
+}
+
 size_t TGSegmentLegacy::countHits(const std::vector<std::pair<
         Term_t,Term_t>> &terms,
         int column1, int column2) const {

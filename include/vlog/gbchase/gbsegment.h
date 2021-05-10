@@ -169,6 +169,10 @@ class TGSegment {
             return 0;
         }
 
+        virtual bool isNodeConstant() const {
+            return true;
+        }
+
         virtual ~TGSegment() {}
 };
 

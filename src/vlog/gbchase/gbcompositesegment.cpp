@@ -62,7 +62,16 @@ bool CompositeTGSegment::isSortedBy(std::vector<uint8_t> &fields) const {
 std::shared_ptr<const TGSegment> CompositeTGSegment::sort() const {
     assert(nodes.size() > 0);
     assert(copyVarPos.size() == 1 || copyVarPos[0] != copyVarPos[1]);
-    if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns()) {
+    bool seq = true;
+   for(int i = 0; i < copyVarPos.size(); ++i) {
+       if (copyVarPos[i] != i) {
+           seq = false;
+           break;
+       }
+   }
+
+    if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns() ||
+            !seq) {
         auto mergedSegment = merge();
         if (mergedSegment->isSorted())
             return mergedSegment;
@@ -74,7 +83,7 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::sort() const {
                     copyVarPos,
                     f_isSorted,
                     sortedField,
-                    trackProvenance,
+                    provenanceType,
                     !isSorted()));
     }
 }
@@ -100,7 +109,7 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::sortByProv() const {
                 copyVarPos,
                 f_isSorted,
                 sortedField,
-                trackProvenance,
+                provenanceType,
                 sortBeforeAccess,
                 removeDuplBeforeAccess));
 }
@@ -117,7 +126,7 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::unique() const {
                     copyVarPos,
                     f_isSorted,
                     sortedField,
-                    trackProvenance,
+                    provenanceType,
                     sortBeforeAccess,
                     true));
     }
@@ -138,7 +147,7 @@ std::shared_ptr<TGSegment> CompositeTGSegment::swap() const {
     swappedPos.push_back(copyVarPos[1]);
     swappedPos.push_back(copyVarPos[0]);
     return std::shared_ptr<TGSegment>(new CompositeTGSegment(g, nodes,
-                swappedPos, false, 0, trackProvenance,
+                swappedPos, false, 0, provenanceType,
                 sortBeforeAccess,
                 removeDuplBeforeAccess));
 }

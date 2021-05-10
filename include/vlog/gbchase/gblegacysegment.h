@@ -121,6 +121,8 @@ class TGSegmentLegacy : public TGSegment {
 
         SegProvenanceType getProvenanceType() const;
 
+        bool isNodeConstant() const;
+
         size_t getNodeId() const;
 
         size_t countHits(const std::vector<Term_t> &terms,

@@ -12,7 +12,7 @@ class CompositeTGSegment : public TGSegment {
         std::vector<int> copyVarPos;
         bool f_isSorted;
         size_t sortedField;
-        const bool trackProvenance;
+        const SegProvenanceType provenanceType;
 
         const bool sortBeforeAccess;
         const bool removeDuplBeforeAccess;
@@ -24,7 +24,7 @@ class CompositeTGSegment : public TGSegment {
                 const std::vector<size_t> &nodes,
                 const std::vector<int> &copyVarPos,
                 bool isSorted=false, uint8_t sortedField = 0,
-                bool trackProvenance = false,
+                SegProvenanceType provenanceType = SEG_NOPROV,
                 bool sortBeforeAccess = false,
                 bool removeDuplBeforeAccess = false) :
             nodeId(nodeId),
@@ -33,11 +33,11 @@ class CompositeTGSegment : public TGSegment {
             copyVarPos(copyVarPos),
             f_isSorted(isSorted),
             sortedField(sortedField),
-            trackProvenance(trackProvenance),
+            provenanceType(provenanceType),
             sortBeforeAccess(sortBeforeAccess),
             removeDuplBeforeAccess(removeDuplBeforeAccess)
     {
-        assert(trackProvenance);
+        assert(provenanceType != SEG_NOPROV);
 #ifdef DEBUG
                 //There should not be repeated variables in copyVarPos, I'm
                 //not sure it works if there are
@@ -55,11 +55,11 @@ class CompositeTGSegment : public TGSegment {
                 const std::vector<size_t> &nodes,
                 const std::vector<int> &copyVarPos,
                 bool isSorted=false, uint8_t sortedField = 0,
-                bool trackProvenance = false,
+                SegProvenanceType provenanceType = SEG_NOPROV,
                 bool sortBeforeAccess = false,
                 bool removeDuplBeforeAccess = false) :
             CompositeTGSegment(~0ul, g, nodes, copyVarPos, isSorted, sortedField,
-                    trackProvenance, sortBeforeAccess, removeDuplBeforeAccess) {
+                    provenanceType, sortBeforeAccess, removeDuplBeforeAccess) {
             }
 
         std::string getName() const {
@@ -78,14 +78,12 @@ class CompositeTGSegment : public TGSegment {
             return false;
         }
 
+        bool isNodeConstant() const {
+            return nodes.size() <= 1;
+        }
+
         SegProvenanceType getProvenanceType() const {
-            if (trackProvenance) {
-                if (nodes.size() == 1)
-                    return SEG_SAMENODE;
-                else
-                    return SEG_DIFFNODES;
-            } else
-                return SEG_NOPROV;
+            return provenanceType;
         }
 
         size_t getNodeId() const {

@@ -155,6 +155,10 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
             return 1;
         }
 
+        bool isNodeConstant() const {
+            return false;
+        }
+
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithProv> &out) const {
             assert(colPos1 == colPos2 == 0);
@@ -363,6 +367,10 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
 
         size_t getNOffsetColumns() const {
             return 2;
+        }
+
+        bool isNodeConstant() const {
+            return false;
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,

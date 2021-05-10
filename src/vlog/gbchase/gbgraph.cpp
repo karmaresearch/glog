@@ -155,7 +155,7 @@ void GBGraph::addNodesProv(PredId_t predId,
 
     if (provenance.size() == 0) {
         //Single EDB or IDB atom
-        if (seg->getProvenanceType() == SEG_DIFFNODES) {
+        if (!seg->isNodeConstant()) {
             //Must split the nodes
             auto resortedSeg = seg->sortByProv();
 
@@ -269,6 +269,39 @@ void GBGraph::addNodeProv(PredId_t predid,
         LOG(ERRORL) << "The node does not have a good provenance type";
         throw 10;
     }
+#endif
+
+    //Check that it is sorted
+#ifdef DEBUG
+    auto ncols = data->getNColumns();
+    auto itr = data->iterator();
+    assert(itr->hasNext());
+    itr->next();
+    auto values = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
+    for(int i = 0; i < ncols; ++i) {
+        values[i] = itr->get(i);
+    }
+    while (itr->hasNext()) {
+        itr->next();
+        for(int i = 0; i < ncols; ++i) {
+            if (itr->get(i) > values[i]) {
+                break;
+            } else if (itr->get(i) < values[i]) {
+                LOG(ERRORL) << "Segment not sorted";
+                throw 10;
+            }
+        }
+        for(int i = 0; i < ncols; ++i) {
+            values[i] = itr->get(i);
+        }
+    }
+#endif
+
+#ifdef DEBUG
+    auto rule = program->getRule(ruleIdx);
+    auto firstHead = rule.getHeads()[0];
+    auto card = firstHead.getTupleSize();
+    assert(data->getNColumns() == card);
 #endif
 
     auto nodeId = getNNodes();
@@ -739,7 +772,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
     return retainVsNodeFast_generic(existuples, newtuples);
 }
 
-
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples) {
@@ -897,6 +929,33 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 std::shared_ptr<const TGSegment> GBGraph::retain(
         PredId_t p,
         std::shared_ptr<const TGSegment> newtuples) {
+
+    //Check that it is sorted
+#ifdef DEBUG
+    auto ncols = newtuples->getNColumns();
+    auto itr = newtuples->iterator();
+    assert(itr->hasNext());
+    itr->next();
+    auto values = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
+    for(int i = 0; i < ncols; ++i) {
+        values[i] = itr->get(i);
+    }
+    while (itr->hasNext()) {
+        itr->next();
+        for(int i = 0; i < ncols; ++i) {
+            if (itr->get(i) > values[i]) {
+                break;
+            } else if (itr->get(i) < values[i]) {
+                LOG(ERRORL) << "Segment not sorted";
+                throw 10;
+            }
+        }
+        for(int i = 0; i < ncols; ++i) {
+            values[i] = itr->get(i);
+        }
+    }
+#endif
+
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
     if (!areNodesWithPredicate(p)) {
@@ -1092,33 +1151,33 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         if (lazyMode) {
             return std::shared_ptr<const TGSegment>(
                     new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                        false, 0, shouldTrackProvenance()));
+                        false, 0, getSegProvenanceType()));
         }
 
         if (shouldTrackProvenance()) {
             if (provenanceType == FULLPROV) {
-                    size_t maxOffset = 0;
+                size_t maxOffset = 0;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    auto n = getNodeData(idbBodyAtomIdx)->getNOffsetColumns();
+                    if (n > maxOffset) {
+                        maxOffset = n;
+                    }
+                }
+                assert(maxOffset > 0);
+                if (maxOffset == 1) {
+                    throw 10;
+                } else if (maxOffset == 2) {
+                    std::vector<UnWithFullProv> tuples;
                     for(auto idbBodyAtomIdx : nodeIdxs) {
-                        auto n = getNodeData(idbBodyAtomIdx)->getNOffsetColumns();
-                        if (n > maxOffset) {
-                            maxOffset = n;
-                        }
+                        getNodeData(idbBodyAtomIdx)->appendTo(
+                                copyVarPos[0], tuples);
                     }
-                    assert(maxOffset > 0);
-                    if (maxOffset == 1) {
-                        throw 10;
-                    } else if (maxOffset == 2) {
-                        std::vector<UnWithFullProv> tuples;
-                        for(auto idbBodyAtomIdx : nodeIdxs) {
-                            getNodeData(idbBodyAtomIdx)->appendTo(
-                                    copyVarPos[0], tuples);
-                        }
-                        return std::shared_ptr<const TGSegment>(
-                                new UnaryWithFullProvTGSegment(tuples, ~0ul,
-                                    false, 0));
-                    } else {
-                        throw 10;
-                    }
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithFullProvTGSegment(tuples, ~0ul,
+                                false, 0));
+                } else {
+                    throw 10;
+                }
             } else {
                 assert(provenanceType != FULLPROV);
                 std::vector<std::pair<Term_t,Term_t>> tuples;
@@ -1159,7 +1218,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             if (lazyMode) {
                 return std::shared_ptr<const TGSegment>(
                         new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                            false, 0, shouldTrackProvenance()));
+                            false, 0, getSegProvenanceType()));
             }
 
             if (shouldTrackProvenance()) {

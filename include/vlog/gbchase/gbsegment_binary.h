@@ -248,6 +248,10 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<
             return 1;
         }
 
+        bool isNodeConstant() const {
+            return false;
+        }
+
         void appendTo(uint8_t colPos,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {
             if (colPos == 0) {
@@ -582,7 +586,9 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
         }
         static bool sortNode(const BinWithFullProv &a,
                 const BinWithFullProv &b) {
-            return a.node < b.node;
+            return a.node < b.node || (a.node == b.node &&
+                    a.first < b.first) || (a.node == b.node &&
+                        a.first == b.first && a.second < b.second);
         }
 
     public:
@@ -596,6 +602,10 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
 
         size_t getNOffsetColumns() const {
             return 2;
+        }
+
+        bool isNodeConstant() const {
+            return false;
         }
 
         void appendTo(uint8_t colPos,
