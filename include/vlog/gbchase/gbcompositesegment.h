@@ -17,6 +17,7 @@ class CompositeTGSegment : public TGSegment {
         const bool sortBeforeAccess;
         const bool removeDuplBeforeAccess;
         const bool replaceOffsets;
+        size_t nProvenanceColumns;
 
         std::shared_ptr<const TGSegment> merge() const;
 
@@ -42,16 +43,30 @@ class CompositeTGSegment : public TGSegment {
     {
         assert(provenanceType != SEG_NOPROV);
 #ifdef DEBUG
-                //There should not be repeated variables in copyVarPos, I'm
-                //not sure it works if there are
-                std::set<size_t> s;
-                for(auto c : copyVarPos)
-                    s.insert(c);
-                if (s.size() != copyVarPos.size()) {
-                    LOG(ERRORL) << "Case not implemented";
-                    throw 10;
-                }
+        //There should not be repeated variables in copyVarPos, I'm
+        //not sure it works if there are
+        std::set<size_t> s;
+        for(auto c : copyVarPos)
+            s.insert(c);
+        if (s.size() != copyVarPos.size()) {
+            LOG(ERRORL) << "Case not implemented";
+            throw 10;
+        }
 #endif
+        nProvenanceColumns = 0;
+        if (provenanceType == SEG_FULLPROV) {
+            for (auto n : nodes) {
+                auto off = g.getNodeData(n)->getNOffsetColumns();
+                if (off > nProvenanceColumns) {
+                    if (nProvenanceColumns > 0 && off != nProvenanceColumns) {
+                        throw 10;
+                        //The case when nodes have provenance of multiple sizes
+                        //is not supported yet
+                    }
+                    nProvenanceColumns = off;
+                }
+            }
+        }
     }
 
         CompositeTGSegment(const GBGraph &g,
@@ -90,6 +105,10 @@ class CompositeTGSegment : public TGSegment {
 
         SegProvenanceType getProvenanceType() const {
             return provenanceType;
+        }
+
+        size_t getNOffsetColumns() const {
+            return nProvenanceColumns;
         }
 
         size_t getNodeId() const {

@@ -205,10 +205,9 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
 std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
         std::vector<size_t> &idxs,
         std::vector<size_t> &nodes) const {
-    //Not sure this method is correctly implemented
-    throw 10;
     assert(shouldTrackProvenance() == true);
     assert(columns.size() > 1);
+    throw 10;
     if (!isProvenanceAutomatic()) {
         std::vector<uint8_t> sortedFields;
         for(size_t i = 0; i < nprovcolumns; i++) {
