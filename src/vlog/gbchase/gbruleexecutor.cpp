@@ -357,18 +357,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
 
     size_t nProvenanceColumns = 0;
     if (shouldTrackProvenance()) {
-        CompressedColumnBlock b(~0ul, 0, nrows);
-        std::vector<CompressedColumnBlock> blocks;
-        blocks.push_back(b);
         columns.push_back(std::shared_ptr<Column>(
-                    new CompressedColumn(blocks, nrows)));
+                    new CompressedColumn(~0ul, nrows)));
         nProvenanceColumns = 1;
         if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-            CompressedColumnBlock b(0, 1, nrows);
-            std::vector<CompressedColumnBlock> blocks;
-            blocks.push_back(b);
             columns.push_back(std::shared_ptr<Column>(
-                        new CompressedColumn(blocks, nrows)));
+                        new CompressedColumn(0, nrows, 1)));
             nProvenanceColumns = 2;
         }
     }
