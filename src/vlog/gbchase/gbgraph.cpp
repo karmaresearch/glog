@@ -306,23 +306,23 @@ void GBGraph::addNodeProv(PredId_t predid,
         assert(data->getProvenanceType() == SEG_FULLPROV);
         auto n = rule.getBody().size();
         assert(data->getNOffsetColumns() == 1 + n);
-    }
 
-    size_t idxIncomingEdge = 0;
-    for(int idxBodyAtom = 0; idxBodyAtom < rule.getBody().size();
-            idxBodyAtom++) {
-        auto b = rule.getBody()[idxBodyAtom];
-        if (b.getPredicate().getType() != EDB) {
-            assert(idxIncomingEdge < incomingEdges.size());
-            auto node = incomingEdges[idxIncomingEdge];
-            auto card = getNodeSize(node);
-            auto itr = data->iterator();
-            while (itr->hasNext()) {
-                itr->next();
-                auto off = itr->getProvenanceOffset(idxBodyAtom);
-                assert(off < card);
+        size_t idxIncomingEdge = 0;
+        for(int idxBodyAtom = 0; idxBodyAtom < rule.getBody().size();
+                idxBodyAtom++) {
+            auto b = rule.getBody()[idxBodyAtom];
+            if (b.getPredicate().getType() != EDB) {
+                assert(idxIncomingEdge < incomingEdges.size());
+                auto node = incomingEdges[idxIncomingEdge];
+                auto card = getNodeSize(node);
+                auto itr = data->iterator();
+                while (itr->hasNext()) {
+                    itr->next();
+                    auto off = itr->getProvenanceOffset(idxBodyAtom);
+                    assert(off < card);
+                }
+                idxIncomingEdge += 1;
             }
-            idxIncomingEdge += 1;
         }
     }
 #endif
