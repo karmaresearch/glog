@@ -1267,7 +1267,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
 
     if (copyVarPos.size() == 1) {
         if (nodeIdxs.size() == 1) {
-            if (!project && !replaceOffsets) {
+            if (!project && (provenanceType != GBGraph::ProvenanceType::FULLPROV
+                        || !replaceOffsets)) {
                 return getNodeData(nodeIdxs[0]);
             }
             auto seg = getNodeData(nodeIdxs[0]);
@@ -1296,7 +1297,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
     } else if (copyVarPos.size() == 2) {
         if (nodeIdxs.size() == 1 && !project &&
                 copyVarPos[0] == 0 && copyVarPos[1] == 1 &&
-                !replaceOffsets) {
+                (provenanceType != GBGraph::ProvenanceType::FULLPROV || !replaceOffsets)) {
             return getNodeData(nodeIdxs[0]);
         } else {
             if (lazyMode) {

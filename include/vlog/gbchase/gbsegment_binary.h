@@ -232,7 +232,8 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<
         }
         static bool sortNode(const BinWithProv &a,
                 const BinWithProv &b) {
-            return a.node < b.node;
+            return a.node < b.node || (a.node == b.node && a.first < b.first)
+                || (a.node == b.node && a.first == b.first && a.second < b.second);
         }
 
     public:
