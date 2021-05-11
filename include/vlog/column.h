@@ -156,10 +156,10 @@ class CompressedColumn final : public Column {
         //CompressedColumn(const CompressedColumn &o);
 
     public:
-        CompressedColumn(const Term_t v, const uint32_t size) : Column() {
+        CompressedColumn(const Term_t v, const uint32_t size, size_t delta = 0) : Column() {
             _size = size;
             if (size > 0) {
-                blocks.push_back(CompressedColumnBlock(v, 0, size - 1));
+                blocks.push_back(CompressedColumnBlock(v, delta, size - 1));
             }
         }
 

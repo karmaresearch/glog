@@ -78,6 +78,8 @@ class TGSegmentItr {
 
         virtual size_t getProvenanceOffset(int pos) const = 0;
 
+        virtual size_t getOffset() const = 0;
+
         virtual int getNFields() const = 0;
 
         virtual void mark() = 0;
@@ -124,6 +126,8 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         std::vector<std::shared_ptr<ColumnReader>> readers;
         std::vector<Term_t> values;
         std::vector<Term_t> m_values;
+        int64_t counter;
+        int64_t m_counter;
 
         bool shouldTrackProvenance() const {
             return provenanceType != SEG_NOPROV;
@@ -135,7 +139,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
                 size_t nprovcolumns) :
             provenanceType(provenanceType),
             columns(columns),
-            nprovcolumns(nprovcolumns)
+            nprovcolumns(nprovcolumns), counter(-1)
     {
         for (const auto &c : columns)
             readers.push_back(c->getReader());
@@ -157,6 +161,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
             for(size_t i = 0; i < readers.size(); ++i) {
                 values[i] = readers[i]->next();
             }
+            counter++;
         }
 
         void mark() {
@@ -164,6 +169,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
                 readers[i]->mark();
                 m_values[i] = values[i];
             }
+            m_counter = counter;
         }
 
         void reset() {
@@ -171,6 +177,7 @@ class TGSegmentLegacyItr : public TGSegmentItr {
                 readers[i]->reset();
                 values[i] = m_values[i];
             }
+            counter = m_counter;
         }
 
         Term_t get(const int colIdx) {
@@ -181,10 +188,13 @@ class TGSegmentLegacyItr : public TGSegmentItr {
             return values[columns.size() - nprovcolumns];
         }
 
-        size_t getProvenanceOffset(int pos) const {
-            return values[columns.size() - nprovcolumns + pos];
+        size_t getOffset() const {
+            return counter;
         }
 
+        size_t getProvenanceOffset(int pos) const {
+            return values[columns.size() - nprovcolumns + pos + 1];
+        }
 
         int getNFields() const {
             return shouldTrackProvenance() ? columns.size() - nprovcolumns : columns.size();
@@ -232,8 +242,12 @@ class TGSegmentImplItr : public TGSegmentItr {
             return nodeId;
         }
 
-        virtual size_t getProvenanceOffset(int pos) const {
+        size_t getOffset() const {
             return currentIdx;
+        }
+
+        virtual size_t getProvenanceOffset(int pos) const {
+            throw 10;
         }
 
         virtual ~TGSegmentImplItr() {}
@@ -284,8 +298,11 @@ class UnaryWithConstNodeFullProvTGSegmentItr : public TGSegmentImplItr<std::pair
 
         int getNFields() const { return 1; }
 
-        size_t getProvenanceOffset() const {
-            return tuples[currentIdx].second;
+        size_t getProvenanceOffset(int pos) const {
+            if (pos == 0)
+                return tuples[currentIdx].second;
+            else
+                throw 10;
         }
 };
 
@@ -307,8 +324,10 @@ class UnaryWithFullProvTGSegmentItr : public TGSegmentImplItr<UnWithFullProv> {
         }
 
         size_t getProvenanceOffset(int pos) const {
-            assert(pos == 0);
-            return tuples[currentIdx].prov;
+            if (pos == 0)
+                return tuples[currentIdx].prov;
+            else
+                throw 10;
         }
 };
 
@@ -369,8 +388,11 @@ class BinaryWithOffTGSegmentItr : public TGSegmentImplItr<BinWithOff> {
 
         int getNFields() const { return 2; }
 
-        size_t getProvenanceOffset() const {
-            return tuples[currentIdx].off;
+        size_t getProvenanceOffset(int pos) const {
+            if (pos == 0)
+                return tuples[currentIdx].off;
+            else
+                throw 10;
         }
 };
 
@@ -397,9 +419,12 @@ class BinaryWithFullProvTGSegmentItr : public TGSegmentImplItr<BinWithFullProv> 
         }
 
         size_t getProvenanceOffset(int pos) const {
-            assert(pos == 0);
-            return tuples[currentIdx].prov;
+            if (pos == 0)
+                return tuples[currentIdx].prov;
+            else
+                throw 10;
         }
+
 };
 
 #endif

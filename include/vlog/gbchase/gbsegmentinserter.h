@@ -61,7 +61,8 @@ class GBSegmentInserter {
                 size_t nProvenanceColumns = 0) = 0;
 
         virtual void postprocessJoin(std::vector<std::shared_ptr<Column>>
-                &intermediateResultsNodes) = 0;
+                &intermediateResultsNodes,
+                size_t nOffsetColumns) = 0;
 
         virtual ~GBSegmentInserter() {}
 };
@@ -146,7 +147,8 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
         }
 
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
-                &intermediateResultsNodes) {
+                &intermediateResultsNodes,
+                size_t nOffsetColumns) {
             LOG(ERRORL) << "Should not occur";
             throw 10;
         }
@@ -415,7 +417,9 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
         }
 
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
-                &intermediateResultsNodes) {
+                &intermediateResultsNodes,
+                size_t nOffsetColumns) {
+            assert(nOffsetColumns == 0);
             if (node1Constant) {
                 intermediateResultsNodes.push_back(
                         std::shared_ptr<Column>(
@@ -665,18 +669,29 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         }
 
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
-                &intermediateResultsNodes) {
+                &intermediateResultsNodes,
+                size_t nOffsetColumns) {
             //Take out the last two columns
             assert(card > 2);
-            for(int i = 0; i < card - 2; ++i) {
+            assert(nOffsetColumns >= 2);
+            assert(isFinal == false);
+            //All but the last nOffsetColumns record offsets.
+
+            for(int i = 0; i < card - nOffsetColumns; ++i) {
                 columns.push_back(writers[i].getColumn());
             }
+
             //For now, always add one extra column
             CompressedColumnBlock b(0, 1, addedRows);
             std::vector<CompressedColumnBlock> blocks;
             blocks.push_back(b);
             columns.push_back(std::shared_ptr<Column>(
                         new CompressedColumn(blocks, addedRows)));
+
+            //Copy the offset columns
+            for(int i = 0; i < nOffsetColumns - 2; ++i) {
+                columns.push_back(writers[card - nOffsetColumns + i].getColumn());
+            }
 
             //Save the columns with the mappings to the nodes
             auto col1 = writers[card - 2].getColumn();

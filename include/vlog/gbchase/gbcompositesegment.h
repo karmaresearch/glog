@@ -16,6 +16,7 @@ class CompositeTGSegment : public TGSegment {
 
         const bool sortBeforeAccess;
         const bool removeDuplBeforeAccess;
+        const bool replaceOffsets;
 
         std::shared_ptr<const TGSegment> merge() const;
 
@@ -26,7 +27,8 @@ class CompositeTGSegment : public TGSegment {
                 bool isSorted=false, uint8_t sortedField = 0,
                 SegProvenanceType provenanceType = SEG_NOPROV,
                 bool sortBeforeAccess = false,
-                bool removeDuplBeforeAccess = false) :
+                bool removeDuplBeforeAccess = false,
+                bool replaceOffsets = false) :
             nodeId(nodeId),
             g(g),
             nodes(nodes),
@@ -35,7 +37,8 @@ class CompositeTGSegment : public TGSegment {
             sortedField(sortedField),
             provenanceType(provenanceType),
             sortBeforeAccess(sortBeforeAccess),
-            removeDuplBeforeAccess(removeDuplBeforeAccess)
+            removeDuplBeforeAccess(removeDuplBeforeAccess),
+            replaceOffsets(replaceOffsets)
     {
         assert(provenanceType != SEG_NOPROV);
 #ifdef DEBUG
@@ -57,9 +60,12 @@ class CompositeTGSegment : public TGSegment {
                 bool isSorted=false, uint8_t sortedField = 0,
                 SegProvenanceType provenanceType = SEG_NOPROV,
                 bool sortBeforeAccess = false,
-                bool removeDuplBeforeAccess = false) :
-            CompositeTGSegment(~0ul, g, nodes, copyVarPos, isSorted, sortedField,
-                    provenanceType, sortBeforeAccess, removeDuplBeforeAccess) {
+                bool removeDuplBeforeAccess = false,
+                bool replaceOffsets = false) :
+            CompositeTGSegment(nodes.size() == 1 ? nodes[0] : ~0ul, g,
+                    nodes, copyVarPos, isSorted, sortedField,
+                    provenanceType, sortBeforeAccess, removeDuplBeforeAccess,
+                    replaceOffsets) {
             }
 
         std::string getName() const {

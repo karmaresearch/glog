@@ -112,7 +112,8 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
     std::vector<std::shared_ptr<Column>> newcols;
     size_t nrows;
 
-    if (shouldTrackProvenance() && isProvenanceAutomatic()) {
+    if (shouldTrackProvenance() &&
+            columns[columns.size() - nprovcolumns]->isConstant()) {
         size_t nfields = columns.size() - nprovcolumns;
         for(int i = 0; i < nfields; ++i)
             oldcols.push_back(columns[i]);
@@ -122,6 +123,7 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
         std::shared_ptr<Segment> s = std::shared_ptr<Segment>(
                 new Segment(oldcols.size(), oldcols));
         auto retained = SegmentInserter::unique(s, nfields);
+        nrows = retained->getNRows();
         for(int i = 0; i < nfields; ++i) {
             newcols.push_back(retained->getColumn(i));
         }
@@ -131,7 +133,6 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
             newcols.push_back(
                     retained->getColumn(nfields + i - 1));
         }
-        nrows = retained->getNRows();
     } else {
         size_t nfields = columns.size() - nprovcolumns;
         std::vector<std::shared_ptr<Column>> oldcols;
@@ -153,18 +154,35 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
     if (!f_isSorted || sortedField != 0) {
         auto nfields = columns.size();
         std::vector<std::shared_ptr<Column>> newcols;
-        if (shouldTrackProvenance() && isProvenanceAutomatic()) {
+        if (shouldTrackProvenance()) {
             std::vector<std::shared_ptr<Column>> oldcols;
             for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
                 oldcols.push_back(columns[i]);
             }
-            Segment s(columns.size() - nprovcolumns, oldcols);
+            bool skipNode = false;
+            if (columns[columns.size() - nprovcolumns]->isConstant()) {
+                skipNode = true;
+            } else {
+                oldcols.push_back(columns[columns.size() - nprovcolumns]);
+            }
+            //Add offsets
+            for(int i = 1; i < nprovcolumns; ++i) {
+                oldcols.push_back(columns[columns.size() - nprovcolumns + i]);
+            }
+            Segment s(oldcols.size(), oldcols);
             auto news = s.sortBy(NULL);
-            for(int i = 0; i < news->getNColumns(); ++i) {
+            for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
                 newcols.push_back(news->getColumn(i));
             }
-            for(size_t i = 0; i < nprovcolumns; ++i) {
-                newcols.push_back(columns[columns.size() - nprovcolumns + i]);
+            if (skipNode) {
+                newcols.push_back(columns[columns.size() - nprovcolumns]);
+                for(size_t i = 1; i < nprovcolumns; ++i) {
+                    newcols.push_back(columns[columns.size() - nprovcolumns + i]);
+                }
+            } else {
+                for(size_t i = 0; i < nprovcolumns; ++i) {
+                    newcols.push_back(columns[columns.size() - nprovcolumns + i]);
+                }
             }
         }  else {
             auto oldcols(columns);

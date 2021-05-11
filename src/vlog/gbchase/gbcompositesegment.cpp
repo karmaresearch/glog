@@ -3,7 +3,8 @@
 std::shared_ptr<const TGSegment> CompositeTGSegment::merge() const {
     std::chrono::system_clock::time_point start =
         std::chrono::system_clock::now();
-    std::shared_ptr<const TGSegment> t = g.mergeNodes(nodes, copyVarPos);
+    std::shared_ptr<const TGSegment> t = g.mergeNodes(nodes, copyVarPos,
+            false, replaceOffsets);
     std::chrono::system_clock::time_point end =
         std::chrono::system_clock::now();
     std::chrono::duration<double, std::milli> dur = end - start;
@@ -62,30 +63,34 @@ bool CompositeTGSegment::isSortedBy(std::vector<uint8_t> &fields) const {
 std::shared_ptr<const TGSegment> CompositeTGSegment::sort() const {
     assert(nodes.size() > 0);
     assert(copyVarPos.size() == 1 || copyVarPos[0] != copyVarPos[1]);
-    bool seq = true;
-   for(int i = 0; i < copyVarPos.size(); ++i) {
-       if (copyVarPos[i] != i) {
-           seq = false;
-           break;
-       }
-   }
+    /*bool seq = true;
+      for(int i = 0; i < copyVarPos.size(); ++i) {
+      if (copyVarPos[i] != i) {
+      seq = false;
+      break;
+      }
+      }
 
-    if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns() ||
-            !seq) {
-        auto mergedSegment = merge();
-        if (mergedSegment->isSorted())
-            return mergedSegment;
-        else
-            return mergedSegment->sort();
-    } else {
-        return std::shared_ptr<const TGSegment>(new CompositeTGSegment(g,
-                    nodes,
-                    copyVarPos,
-                    f_isSorted,
-                    sortedField,
-                    provenanceType,
-                    !isSorted()));
-    }
+      if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns() ||
+      !seq) {*/
+    auto mergedSegment = merge();
+    if (mergedSegment->isSorted())
+        return mergedSegment;
+    else
+        return mergedSegment->sort();
+    /*} else {
+      throw 10; //Not sure that this code below is correct. Are we sure
+    //the segment is always sorted?
+    return std::shared_ptr<const TGSegment>(new CompositeTGSegment(g,
+    nodes,
+    copyVarPos,
+    f_isSorted,
+    sortedField,
+    provenanceType,
+    !isSorted(),
+    false,
+    replaceOffsets));
+    }*/
 }
 
 std::shared_ptr<TGSegment> CompositeTGSegment::sortBy(
@@ -111,7 +116,8 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::sortByProv() const {
                 sortedField,
                 provenanceType,
                 sortBeforeAccess,
-                removeDuplBeforeAccess));
+                removeDuplBeforeAccess,
+                replaceOffsets));
 }
 
 std::shared_ptr<const TGSegment> CompositeTGSegment::unique() const {
@@ -128,7 +134,8 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::unique() const {
                     sortedField,
                     provenanceType,
                     sortBeforeAccess,
-                    true));
+                    true,
+                    replaceOffsets));
     }
 }
 
@@ -149,7 +156,8 @@ std::shared_ptr<TGSegment> CompositeTGSegment::swap() const {
     return std::shared_ptr<TGSegment>(new CompositeTGSegment(g, nodes,
                 swappedPos, false, 0, provenanceType,
                 sortBeforeAccess,
-                removeDuplBeforeAccess));
+                removeDuplBeforeAccess,
+                replaceOffsets));
 }
 
 std::vector<std::shared_ptr<const TGSegment>>
@@ -173,7 +181,7 @@ CompositeTGSegment::sliceByNodes(size_t startNodeIdx,
             std::vector<size_t> listNodes;
             listNodes.push_back(n);
             std::shared_ptr<const TGSegment> t =
-                g.mergeNodes(listNodes, copyVarPos);
+                g.mergeNodes(listNodes, copyVarPos, replaceOffsets);
             //I cannot copy n in provNodes because it could be temporary
             auto nid = t->getNodeId();
             if (nid != n && !g.isTmpNode(n)) {

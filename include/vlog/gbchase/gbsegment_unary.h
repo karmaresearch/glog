@@ -418,20 +418,19 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
 
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
-            /*if (start == 0 && end == tuples.size()) {
-              } else {
-              std::vector<Term_t> out(end - start);
-              size_t m = 0;
-              for(size_t j = start; j < end; ++j) {
-              out[m++] = tuples->at(j).first;
-              }
-              return std::shared_ptr<TGSegment>(
-              new UnaryWithConstProvTGSegment(out,
-              nodeId,
-              f_isSorted,
-              sortedField));
-              }*/
-            throw 10;
+            std::vector<std::pair<Term_t,Term_t>> out(end - start);
+            size_t m = 0;
+            for(size_t j = start; j < end; ++j) {
+                out[m].first = tuples->at(j).first;
+                out[m++].second = tuples->at(j).prov;
+                if (j > start)
+                    assert(tuples->at(j - 1).node == tuples->at(j).node);
+            }
+            return std::shared_ptr<TGSegment>(
+                    new UnaryWithConstNodeFullProvTGSegment(out,
+                        nodeId,
+                        f_isSorted,
+                        sortedField));
         }
 };
 

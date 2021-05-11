@@ -705,7 +705,8 @@ void GBRuleExecutor::mergejoin(
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
         if (fields1.size() > 1)
-            LOG(WARNL) << "I cannot use the cache because it works only if the join is over 1 variable";
+            LOG(WARNL) << "I cannot use the cache because it works only if "
+                "the join is over 1 variable";
         if (nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
@@ -722,7 +723,8 @@ void GBRuleExecutor::mergejoin(
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (fields2.size() > 1)
-            LOG(WARNL) << "I cannot use the cache because it works only if the join is over 1 variable";
+            LOG(WARNL) << "I cannot use the cache because it works only if "
+                "the join is over 1 variable";
         if (nodesRight.size() > 0 && fields2.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (fields2.size() == 1) {
@@ -781,9 +783,17 @@ void GBRuleExecutor::mergejoin(
 
     long countLeft = -1;
     std::vector<Term_t> currentKey;
-    auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
-    Term_t currentrow[sizerow + 2];
-    for(int i = 0; i < sizerow + 2; ++i) currentrow[i] = 0;
+    auto extraLeft = 0;
+    if (inputLeft->getNOffsetColumns() > 0)
+        extraLeft = inputLeft->getNOffsetColumns() - 1; //I remove the node,
+    //it will be added at the end
+    auto sizeLeftSide = copyVarPosLeft.size() + extraLeft;
+    auto extraRight = 1; //Only one column with the offset
+    auto sizeRightSide = copyVarPosRight.size() + extraRight;
+
+    auto sizeRow = sizeLeftSide + sizeRightSide;
+    Term_t currentrow[sizeRow + 2];
+    for(size_t i = 0; i < sizeRow + 2; ++i) currentrow[i] = 0;
     int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarsPos);
     while (true) {
         //Are they matching?
@@ -864,8 +874,11 @@ void GBRuleExecutor::mergejoin(
                 //Move the left iterator countLeft times and emit tuples
                 for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                     auto rightPos = copyVarPosRight[idx];
-                    currentrow[copyVarPosLeft.size() + idx] = itrRight->get(
-                            rightPos);
+                    currentrow[sizeLeftSide + idx] = itrRight->get(rightPos);
+                }
+                for(int idx = 0; idx < extraRight; ++idx) {
+                    currentrow[sizeLeftSide + copyVarPosRight.size() + idx] =
+                        itrRight->getOffset();
                 }
                 itrLeft->reset();
                 size_t c = 0;
@@ -875,9 +888,13 @@ void GBRuleExecutor::mergejoin(
                         auto el = itrLeft->get(leftPos);
                         currentrow[idx] = el;
                     }
+                    for(int idx = 0; idx < extraLeft; ++idx) {
+                        currentrow[copyVarPosLeft.size() + idx] =
+                            itrLeft->getProvenanceOffset(idx);
+                    }
                     if (shouldTrackProvenance()) {
-                        currentrow[sizerow] = itrLeft->getNodeId();
-                        currentrow[sizerow + 1] = itrRight->getNodeId();
+                        currentrow[sizeRow] = itrLeft->getNodeId();
+                        currentrow[sizeRow + 1] = itrRight->getNodeId();
                     }
                     output->add(currentrow);
                     if (itrLeft->hasNext()) {
@@ -1074,7 +1091,7 @@ void GBRuleExecutor::join(
         std::vector<int> projectedPos;
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
-        inputRight = g.mergeNodes(nodesRight, projectedPos);
+        inputRight = g.mergeNodes(nodesRight, projectedPos, false, true);
     } else {
         //It must be an EDB literal because only these do not have nodes
         assert(literalRight.getPredicate().getType() == EDB);
@@ -1091,6 +1108,11 @@ void GBRuleExecutor::join(
     }
 
     if (literalRight.isNegated()) {
+        if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+            LOG(ERRORL) << "Left joins not supported in FULLPROV mode";
+            throw 10;
+        }
+
         // Negated atoms should not introduce new variables.
         assert(copyVarPosRight.size() == 0);
         leftjoin(inputLeft,
@@ -1110,6 +1132,10 @@ void GBRuleExecutor::join(
                     copyVarPosRight,
                     output);
         } else {
+            if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+                LOG(ERRORL) << "Nested joins not supported in FULLPROV mode";
+                throw 10;
+            }
             nestedloopjoin(inputLeft,
                     nodesLeft,
                     inputRight,
@@ -1537,9 +1563,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         }
     }
     LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
-    if (node.ruleIdx == 97) {
-        std::cout << "Stop";
-    }
 #endif
 
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);
@@ -1660,7 +1683,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             } else {
                 firstBodyAtomIsIDB = true;
                 intermediateResults = g.mergeNodes(
-                        bodyNodes[currentBodyNode], copyVarPosRight, true);
+                        bodyNodes[currentBodyNode], copyVarPosRight, true, true);
                 currentBodyNode++;
             }
             std::chrono::steady_clock::time_point end =
@@ -1683,10 +1706,23 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             std::vector<size_t> &nodesRight =
                 !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
             uint8_t extraColumns = 0;
-            bool multipleComb = intermediateResults->getProvenanceType() == SEG_DIFFNODES ||
+            bool multipleComb =
+                intermediateResults->getProvenanceType() == SEG_FULLPROV ||
+                intermediateResults->getProvenanceType() == SEG_DIFFNODES ||
                 nodesRight.size() > 1;
-            if (shouldTrackProvenance() && multipleComb) {
-                extraColumns = 2;
+            if (multipleComb) {
+                if (intermediateResults->getProvenanceType() == SEG_FULLPROV) {
+                    size_t maxRightOffsetColumns = 1; //only offset, no node
+                    for (auto n : nodesRight) {
+                        auto i = g.getNodeData(n)->getNOffsetColumns() - 1;
+                        if (i > maxRightOffsetColumns)
+                            maxRightOffsetColumns = i;
+                    }
+                    extraColumns = 2 + intermediateResults->
+                        getNOffsetColumns() - 1 + maxRightOffsetColumns;
+                } else {
+                    extraColumns = 2;
+                }
             }
             std::unique_ptr<GBSegmentInserter> newIntermediateResults =
                 GBSegmentInserter::getInserter(copyVarPosLeft.size() +
@@ -1725,9 +1761,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 if (multipleComb) {
                     //Process the output of nodes
                     newIntermediateResults->postprocessJoin(
-                            intermediateResultsNodes);
+                            intermediateResultsNodes, extraColumns);
                     intermediateResults = newIntermediateResults->getSegment(
-                            ~0ul, false, 0, getSegProvenanceType(), true);
+                            ~0ul, false, 0, getSegProvenanceType(), extraColumns - 1);
                 } else {
                     //Add two columns in intermediateResultsNodes
                     intermediateResultsNodes.push_back(std::shared_ptr<Column>(
@@ -1746,11 +1782,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     //As node, I use 0 because it indicates the first row
                     //for retrieving the provenance
                     intermediateResults = newIntermediateResults->getSegment(
-                            0, false, 0, getSegProvenanceType(), false);
+                            0, false, 0, getSegProvenanceType(), 0);
                 }
             } else {
                 intermediateResults = newIntermediateResults->getSegment(
-                        ~0ul, false, 0, getSegProvenanceType(), false);
+                        ~0ul, false, 0, getSegProvenanceType(), 0);
             }
             currentBodyNode++;
         }

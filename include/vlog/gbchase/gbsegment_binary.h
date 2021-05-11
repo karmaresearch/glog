@@ -440,6 +440,22 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
+                std::vector<std::pair<Term_t, Term_t>> &out) const {
+            if (colPos1 == 0 && colPos2 == 1) {
+                for(auto &t : *tuples.get()) {
+                    out.push_back(std::make_pair(t.first, t.second));
+                }
+            } else if (colPos1 == 1 && colPos2 == 0) {
+                for(auto &t : *tuples.get()) {
+                    out.push_back(std::make_pair(t.second, t.first));
+                }
+            } else {
+                LOG(ERRORL) << "Not implemented";
+                throw 10;
+            }
+        }
+
+        void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<BinWithOff> &out) const {
             if (colPos1 == 0 && colPos2 == 1) {
                 std::copy(tuples->begin(), tuples->end(), std::back_inserter(out));

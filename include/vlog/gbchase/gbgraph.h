@@ -263,6 +263,19 @@ class GBGraph {
                 const GBGraph_TmpPredNode &node,
                 size_t beginSegment);
 
+        std::shared_ptr<const TGSegment> mergeNodes_special_unary1(
+                std::shared_ptr<const TGSegment> seg,
+                const std::vector<size_t> &nodeIdxs,
+                const std::vector<int> &copyVarPos,
+                bool lazyMode = false,
+                bool replaceOffsets = false) const;
+
+        std::shared_ptr<const TGSegment> mergeNodes_special_unary2(
+                const std::vector<size_t> &nodeIdxs,
+                const std::vector<int> &copyVarPos,
+                bool lazyMode = false,
+                bool replaceOffsets = false) const;
+
     public:
         GBGraph(ProvenanceType provenanceType,
                 bool cacheRetainEnabled,
@@ -342,7 +355,8 @@ class GBGraph {
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,
                 const std::vector<int> &copyVarPos,
-                bool lazyMode = false) const;
+                bool lazyMode = false,
+                bool replaceOffsets = false) const;
 
         void addNodeNoProv(PredId_t predId,
                 size_t ruleIdx,
