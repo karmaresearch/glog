@@ -1209,8 +1209,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
                     getNodeData(idbBodyAtomIdx)->appendTo(
                             copyVarPos[0], tuples);
                     if (replaceOffsets) {
-                        for(size_t i = 0; i < tuples.size(); ++i) {
-                            tuples[start + i].prov = i;
+                        for(size_t i = start; i < tuples.size(); ++i) {
+                            tuples[i].prov = i - start;
                         }
                     }
                 }
@@ -1330,8 +1330,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                                     copyVarPos[0],
                                     copyVarPos[1], tuples);
                             if (replaceOffsets) {
-                                for(size_t i = 0; i < tuples.size(); ++i) {
-                                    tuples[start + i].prov = i;
+                                for(size_t i = start; i < tuples.size(); ++i) {
+                                    tuples[i].prov = i - start;
                                 }
                             }
                         }
