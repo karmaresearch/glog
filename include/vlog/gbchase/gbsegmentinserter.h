@@ -682,7 +682,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             }
 
             //For now, always add one extra column
-            CompressedColumnBlock b(0, 1, addedRows);
+            CompressedColumnBlock b(0, 1, addedRows-1);
             std::vector<CompressedColumnBlock> blocks;
             blocks.push_back(b);
             columns.push_back(std::shared_ptr<Column>(

@@ -252,11 +252,8 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
     }
     if (shouldTrackProvenance()) {
         assert(nprovcolumns > 0);
-        CompressedColumnBlock b(nodeId, 0, length);
-        std::vector<CompressedColumnBlock> blocks;
-        blocks.push_back(b);
         newcols.push_back(std::shared_ptr<Column>(
-                    new CompressedColumn(blocks, length)));
+                    new CompressedColumn(nodeId, length)));
         for(size_t i = 1; i < nprovcolumns; ++i) {
             auto c = columns[columns.size() - nprovcolumns + i]->slice(start, end);
             newcols.push_back(c);
