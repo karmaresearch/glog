@@ -1523,7 +1523,7 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
 
         std::unique_ptr<SegmentIterator> itr = seg->iterator();
         const uint8_t ncolumns = seg->getNColumns();
-        const uint8_t ncolumnsToCheck = nfields == -1 ? ncolumns : ncolumns - 1;
+        const uint8_t ncolumnsToCheck = nfields == -1 ? ncolumns : nfields;
         std::unique_ptr<Term_t[]> fields(new Term_t[ncolumns]);
         for (int i = 0; i < ncolumns; ++i)
             fields[i] = (Term_t) - 1;

@@ -186,7 +186,6 @@ class GBSegmentInserterUnary :
                 size_t nProvenanceColumns = 0) {
             if (provenanceType != SegProvenanceType::SEG_FULLPROV &&
                     provenanceType != SegProvenanceType::SEG_NOPROV) {
-                assert(nProvenanceColumns == 1);
                 if (nProvenanceColumns > 0) {
                     //In this case, the arity is zero and the contains
                     //stores only the provenance
