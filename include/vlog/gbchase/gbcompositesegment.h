@@ -128,7 +128,7 @@ class CompositeTGSegment : public TGSegment {
 
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
-        std::shared_ptr<TGSegment> sortByProv(size_t ncols,
+        std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
                 std::vector<size_t> &nodes) const;
 

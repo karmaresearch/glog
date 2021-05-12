@@ -100,19 +100,26 @@ class GBGraph {
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
-                std::shared_ptr<const TGSegment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         std::shared_ptr<const TGSegment> retainVsNodeFast_one(
                 std::shared_ptr<const TGSegment> existuples,
-                std::shared_ptr<const TGSegment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         std::shared_ptr<const TGSegment> retainVsNodeFast_two(
                 std::shared_ptr<const TGSegment> existuples,
-                std::shared_ptr<const TGSegment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         std::shared_ptr<const TGSegment> retainVsNodeFast_generic(
                 std::shared_ptr<const TGSegment> existuples,
-                std::shared_ptr<const TGSegment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
+
+        void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         /*** Implemented in gbgraph_redundant.cpp ***/
         bool isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms);
@@ -276,6 +283,13 @@ class GBGraph {
                 bool lazyMode = false,
                 bool replaceOffsets = false) const;
 
+        std::shared_ptr<const TGSegment> retain(
+                PredId_t pred,
+                std::shared_ptr<const TGSegment> newtuples) {
+            std::vector<std::shared_ptr<Column>> derivationNodes;
+            return retain(pred, newtuples, derivationNodes);
+        }
+
     public:
         GBGraph(ProvenanceType provenanceType,
                 bool cacheRetainEnabled,
@@ -409,7 +423,8 @@ class GBGraph {
 
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
-                std::shared_ptr<const TGSegment> newtuples);
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         //Returns the number of retained tuples. The new node will get the last
         //step and will be assigned to rule ~0ul

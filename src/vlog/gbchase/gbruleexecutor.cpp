@@ -868,11 +868,11 @@ void GBRuleExecutor::mergejoin(
                 //Move the left iterator countLeft times and emit tuples
                 for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                     auto rightPos = copyVarPosRight[idx];
-                    currentrow[sizeLeftSide + idx] = itrRight->get(rightPos);
+                    currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
                 }
                 for(int idx = 0; idx < extraRight; ++idx) {
-                    currentrow[sizeLeftSide + copyVarPosRight.size() + idx] =
-                        itrRight->getOffset();
+                    currentrow[copyVarPosLeft.size() + copyVarPosRight.size()
+                        + extraLeft + idx] = itrRight->getProvenanceOffset(idx);
                 }
                 itrLeft->reset();
                 size_t c = 0;
@@ -883,7 +883,7 @@ void GBRuleExecutor::mergejoin(
                         currentrow[idx] = el;
                     }
                     for(int idx = 0; idx < extraLeft; ++idx) {
-                        currentrow[copyVarPosLeft.size() + idx] =
+                        currentrow[copyVarPosLeft.size() + copyVarPosRight.size() + idx] =
                             itrLeft->getProvenanceOffset(idx);
                     }
                     if (shouldTrackProvenance()) {
@@ -1077,7 +1077,7 @@ void GBRuleExecutor::join(
 
     std::shared_ptr<const TGSegment> inputRight;
     bool mergeJoinPossible = true;
-    if (nodesRight.size() == 1) {
+    if (nodesRight.size() == 1 && provenanceType != GBGraph::ProvenanceType::FULLPROV) {
         size_t idbBodyAtomIdx = nodesRight[0];
         inputRight = g.getNodeData(idbBodyAtomIdx);
     } else if (nodesRight.size() > 0) {
@@ -1085,7 +1085,11 @@ void GBRuleExecutor::join(
         std::vector<int> projectedPos;
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
-        inputRight = g.mergeNodes(nodesRight, projectedPos, false, true);
+        if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+            inputRight = g.mergeNodes(nodesRight, projectedPos, false, true);
+        } else {
+            inputRight = g.mergeNodes(nodesRight, projectedPos, false);
+        }
     } else {
         //It must be an EDB literal because only these do not have nodes
         assert(literalRight.getPredicate().getType() == EDB);
@@ -1707,11 +1711,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             if (multipleComb) {
                 if (intermediateResults->getProvenanceType() == SEG_FULLPROV) {
                     size_t maxRightOffsetColumns = 1; //only offset, no node
-                    for (auto n : nodesRight) {
-                        auto i = g.getNodeData(n)->getNOffsetColumns() - 1;
-                        if (i > maxRightOffsetColumns)
-                            maxRightOffsetColumns = i;
-                    }
+                    /*for (auto n : nodesRight) {
+                      auto i = g.getNodeData(n)->getNOffsetColumns() - 1;
+                      if (i > maxRightOffsetColumns)
+                      maxRightOffsetColumns = i;
+                      }*/
                     extraColumns = 2 + intermediateResults->
                         getNOffsetColumns() - 1 + maxRightOffsetColumns;
                 } else {

@@ -682,11 +682,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             }
 
             //For now, always add one extra column
-            CompressedColumnBlock b(0, 1, addedRows-1);
-            std::vector<CompressedColumnBlock> blocks;
-            blocks.push_back(b);
             columns.push_back(std::shared_ptr<Column>(
-                        new CompressedColumn(blocks, addedRows)));
+                        new CompressedColumn(0, addedRows, 1)));
 
             //Copy the offset columns
             for(int i = 0; i < nOffsetColumns - 2; ++i) {

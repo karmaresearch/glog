@@ -99,7 +99,7 @@ std::shared_ptr<TGSegment> CompositeTGSegment::sortBy(
     return mergedSegment->sortBy(fields);
 }
 
-std::shared_ptr<TGSegment> CompositeTGSegment::sortByProv(size_t ncols,
+std::shared_ptr<const TGSegment> CompositeTGSegment::sortByProv(size_t ncols,
         std::vector<size_t> &idxs,
         std::vector<size_t> &nodes) const {
     auto mergedSegment = merge();

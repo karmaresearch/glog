@@ -671,10 +671,12 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                 //Keep only the new derivations
                 std::shared_ptr<const TGSegment> retainedTuples;
                 if (shouldCleanDuplicates && !node.retainFree) {
-                    retainedTuples = g.retain(currentPredicate, derivations);
+                    retainedTuples = g.retain(currentPredicate, derivations,
+                            derivationNodes);
                 } else {
                     retainedTuples = derivations;
                 }
+
                 nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
                 if (nonempty) {
                     nders += retainedTuples->getNRows();

@@ -31,7 +31,7 @@ class TGSegment {
 
         virtual std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const = 0;
 
-        virtual std::shared_ptr<TGSegment> sortByProv(size_t ncols,
+        virtual std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
                 std::vector<size_t> &nodes) const = 0;
 
@@ -76,7 +76,7 @@ class TGSegment {
                 throw 10;
             }
 
-        virtual std::shared_ptr<TGSegment> shuffle(
+        virtual std::shared_ptr<const TGSegment> shuffle(
                 const std::vector<size_t> &idxs) const {
             LOG(ERRORL) << "Not implemented";
             throw 10;
@@ -243,7 +243,7 @@ class TGSegmentImpl : public TGSegment {
             return CP;
         }
 
-        virtual std::shared_ptr<TGSegment> sortByProv(size_t ncols,
+        virtual std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
                 std::vector<size_t> &nodes) const {
             const auto nrows = nodes.size() / ncols;
@@ -276,10 +276,10 @@ class TGSegmentImpl : public TGSegment {
             }
         }
 
-        std::shared_ptr<TGSegment> shuffle(const std::vector<size_t> &idxs) const {
+        std::shared_ptr<const TGSegment> shuffle(const std::vector<size_t> &idxs) const {
             std::vector<K> out;
             for(auto idx : idxs) out.push_back(TGSegmentImpl<S,K,I,CP>::tuples->at(idx));
-            return std::shared_ptr<TGSegment>(new S(out, TGSegmentImpl<S,K,I,CP>::getNodeId(), false, 0));
+            return std::shared_ptr<const TGSegment>(new S(out, TGSegmentImpl<S,K,I,CP>::getNodeId(), false, 0));
         }
 
         std::unique_ptr<TGSegmentItr> iterator(

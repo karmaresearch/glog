@@ -588,21 +588,25 @@ void GBGraph::replaceEqualTerms(
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         std::shared_ptr<const TGSegment> existuples,
-        std::shared_ptr<const TGSegment> newtuples) {
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
     //Special case for unary relations
     if (provenanceType != FULLPROV && existuples->getNColumns() == 1) {
+        assert(derivationNodes.size() == 0); //The function below does not remove derivation Nodes
         return retainVsNodeFast_one(existuples,
-                newtuples);
+                newtuples, derivationNodes);
     } else if (provenanceType != FULLPROV && existuples->getNColumns() == 2) {
-        return retainVsNodeFast_two(existuples, newtuples);
+        assert(derivationNodes.size() == 0); //The function below does not remove derivation Nodes
+        return retainVsNodeFast_two(existuples, newtuples, derivationNodes);
     } else {
-        return retainVsNodeFast_generic(existuples, newtuples);
+        return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
     }
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
         std::shared_ptr<const TGSegment> existuples,
-        std::shared_ptr<const TGSegment> newtuples) {
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
     if (newtuples->hasColumnarBackend()) {
         ColumnWriter writer;
         bool allNew = true;
@@ -674,16 +678,17 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
             }
         } else {
             //TODO antijoin between a column and a TGUnarySegment
-            return retainVsNodeFast_generic(existuples, newtuples);
+            return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
         }
     } else {
-        return retainVsNodeFast_generic(existuples, newtuples);
+        return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
     }
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
         std::shared_ptr<const TGSegment> existuples,
-        std::shared_ptr<const TGSegment> newtuples) {
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
     if (newtuples->hasColumnarBackend()) {
         auto newColumn1 = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
         auto newColumn2 = ((TGSegmentLegacy*)newtuples.get())->getColumn(1);
@@ -792,17 +797,51 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
             }
         }
     }
-    return retainVsNodeFast_generic(existuples, newtuples);
+    return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
+}
+
+void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
+    //I filter only the last two columns
+    assert(derivationNodes.size() >= 2);
+    std::vector<ColumnWriter> writers(2);
+    std::vector<std::unique_ptr<ColumnReader>> readers;
+    for(size_t i = derivationNodes.size() - 2; i < derivationNodes.size(); ++i) {
+        readers.push_back(derivationNodes[i]->getReader());
+    }
+    size_t nrows = derivationNodes.back()->size();
+    size_t currentIdx = 0;
+    for(size_t i = 0; i < nrows; ++i) {
+        for(size_t j = 0; j < readers.size(); ++j) {
+            assert(readers[j]->hasNext());
+        }
+        if(i != idsToFilter[currentIdx]) {
+            for(size_t j = 0; j < readers.size(); ++j) {
+                auto v = readers[j]->next();
+                writers[j].add(v);
+            }
+        } else {
+            for(size_t j = 0; j < readers.size(); ++j) {
+                readers[j]->next();
+            }
+            currentIdx++;
+        }
+    }
+    derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
+    derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         std::shared_ptr<const TGSegment> existuples,
-        std::shared_ptr<const TGSegment> newtuples) {
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
 
     std::unique_ptr<GBSegmentInserter> inserter;
     const uint8_t ncols = newtuples->getNColumns();
     const size_t extracols = newtuples->getNOffsetColumns();
     Term_t row[ncols + extracols];
+
+    std::vector<size_t> filterIdxsDerivationNodes;
 
     //Do outer join
     auto leftItr = existuples->iterator();
@@ -813,11 +852,13 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
     size_t countNew = 0;
     bool isFiltered = false;
     size_t startCopyingIdx = 0;
+    int64_t countRight = -1;
     while (true) {
         if (moveRightItr) {
             if (rightItr->hasNext()) {
                 rightItr->next();
                 activeRightValue = true;
+                countRight++;
             } else {
                 activeRightValue = false;
                 break;
@@ -855,12 +896,15 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 countNew++;
             }
         } else {
+            if (derivationNodes.size() > 0)
+                filterIdxsDerivationNodes.push_back(countRight);
+
             moveLeftItr = moveRightItr = true;
             activeRightValue = false;
             if (!isFiltered && countNew == 0)
                 startCopyingIdx++;
 
-            //The tuple must be filtered
+            //The tuple must be filtered out
             if (!isFiltered && countNew > 0) {
                 inserter = GBSegmentInserter::getInserter(ncols + extracols,
                         extracols, false);
@@ -914,6 +958,11 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             }
             inserter->add(row);
         }
+        if (derivationNodes.size() > 0) {
+            assert(filterIdxsDerivationNodes.size() > 0);
+            filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
+        }
+
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
                 getSegProvenanceType(), extracols);
     } else {
@@ -944,11 +993,18 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                     }
                     i++;
                 }
+
+                if (derivationNodes.size() > 0) {
+                    assert(filterIdxsDerivationNodes.size() > 0);
+                    filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
+                }
+
                 return inserter->getSegment(newtuples->getNodeId(),
                         true, 0, getSegProvenanceType(), extracols);
             }
         } else {
-            //They are all duplicates
+            //They are all duplicates. Leave the derivationNodes unchanged, anyway
+            //the node won't be added
             return std::shared_ptr<const TGSegment>();
         }
     }
@@ -956,8 +1012,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
 std::shared_ptr<const TGSegment> GBGraph::retain(
         PredId_t p,
-        std::shared_ptr<const TGSegment> newtuples) {
-
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
     //Check that it is sorted
 #ifdef DEBUG
     auto ncols = newtuples->getNColumns();
@@ -1078,7 +1134,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
             }
         }
         auto existingTuples = cacheRetain[p].seg;
-        newtuples = retainVsNodeFast(existingTuples, newtuples);
+        newtuples = retainVsNodeFast(existingTuples, newtuples,
+                derivationNodes);
         if (newtuples == NULL || newtuples->isEmpty()) {
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
@@ -1089,7 +1146,8 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
     } else {
         for(auto &nodeIdx : nodeIdxs) {
             auto nodeData = getNodeData(nodeIdx);
-            newtuples = retainVsNodeFast(nodeData, newtuples);
+            newtuples = retainVsNodeFast(nodeData, newtuples,
+                    derivationNodes);
             if (newtuples == NULL || newtuples->isEmpty()) {
                 std::chrono::steady_clock::time_point end =
                     std::chrono::steady_clock::now();

@@ -18,6 +18,9 @@ class TGSegmentLegacy : public TGSegment {
 
         bool isProvenanceAutomatic() const;
 
+        std::shared_ptr<const TGSegment> shuffle(
+                const std::vector<size_t> &idxs) const;
+
     public:
         TGSegmentLegacy(const std::vector<std::shared_ptr<Column>> &columns,
                 size_t nrows, bool isSorted=false, uint8_t sortedField = 0,
@@ -83,7 +86,7 @@ class TGSegmentLegacy : public TGSegment {
 
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
-        std::shared_ptr<TGSegment> sortByProv(size_t ncols,
+        std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
                 std::vector<size_t> &idxs,
                 std::vector<size_t> &nodes) const;
 

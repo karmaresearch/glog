@@ -1,5 +1,6 @@
 #include <vlog/gbchase/gblegacysegment.h>
 #include <vlog/gbchase/gbsegmentitr.h>
+#include <vlog/gbchase/gbsegmentinserter.h>
 
 #include <vlog/segment.h>
 
@@ -202,36 +203,65 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
     }
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
+std::shared_ptr<const TGSegment> TGSegmentLegacy::shuffle(
+        const std::vector<size_t> &idxs) const {
+    bool changed = false;
+    for(size_t i = 0; i < idxs.size(); ++i) {
+        if (idxs[i] != i) {
+            changed = true;
+            break;
+        }
+    }
+    if (changed) {
+        std::vector<Term_t> tuples;
+        auto ncolumns = columns.size();
+        std::vector<std::unique_ptr<ColumnReader>> readers;
+        for(size_t i = 0; i < ncolumns; ++i) {
+            readers.push_back(columns[i]->getReader());
+        }
+        for(size_t z = 0; z < nrows; ++z) {
+            for(size_t i = 0; i < ncolumns; ++i) {
+                if (!readers[i]->hasNext()) {
+                    throw 10;
+                }
+            }
+            for(size_t i = 0; i < ncolumns; ++i) {
+                auto v = readers[i]->next();
+                tuples.push_back(v);
+            }
+        }
+        auto inserter = GBSegmentInserter::getInserter(ncolumns, nprovcolumns,
+                false);
+        std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
+                new Term_t[ncolumns]);
+        for(size_t z = 0; z < nrows; ++z) {
+            auto idx = idxs[z];
+            for(size_t i = 0; i < ncolumns; ++i) {
+                row[i] = tuples[idx * ncolumns + i];
+            }
+            inserter->add(row.get());
+        }
+        return inserter->getSegment(getNodeId(),
+                false, 0,
+                provenanceType,
+                nprovcolumns);
+    } else {
+        return std::shared_ptr<TGSegment>(
+                new TGSegmentLegacy(columns, nrows, f_isSorted, sortedField,
+                    provenanceType, nprovcolumns));
+    }
+}
+
+std::shared_ptr<const TGSegment> TGSegmentLegacy::sortByProv(size_t ncols,
         std::vector<size_t> &idxs,
         std::vector<size_t> &nodes) const {
     assert(shouldTrackProvenance() == true);
     assert(columns.size() > 1);
-    throw 10;
-    if (!isProvenanceAutomatic()) {
-        std::vector<uint8_t> sortedFields;
-        for(size_t i = 0; i < nprovcolumns; i++) {
-            sortedFields.push_back(columns.size() - nprovcolumns + i);
-        }
-        for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
-            sortedFields.push_back(i);
-        }
-        auto nfields = columns.size();
-        auto oldcols(columns);
-        Segment s(nfields, oldcols);
-        auto news = s.sortBy(&sortedFields);
-        std::vector<std::shared_ptr<Column>> newcols;
-        for(int i = 0; i < news->getNColumns(); ++i) {
-            newcols.push_back(news->getColumn(i));
-        }
-        return std::shared_ptr<TGSegment>(
-                new TGSegmentLegacy(newcols, nrows, true, 0,
-                    provenanceType, nprovcolumns));
-    } else {
-        return std::shared_ptr<TGSegment>(
-                new TGSegmentLegacy(columns, nrows, f_isSorted,
-                    sortedField, provenanceType, nprovcolumns));
-    }
+    const auto nrows = nodes.size() / ncols;
+    idxs.resize(nrows);
+    for(size_t i = 0; i < nrows; ++i) idxs[i] = i;
+    std::stable_sort(idxs.begin(), idxs.end(), ProvSorter(nodes.data(), ncols));
+    return shuffle(idxs);
 }
 
 std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
