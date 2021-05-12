@@ -782,7 +782,10 @@ void GBRuleExecutor::mergejoin(
         extraLeft = inputLeft->getNOffsetColumns() - 1; //I remove the node,
     //it will be added at the end
     auto sizeLeftSide = copyVarPosLeft.size() + extraLeft;
-    auto extraRight = 1; //Only one column with the offset
+    auto extraRight = 0;
+    if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+        extraRight = 1;
+    }
     auto sizeRightSide = copyVarPosRight.size() + extraRight;
 
     auto sizeRow = sizeLeftSide + sizeRightSide;
@@ -797,7 +800,7 @@ void GBRuleExecutor::mergejoin(
         }
 
 #if DEBUG
-        if (processedRight % 1000 == 0)
+        if (processedRight % 100000 == 0)
             LOG(DEBUGL) << "Processed records " << processedRight;
 #endif
 

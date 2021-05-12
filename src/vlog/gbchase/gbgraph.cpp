@@ -592,11 +592,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
         std::vector<std::shared_ptr<Column>> &derivationNodes) {
     //Special case for unary relations
     if (provenanceType != FULLPROV && existuples->getNColumns() == 1) {
-        assert(derivationNodes.size() == 0); //The function below does not remove derivation Nodes
         return retainVsNodeFast_one(existuples,
                 newtuples, derivationNodes);
     } else if (provenanceType != FULLPROV && existuples->getNColumns() == 2) {
-        assert(derivationNodes.size() == 0); //The function below does not remove derivation Nodes
         return retainVsNodeFast_two(existuples, newtuples, derivationNodes);
     } else {
         return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
@@ -611,7 +609,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_one(
         ColumnWriter writer;
         bool allNew = true;
         auto newColumn = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
-        if (existuples->hasColumnarBackend()) {
+        if (existuples->hasColumnarBackend() && derivationNodes.size() == 0) {
             auto existColumn = ((TGSegmentLegacy*)existuples.get())
                 ->getColumn(0);
             if (newColumn->isEDB() && existColumn->isEDB()) {
@@ -689,7 +687,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples,
         std::vector<std::shared_ptr<Column>> &derivationNodes) {
-    if (newtuples->hasColumnarBackend()) {
+
+
+    if (newtuples->hasColumnarBackend() && derivationNodes.size() == 0) {
         auto newColumn1 = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
         auto newColumn2 = ((TGSegmentLegacy*)newtuples.get())->getColumn(1);
         if (newColumn1->isEDB() && newColumn2->isEDB()) {
