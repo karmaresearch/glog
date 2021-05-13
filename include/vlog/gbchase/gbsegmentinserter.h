@@ -602,7 +602,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                             }
                             return std::shared_ptr<const TGSegment>(
                                     new UnaryWithConstNodeFullProvTGSegment(
-                                        out, nodeId, isSorted, sortedField));
+                                        out, col2[0], isSorted, sortedField));
                         } else {
                             std::vector<UnWithFullProv> out(nrows);
                             for(size_t i = 0; i < nrows; ++i) {

@@ -4,6 +4,9 @@
 
 #include <vlog/segment.h>
 
+#include <numeric>
+
+
 std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator(
         std::shared_ptr<const TGSegment> selfref) const {
     return std::unique_ptr<TGSegmentItr>(
@@ -203,6 +206,56 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
     }
 }
 
+void TGSegmentLegacy::argsort(std::vector<size_t> &indices) const {
+    indices.resize(nrows);
+    std::iota(indices.begin(), indices.end(), 0);
+    if (!f_isSorted || sortedField != 0) {
+        auto nfields = columns.size();
+        if (shouldTrackProvenance()) {
+            std::vector<std::shared_ptr<Column>> oldcols;
+            for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
+                oldcols.push_back(columns[i]);
+            }
+            bool skipNode = false;
+            if (columns[columns.size() - nprovcolumns]->isConstant()) {
+                skipNode = true;
+            } else {
+                oldcols.push_back(columns[columns.size() - nprovcolumns]);
+            }
+            //Add offsets
+            for(int i = 1; i < nprovcolumns; ++i) {
+                oldcols.push_back(columns[columns.size() - nprovcolumns + i]);
+            }
+            Segment s(oldcols.size(), oldcols);
+            s.argsort(indices);
+        }  else {
+            auto oldcols(columns);
+            Segment s(nfields, oldcols);
+            s.argsort(indices);
+        }
+    }
+}
+
+void TGSegmentLegacy::argunique(std::vector<size_t> &indices) const {
+    size_t nrows = getNRows();
+    assert(nrows > 0);
+    indices.clear();
+    indices.push_back(0);
+    auto nfields = columns.size() - nprovcolumns;//columns.size();
+    for(size_t i = 1; i < nrows; ++i) {
+        bool equal = true;
+        for(size_t j = 0; j < nfields; ++j) {
+            if (columns[j]->getValue(i) != columns[j]->getValue(i-1)) {
+                equal = false;
+                break;
+            }
+        }
+        if (!equal) {
+            indices.push_back(i);
+        }
+    }
+}
+
 std::shared_ptr<const TGSegment> TGSegmentLegacy::shuffle(
         const std::vector<size_t> &idxs) const {
     bool changed = false;
@@ -234,7 +287,7 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::shuffle(
                 false);
         std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
                 new Term_t[ncolumns]);
-        for(size_t z = 0; z < nrows; ++z) {
+        for(size_t z = 0; z < idxs.size(); ++z) {
             auto idx = idxs[z];
             for(size_t i = 0; i < ncolumns; ++i) {
                 row[i] = tuples[idx * ncolumns + i];

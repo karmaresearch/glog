@@ -55,15 +55,19 @@ class CompositeTGSegment : public TGSegment {
 #endif
         nProvenanceColumns = 0;
         if (provenanceType == SEG_FULLPROV) {
-            for (auto n : nodes) {
-                auto off = g.getNodeData(n)->getNOffsetColumns();
-                if (off > nProvenanceColumns) {
-                    if (nProvenanceColumns > 0 && off != nProvenanceColumns) {
-                        throw 10;
-                        //The case when nodes have provenance of multiple sizes
-                        //is not supported yet
+            if (replaceOffsets) {
+                nProvenanceColumns = 2; //node + offset
+            } else {
+                for (auto n : nodes) {
+                    auto off = g.getNodeData(n)->getNOffsetColumns();
+                    if (off > nProvenanceColumns) {
+                        if (nProvenanceColumns > 0 && off != nProvenanceColumns) {
+                            throw 10;
+                            //The case when nodes have provenance of multiple sizes
+                            //is not supported yet
+                        }
+                        nProvenanceColumns = off;
                     }
-                    nProvenanceColumns = off;
                 }
             }
         }
@@ -126,6 +130,8 @@ class CompositeTGSegment : public TGSegment {
 
         std::shared_ptr<const TGSegment> sort() const;
 
+        void argsort(std::vector<size_t> &indices) const;
+
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
         std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
@@ -135,6 +141,8 @@ class CompositeTGSegment : public TGSegment {
         std::shared_ptr<const TGSegment> sortByProv() const;
 
         std::shared_ptr<const TGSegment> unique() const;
+
+        void argunique(std::vector<size_t> &idxs) const;
 
         void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const;

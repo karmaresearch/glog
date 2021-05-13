@@ -831,6 +831,25 @@ void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
     derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
 }
 
+void GBGraph::shuffleDerivationNodes(std::vector<size_t> &idsToShuffle,
+        std::vector<std::shared_ptr<Column>> &derivationNodes) {
+    //I filter only the last two columns
+    assert(derivationNodes.size() >= 2);
+    auto c1 = derivationNodes[derivationNodes.size() - 2];
+    auto c2 = derivationNodes[derivationNodes.size() - 1];
+
+    std::vector<ColumnWriter> writers(2);
+    for(size_t i = 0; i < idsToShuffle.size(); ++i) {
+        auto idx = idsToShuffle[i];
+        auto v1 = c1->getValue(idx);
+        writers[0].add(v1);
+        auto v2 = c2->getValue(idx);
+        writers[1].add(v2);
+    }
+    derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
+    derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
+}
+
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples,

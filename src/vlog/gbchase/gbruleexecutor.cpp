@@ -115,7 +115,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
         std::vector<size_t> &vars,
         std::shared_ptr<const TGSegment> tuples,
         bool shouldSort,
-        bool shouldDelDupl) {
+        bool shouldDelDupl,
+        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes) {
     const auto &tupleHead = head.getTuple();
     std::vector<int> posKnownVariables;
     for(int i = 0; i < tupleHead.getSize(); ++i) {
@@ -164,13 +165,37 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
     //Clean up the duplicates if necessary
     if (shouldSort) {
         if (shouldDelDupl) {
-            tuples = tuples->sort();
-            tuples = tuples->unique();
+            //Not implemented
+            if (intermediateResultsNodes.size() > 0) {
+                std::vector<size_t> indices;
+                tuples->argsort(indices);
+                tuples = tuples->shuffle(indices);
+                GBGraph::shuffleDerivationNodes(indices,
+                        intermediateResultsNodes);
+                assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+                tuples->argunique(indices);
+                tuples = tuples->shuffle(indices);
+                GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
+                assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+            } else {
+                tuples = tuples->sort();
+                tuples = tuples->unique();
+            }
         } else {
-            tuples = tuples->sort();
+            if (intermediateResultsNodes.size() > 0) {
+                std::vector<size_t> indices;
+                tuples->argsort(indices);
+                tuples = tuples->shuffle(indices);
+                GBGraph::shuffleDerivationNodes(indices,
+                        intermediateResultsNodes);
+            } else {
+                tuples = tuples->sort();
+            }
         }
     } else {
         if (shouldDelDupl) {
+            //Not implemented
+            assert(intermediateResultsNodes.size() == 0);
             tuples = tuples->unique();
         }
     }
@@ -1714,11 +1739,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             if (multipleComb) {
                 if (intermediateResults->getProvenanceType() == SEG_FULLPROV) {
                     size_t maxRightOffsetColumns = 1; //only offset, no node
-                    /*for (auto n : nodesRight) {
-                      auto i = g.getNodeData(n)->getNOffsetColumns() - 1;
-                      if (i > maxRightOffsetColumns)
-                      maxRightOffsetColumns = i;
-                      }*/
                     extraColumns = 2 + intermediateResults->
                         getNOffsetColumns() - 1 + maxRightOffsetColumns;
                 } else {
@@ -1823,7 +1843,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 auto results = projectHead(head,
                         varsIntermediate, intermediateResults,
                         shouldSort,
-                        shouldDelDupl);
+                        shouldDelDupl,
+                        intermediateResultsNodes);
                 std::chrono::steady_clock::time_point end =
                     std::chrono::steady_clock::now();
                 lastDurationCreateHead += end - start;

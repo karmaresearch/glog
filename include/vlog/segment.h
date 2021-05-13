@@ -287,6 +287,8 @@ class Segment {
 
         std::shared_ptr<Segment> sortBy(const std::vector<uint8_t> *fields) const;
 
+        void argsort(std::vector<size_t> &indices) const;
+
         std::shared_ptr<Segment> sortByField(const uint8_t field) const;
 
         std::shared_ptr<Segment> sortBy(const std::vector<uint8_t> *fields,

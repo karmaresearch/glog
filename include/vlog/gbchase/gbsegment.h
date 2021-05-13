@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <map>
+#include <numeric>
 
 class TGSegment {
     private:
@@ -29,6 +30,8 @@ class TGSegment {
 
         virtual std::shared_ptr<const TGSegment> sort() const = 0;
 
+        virtual void argsort(std::vector<size_t> &idxs) const = 0;
+
         virtual std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const = 0;
 
         virtual std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
@@ -38,6 +41,8 @@ class TGSegment {
         virtual std::shared_ptr<const TGSegment> sortByProv() const = 0;
 
         virtual std::shared_ptr<const TGSegment> unique() const = 0;
+
+        virtual void argunique(std::vector<size_t> &idxs) const = 0;
 
         virtual void projectTo(const std::vector<int> &posFields,
                 std::vector<std::shared_ptr<Column>> &out) const = 0;
@@ -308,11 +313,34 @@ class TGSegmentImpl : public TGSegment {
             return std::shared_ptr<const TGSegment>(new S(t, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, 0));
         }
 
+        void argsort(std::vector<size_t> &indices) const {
+            const auto t = std::vector<K>(*TGSegmentImpl<S,K,I,CP>::tuples.get());
+            indices.resize(t.size());
+            std::iota(indices.begin(), indices.end(), 0);
+            std::sort(indices.begin(), indices.end(),
+                    [&t](size_t left, size_t right) -> bool {
+                    return t[left] < t[right];
+                    });
+        }
+
         virtual std::shared_ptr<const TGSegment> unique() const {
             auto t = std::vector<K>(*TGSegmentImpl<S,K,I,CP>::tuples.get());
             auto itr = std::unique(t.begin(), t.end());
             t.erase(itr, t.end());
             return std::shared_ptr<const TGSegment>(new S(t, TGSegmentImpl<S,K,I,CP>::getNodeId(), true, 0));
+        }
+
+        virtual void argunique(std::vector<size_t> &idxs) const {
+            const auto t = std::vector<K>(*TGSegmentImpl<S,K,I,CP>::tuples.get());
+            assert(!t.empty());
+            idxs.clear();
+            idxs.push_back(0);
+            for(size_t i = 1; i < t.size(); ++i) {
+                if (t[i] == t[i-1]) {
+                } else {
+                    idxs.push_back(i);
+                }
+            }
         }
 
         virtual void projectTo(const std::vector<int> &posFields,

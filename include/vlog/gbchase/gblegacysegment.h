@@ -84,6 +84,8 @@ class TGSegmentLegacy : public TGSegment {
 
         std::shared_ptr<const TGSegment> sort() const;
 
+        void argsort(std::vector<size_t> &indices) const;
+
         std::shared_ptr<TGSegment> sortBy(std::vector<uint8_t> &fields) const;
 
         std::shared_ptr<const TGSegment> sortByProv(size_t ncols,
@@ -93,6 +95,8 @@ class TGSegmentLegacy : public TGSegment {
         std::shared_ptr<const TGSegment> sortByProv() const;
 
         std::shared_ptr<const TGSegment> unique() const;
+
+        void argunique(std::vector<size_t> &idxs) const;
 
         void appendTo(uint8_t colPos, std::vector<Term_t> &out) const;
 

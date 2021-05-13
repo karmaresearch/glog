@@ -49,7 +49,6 @@ class GBGraph {
                         const std::vector<size_t> &incomingEdges,
                         GBGraph &g);
 
-
                 void setData(std::shared_ptr<const TGSegment> data) {
                     this->data = data;
                 }
@@ -116,9 +115,6 @@ class GBGraph {
         std::shared_ptr<const TGSegment> retainVsNodeFast_generic(
                 std::shared_ptr<const TGSegment> existuples,
                 std::shared_ptr<const TGSegment> newtuples,
-                std::vector<std::shared_ptr<Column>> &derivationNodes);
-
-        void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
                 std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         /*** Implemented in gbgraph_redundant.cpp ***/
@@ -437,6 +433,12 @@ class GBGraph {
                 std::vector<size_t> &bodyNodeIdx,
                 bool edbCheck,
                 bool &retainFree);
+
+        static void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
+
+        static void shuffleDerivationNodes(std::vector<size_t> &idsToFilter,
+                std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

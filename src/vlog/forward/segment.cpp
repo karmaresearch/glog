@@ -7,6 +7,7 @@
 
 #include <random>
 #include <memory>
+#include <numeric>
 
 Segment::Segment(const uint8_t nfields) : nfields(nfields) {
     columns = new std::shared_ptr<Column>[nfields];
@@ -251,6 +252,15 @@ std::shared_ptr<Segment> Segment::sortBy(const std::vector<uint8_t> *fields,
     } else {
         return intsort(fields, nthreads, filterDupls);
     }
+}
+
+void Segment::argsort(std::vector<size_t> &indices) const {
+    indices.resize(getNRows());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::vector<const std::vector<Term_t> *> vectors = getAllVectors();
+    SegmentSorter sorter(vectors);
+    std::sort(indices.begin(), indices.end(), std::ref(sorter));
+    deleteAllVectors(vectors);
 }
 
 std::shared_ptr<Segment> Segment::intsort(

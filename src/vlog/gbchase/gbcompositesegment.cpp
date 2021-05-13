@@ -93,6 +93,16 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::sort() const {
     }*/
 }
 
+void CompositeTGSegment::argsort(std::vector<size_t> &indices) const {
+    auto mergedSegment = merge();
+    mergedSegment->argsort(indices);
+}
+
+void CompositeTGSegment::argunique(std::vector<size_t> &indices) const {
+    auto mergedSegment = merge();
+    mergedSegment->argunique(indices);
+}
+
 std::shared_ptr<TGSegment> CompositeTGSegment::sortBy(
         std::vector<uint8_t> &fields) const {
     auto mergedSegment = merge();
