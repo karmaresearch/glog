@@ -196,8 +196,12 @@ void GBGraph::addNodesProv(PredId_t predId,
         const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
         std::vector<size_t> provnodes(nrows * nnodes);
-        for(size_t i = 0; i < nrows; ++i) {
-            size_t provRowIdx = i;
+
+        auto itr = seg->iterator();
+        size_t i = 0;
+        while (itr->hasNext()) {
+            itr->next();
+            size_t provRowIdx = itr->getNodeId();
             for(int j = nnodes - 1; j >= 0; j--) {
                 if (j == 0) {
                     provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
@@ -214,7 +218,10 @@ void GBGraph::addNodesProv(PredId_t predId,
                     }
                 }
             }
+            i++;
         }
+        assert(nrows == i);
+
         //For each tuple, now I know the sequence of nodes that derived them.
         //I re-sort the nodes depending on the sequence of nodes
         std::vector<size_t> providxs;
@@ -318,7 +325,7 @@ void GBGraph::addNodeProv(PredId_t predid,
                 auto itr = data->iterator();
                 while (itr->hasNext()) {
                     itr->next();
-                    auto off = itr->getProvenanceOffset(idxBodyAtom);
+                    auto off = itr->getProvenanceOffset(idxIncomingEdge);
                     assert(off < card);
                 }
                 idxIncomingEdge += 1;
@@ -915,8 +922,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 countNew++;
             }
         } else {
-            if (derivationNodes.size() > 0)
+            if (derivationNodes.size() > 0) {
+                assert(activeRightValue);
                 filterIdxsDerivationNodes.push_back(countRight);
+            }
 
             moveLeftItr = moveRightItr = true;
             activeRightValue = false;
@@ -979,7 +988,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         }
         if (derivationNodes.size() > 0) {
             assert(filterIdxsDerivationNodes.size() > 0);
-            filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
+            //filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
         }
 
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
@@ -1533,6 +1542,11 @@ bool retainAndAddFromTmpNodes_uniq(
 }
 
 void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
+    if (provenanceType == FULLPROV) {
+        LOG(ERRORL) << "This method is not supported";
+        throw 10;
+    }
+
     if (!mapPredTmpNodes.count(predId))
         return;
 

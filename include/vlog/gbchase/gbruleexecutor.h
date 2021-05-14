@@ -85,7 +85,8 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> intermediateResults,
                 bool shouldSort,
                 bool shouldDelDupl,
-                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes);
+                std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
+                GBRuleInput &node);
 
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,

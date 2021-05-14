@@ -116,7 +116,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
         std::shared_ptr<const TGSegment> tuples,
         bool shouldSort,
         bool shouldDelDupl,
-        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes) {
+        std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
+        GBRuleInput &node) {
     const auto &tupleHead = head.getTuple();
     std::vector<int> posKnownVariables;
     for(int i = 0; i < tupleHead.getSize(); ++i) {
@@ -170,13 +171,13 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
                 std::vector<size_t> indices;
                 tuples->argsort(indices);
                 tuples = tuples->shuffle(indices);
-                GBGraph::shuffleDerivationNodes(indices,
-                        intermediateResultsNodes);
-                assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+                //GBGraph::shuffleDerivationNodes(indices,
+                //        intermediateResultsNodes);
+                //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
                 tuples->argunique(indices);
                 tuples = tuples->shuffle(indices);
-                GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
-                assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+                //GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
+                //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
             } else {
                 tuples = tuples->sort();
                 tuples = tuples->unique();
