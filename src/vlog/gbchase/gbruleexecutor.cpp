@@ -1845,7 +1845,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                         varsIntermediate, intermediateResults,
                         shouldSort,
                         shouldDelDupl,
-                        intermediateResultsNodes);
+                        intermediateResultsNodes,
+                        node);
                 std::chrono::steady_clock::time_point end =
                     std::chrono::steady_clock::now();
                 lastDurationCreateHead += end - start;

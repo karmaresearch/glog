@@ -556,7 +556,7 @@ void GBChase::run() {
 
     //Mark the predicates that should be cleaned at the end
     for (auto &predId : program->getAllPredicateIDs()) {
-        if (program->getNRulesByPredicate(predId) > 100) {
+        if (program->getNRulesByPredicate(predId) > 1000) {
             predToBeRetainedEndStep.insert(predId);
         }
     }

@@ -650,9 +650,15 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                             }
                         }
                         if (constantNodeVal) {
+                            assert(nodeIdColumn < columns.size());
+                            assert(columns[nodeIdColumn]->size() > 0);
+                            assert(nodeId == ~0ul ||
+                                    nodeId == columns[nodeIdColumn]->getValue(0));
                             columns[nodeIdColumn] =
                                 std::shared_ptr<Column>(
-                                        new CompressedColumn(nodeId, addedRows));
+                                        new CompressedColumn(
+                                            columns[nodeIdColumn]->getValue(0),
+                                            addedRows));
                         }
                     }
 
