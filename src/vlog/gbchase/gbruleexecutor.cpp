@@ -167,29 +167,29 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
     if (shouldSort) {
         if (shouldDelDupl) {
             //if (intermediateResultsNodes.size() > 0) {
-                //std::vector<size_t> indices;
-                //tuples->argsort(indices);
-                //tuples = tuples->shuffle(indices);
-                //GBGraph::shuffleDerivationNodes(indices,
-                //        intermediateResultsNodes);
-                //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
-                //tuples->argunique(indices);
-                //tuples = tuples->shuffle(indices);
-                //GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
-                //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+            //std::vector<size_t> indices;
+            //tuples->argsort(indices);
+            //tuples = tuples->shuffle(indices);
+            //GBGraph::shuffleDerivationNodes(indices,
+            //        intermediateResultsNodes);
+            //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
+            //tuples->argunique(indices);
+            //tuples = tuples->shuffle(indices);
+            //GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
+            //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
             //} else {
-                tuples = tuples->sort();
-                tuples = tuples->unique();
+            tuples = tuples->sort();
+            tuples = tuples->unique();
             //}
         } else {
             //if (intermediateResultsNodes.size() > 0) {
             //    std::vector<size_t> indices;
             //    tuples->argsort(indices);
             //    tuples = tuples->shuffle(indices);
-                //GBGraph::shuffleDerivationNodes(indices,
-                //        intermediateResultsNodes);
+            //GBGraph::shuffleDerivationNodes(indices,
+            //        intermediateResultsNodes);
             //} else {
-                tuples = tuples->sort();
+            tuples = tuples->sort();
             //}
         }
     } else {
