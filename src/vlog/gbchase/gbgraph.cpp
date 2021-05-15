@@ -808,53 +808,53 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
 }
 
 /*void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
-        std::vector<std::shared_ptr<Column>> &derivationNodes) {
-    //I filter only the last two columns
-    assert(derivationNodes.size() >= 2);
-    std::vector<ColumnWriter> writers(2);
-    std::vector<std::unique_ptr<ColumnReader>> readers;
-    for(size_t i = derivationNodes.size() - 2; i < derivationNodes.size(); ++i) {
-        readers.push_back(derivationNodes[i]->getReader());
-    }
-    size_t nrows = derivationNodes.back()->size();
-    size_t currentIdx = 0;
-    for(size_t i = 0; i < nrows; ++i) {
-        for(size_t j = 0; j < readers.size(); ++j) {
-            assert(readers[j]->hasNext());
-        }
-        if(i != idsToFilter[currentIdx]) {
-            for(size_t j = 0; j < readers.size(); ++j) {
-                auto v = readers[j]->next();
-                writers[j].add(v);
-            }
-        } else {
-            for(size_t j = 0; j < readers.size(); ++j) {
-                readers[j]->next();
-            }
-            currentIdx++;
-        }
-    }
-    derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
-    derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
+  std::vector<std::shared_ptr<Column>> &derivationNodes) {
+//I filter only the last two columns
+assert(derivationNodes.size() >= 2);
+std::vector<ColumnWriter> writers(2);
+std::vector<std::unique_ptr<ColumnReader>> readers;
+for(size_t i = derivationNodes.size() - 2; i < derivationNodes.size(); ++i) {
+readers.push_back(derivationNodes[i]->getReader());
+}
+size_t nrows = derivationNodes.back()->size();
+size_t currentIdx = 0;
+for(size_t i = 0; i < nrows; ++i) {
+for(size_t j = 0; j < readers.size(); ++j) {
+assert(readers[j]->hasNext());
+}
+if(i != idsToFilter[currentIdx]) {
+for(size_t j = 0; j < readers.size(); ++j) {
+auto v = readers[j]->next();
+writers[j].add(v);
+}
+} else {
+for(size_t j = 0; j < readers.size(); ++j) {
+readers[j]->next();
+}
+currentIdx++;
+}
+}
+derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
+derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
 }*/
 
 /*void GBGraph::shuffleDerivationNodes(std::vector<size_t> &idsToShuffle,
-        std::vector<std::shared_ptr<Column>> &derivationNodes) {
-    //I filter only the last two columns
-    assert(derivationNodes.size() >= 2);
-    auto c1 = derivationNodes[derivationNodes.size() - 2];
-    auto c2 = derivationNodes[derivationNodes.size() - 1];
+  std::vector<std::shared_ptr<Column>> &derivationNodes) {
+//I filter only the last two columns
+assert(derivationNodes.size() >= 2);
+auto c1 = derivationNodes[derivationNodes.size() - 2];
+auto c2 = derivationNodes[derivationNodes.size() - 1];
 
-    std::vector<ColumnWriter> writers(2);
-    for(size_t i = 0; i < idsToShuffle.size(); ++i) {
-        auto idx = idsToShuffle[i];
-        auto v1 = c1->getValue(idx);
-        writers[0].add(v1);
-        auto v2 = c2->getValue(idx);
-        writers[1].add(v2);
-    }
-    derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
-    derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
+std::vector<ColumnWriter> writers(2);
+for(size_t i = 0; i < idsToShuffle.size(); ++i) {
+auto idx = idsToShuffle[i];
+auto v1 = c1->getValue(idx);
+writers[0].add(v1);
+auto v2 = c2->getValue(idx);
+writers[1].add(v2);
+}
+derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
+derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
 }*/
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
@@ -1252,7 +1252,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
                     nrows,
                     isSorted,
                     0,
-                    getSegProvenanceType(),
+                    getSegProvenanceType(nodeIdxs.size() > 1),
                     nprovcolumns));
     } else {
         return std::shared_ptr<const TGSegment>(
@@ -1261,7 +1261,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
                     nrows,
                     true,
                     0,
-                    getSegProvenanceType()));
+                    getSegProvenanceType(nodeIdxs.size() > 1)));
     }
 }
 
@@ -1372,7 +1372,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         if (lazyMode) {
             return std::shared_ptr<const TGSegment>(
                     new CompositeTGSegment(*this, nodeIdxs, copyVarPos,
-                        false, 0, getSegProvenanceType(), false, false,
+                        false, 0, getSegProvenanceType(nodeIdxs.size() > 1), false, false,
                         replaceOffsets));
         }
 
@@ -1527,7 +1527,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         }
         seg = std::shared_ptr<const TGSegment>(
                 new TGSegmentLegacy(columns, nrows, false, 0,
-                    getSegProvenanceType()));
+                    getSegProvenanceType(nodeIdxs.size() > 1)));
         if (shouldSortAndUnique) {
             auto sortedSeg = seg->sort();
             return sortedSeg->unique();
@@ -1740,11 +1740,15 @@ size_t GBGraph::getNEdges() const {
     return out;
 }
 
-SegProvenanceType GBGraph::getSegProvenanceType() const {
+SegProvenanceType GBGraph::getSegProvenanceType(bool multipleNodes) const {
     if (provenanceType == ProvenanceType::NOPROV) {
         return SegProvenanceType::SEG_NOPROV;
     } else if (provenanceType == ProvenanceType::NODEPROV) {
-        return SegProvenanceType::SEG_SAMENODE;
+        if (multipleNodes) {
+            return SegProvenanceType::SEG_DIFFNODES;
+        } else {
+            return SegProvenanceType::SEG_SAMENODE;
+        }
     } else if (provenanceType == ProvenanceType::FULLPROV) {
         return SegProvenanceType::SEG_FULLPROV;
     } else {

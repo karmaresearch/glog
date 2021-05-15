@@ -70,6 +70,8 @@ class CompositeTGSegment : public TGSegment {
                     }
                 }
             }
+        } else if (provenanceType != SEG_NOPROV) {
+            nProvenanceColumns = 1;
         }
     }
 
@@ -108,6 +110,8 @@ class CompositeTGSegment : public TGSegment {
         }
 
         SegProvenanceType getProvenanceType() const {
+            assert(provenanceType != SEG_SAMENODE || nodes.size() == 1);
+            assert(provenanceType != SEG_DIFFNODES || nodes.size() > 1);
             return provenanceType;
         }
 

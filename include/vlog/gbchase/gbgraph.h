@@ -220,7 +220,7 @@ class GBGraph {
 
         /*** END Implemented in gbgraph_redundant.cpp ***/
 
-        SegProvenanceType getSegProvenanceType() const;
+        SegProvenanceType getSegProvenanceType(bool multipleNodes = true) const;
 
         void addNode(PredId_t predId,
                 size_t ruleIdx,

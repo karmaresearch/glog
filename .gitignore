@@ -4,6 +4,7 @@ TODO
 .ycm*
 .DS_Store
 /build*
+/prob-build*
 /vlog*
 *.class
 *.jar

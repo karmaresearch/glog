@@ -533,6 +533,8 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
 }
 
 SegProvenanceType TGSegmentLegacy::getProvenanceType() const {
+    assert(provenanceType != SEG_SAMENODE || columns[columns.size() - nprovcolumns]->isConstant());
+    assert(provenanceType != SEG_DIFFNODES || !columns[columns.size() - nprovcolumns]->isConstant());
     return provenanceType;
 }
 

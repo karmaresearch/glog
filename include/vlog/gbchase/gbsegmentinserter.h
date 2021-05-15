@@ -370,7 +370,6 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
         }
 
         void populateMap() {
-            novelTuples.set_empty_key(std::make_pair(~0ul, ~0ul));
             for(auto &v : tuples) {
                 novelTuples.insert(std::make_pair(v.first, v.second));
             }
@@ -418,7 +417,6 @@ class GBSegmentInserterBinaryWithDoubleProv : public GBSegmentInserterImpl<
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
                 &intermediateResultsNodes,
                 size_t nOffsetColumns) {
-            assert(nOffsetColumns == 0);
             if (node1Constant) {
                 intermediateResultsNodes.push_back(
                         std::shared_ptr<Column>(
