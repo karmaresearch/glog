@@ -325,7 +325,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
     int ncols = shouldTrackProvenance() ?
         columns.size() - nprovcolumns : columns.size();
     for(int i = 0; i < ncols; ++i) {
-        if (start > 0 || end < nrows - 1) {
+        if (start > 0 || end < nrows) {
             auto c = columns[i]->slice(start, end);
             newcols.push_back(c);
         } else {
