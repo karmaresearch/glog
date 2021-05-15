@@ -634,7 +634,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                         return std::shared_ptr<const TGSegment>(
                                 new TGSegmentLegacy(newcolumns, addedRows,
                                     isSorted, sortedField, provenanceType,
-                                    nProvenanceColumns));
+                                    1));
                     }
                 } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
                     if (nProvenanceColumns > 0) {
