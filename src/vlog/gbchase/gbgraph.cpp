@@ -807,7 +807,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
     return retainVsNodeFast_generic(existuples, newtuples, derivationNodes);
 }
 
-void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
+/*void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
         std::vector<std::shared_ptr<Column>> &derivationNodes) {
     //I filter only the last two columns
     assert(derivationNodes.size() >= 2);
@@ -836,9 +836,9 @@ void GBGraph::filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
     }
     derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
     derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
-}
+}*/
 
-void GBGraph::shuffleDerivationNodes(std::vector<size_t> &idsToShuffle,
+/*void GBGraph::shuffleDerivationNodes(std::vector<size_t> &idsToShuffle,
         std::vector<std::shared_ptr<Column>> &derivationNodes) {
     //I filter only the last two columns
     assert(derivationNodes.size() >= 2);
@@ -855,7 +855,7 @@ void GBGraph::shuffleDerivationNodes(std::vector<size_t> &idsToShuffle,
     }
     derivationNodes[derivationNodes.size() - 2] = writers[0].getColumn();
     derivationNodes[derivationNodes.size() - 1] = writers[1].getColumn();
-}
+}*/
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         std::shared_ptr<const TGSegment> existuples,
@@ -1026,7 +1026,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 
                 if (derivationNodes.size() > 0) {
                     assert(filterIdxsDerivationNodes.size() > 0);
-                    filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
+                    //filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
                 }
 
                 return inserter->getSegment(newtuples->getNodeId(),

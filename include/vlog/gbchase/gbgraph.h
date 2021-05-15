@@ -434,11 +434,11 @@ class GBGraph {
                 bool edbCheck,
                 bool &retainFree);
 
-        static void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
+        /*static void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
                 std::vector<std::shared_ptr<Column>> &derivationNodes);
 
         static void shuffleDerivationNodes(std::vector<size_t> &idsToFilter,
-                std::vector<std::shared_ptr<Column>> &derivationNodes);
+                std::vector<std::shared_ptr<Column>> &derivationNodes);*/
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

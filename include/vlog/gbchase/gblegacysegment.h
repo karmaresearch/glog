@@ -34,6 +34,8 @@ class TGSegmentLegacy : public TGSegment {
             nprovcolumns(nprovcolumns)
     {
         assert(!shouldTrackProvenance() || nprovcolumns > 0);
+        for(auto c : columns)
+            assert(c->size() == nrows);
     }
 
         size_t getNRows() const {

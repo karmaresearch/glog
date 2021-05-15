@@ -187,8 +187,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
                 std::vector<size_t> indices;
                 tuples->argsort(indices);
                 tuples = tuples->shuffle(indices);
-                GBGraph::shuffleDerivationNodes(indices,
-                        intermediateResultsNodes);
+                //GBGraph::shuffleDerivationNodes(indices,
+                //        intermediateResultsNodes);
             } else {
                 tuples = tuples->sort();
             }
