@@ -166,32 +166,31 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
     //Clean up the duplicates if necessary
     if (shouldSort) {
         if (shouldDelDupl) {
-            //Not implemented
-            if (intermediateResultsNodes.size() > 0) {
-                std::vector<size_t> indices;
-                tuples->argsort(indices);
-                tuples = tuples->shuffle(indices);
+            //if (intermediateResultsNodes.size() > 0) {
+                //std::vector<size_t> indices;
+                //tuples->argsort(indices);
+                //tuples = tuples->shuffle(indices);
                 //GBGraph::shuffleDerivationNodes(indices,
                 //        intermediateResultsNodes);
                 //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
-                tuples->argunique(indices);
-                tuples = tuples->shuffle(indices);
+                //tuples->argunique(indices);
+                //tuples = tuples->shuffle(indices);
                 //GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
                 //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
-            } else {
+            //} else {
                 tuples = tuples->sort();
                 tuples = tuples->unique();
-            }
+            //}
         } else {
-            if (intermediateResultsNodes.size() > 0) {
-                std::vector<size_t> indices;
-                tuples->argsort(indices);
-                tuples = tuples->shuffle(indices);
+            //if (intermediateResultsNodes.size() > 0) {
+            //    std::vector<size_t> indices;
+            //    tuples->argsort(indices);
+            //    tuples = tuples->shuffle(indices);
                 //GBGraph::shuffleDerivationNodes(indices,
                 //        intermediateResultsNodes);
-            } else {
+            //} else {
                 tuples = tuples->sort();
-            }
+            //}
         }
     } else {
         if (shouldDelDupl) {
