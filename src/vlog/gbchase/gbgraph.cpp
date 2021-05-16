@@ -947,10 +947,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                             row[i] = itrTmp->get(i);
                         }
                         if (extracols > 0) {
-                            row[ncols] = rightItr->getNodeId();
+                            row[ncols] = itrTmp->getNodeId();
                             assert(row[ncols] != ~0ul);
                             for(size_t i = 1; i < extracols; ++i) {
-                                row[ncols + i] = rightItr->getProvenanceOffset(i-1);
+                                row[ncols + i] = itrTmp->getProvenanceOffset(i-1);
                             }
                         }
                         inserter->add(row);
@@ -1014,9 +1014,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                             row[i] = itrTmp->get(i);
                         }
                         if (extracols > 0) {
-                            row[ncols] = rightItr->getNodeId();
+                            row[ncols] = itrTmp->getNodeId();
                             for(size_t i = 1; i < extracols; ++i) {
-                                row[ncols + i] = rightItr->getProvenanceOffset(i-1);
+                                row[ncols + i] = itrTmp->getProvenanceOffset(i-1);
                             }
                         }
                         inserter->add(row);
