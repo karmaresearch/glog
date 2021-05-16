@@ -1,6 +1,8 @@
 #include <vlog/gbchase/gbchase.h>
 #include <vlog/gbchase/gbsegmentcache.h>
 
+#include <unordered_set>
+
 GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
         GBGraph::ProvenanceType provenanceType,
         bool filterQueryCont,
@@ -556,7 +558,7 @@ void GBChase::run() {
 
     //Mark the predicates that should be cleaned at the end
     for (auto &predId : program->getAllPredicateIDs()) {
-        if (program->getNRulesByPredicate(predId) > 1000) {
+        if (program->getNRulesByPredicate(predId) > 100) {
             predToBeRetainedEndStep.insert(predId);
         }
     }
@@ -685,6 +687,23 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                     } else {
                         //Add new nodes
                         if (shouldTrackProvenance()) {
+#ifdef DEBUG
+                            //Check derivation nodes
+                            for(auto i = 0; i < derivationNodes.size(); ++i) {
+                                auto c = derivationNodes[i];
+                                std::unordered_set<Term_t> acceptedvalues;
+                                for(auto nid : bodyNodes[i]) {
+                                    acceptedvalues.insert(nid);
+                                }
+                                for(auto j = 0; j < c->size(); ++j) {
+                                    auto v = c->getValue(j);
+                                    if (!acceptedvalues.count(v)) {
+                                        throw 10;
+                                    }
+                                }
+                            }
+#endif
+
                             g.addNodesProv(currentPredicate, node.ruleIdx,
                                     node.step, retainedTuples, derivationNodes);
                         } else {

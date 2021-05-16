@@ -398,6 +398,34 @@ void GBGraph::addNodeToBeRetained(PredId_t predId,
         std::vector<std::shared_ptr<Column>> &nodes,
         size_t ruleIdx,
         size_t step) {
+
+#ifdef DEBUG
+    auto ncols = data->getNColumns();
+    auto itr = data->iterator();
+    assert(itr->hasNext());
+    itr->next();
+    auto values = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
+    for(int i = 0; i < ncols; ++i) {
+        values[i] = itr->get(i);
+    }
+    while (itr->hasNext()) {
+        itr->next();
+        for(int i = 0; i < ncols; ++i) {
+            if (itr->get(i) > values[i]) {
+                break;
+            } else if (itr->get(i) < values[i]) {
+                LOG(ERRORL) << "Segment not sorted";
+                throw 10;
+            }
+        }
+        for(int i = 0; i < ncols; ++i) {
+            values[i] = itr->get(i);
+        }
+    }
+#endif
+
+
+
     if (!mapPredTmpNodes.count(predId)) {
         mapPredTmpNodes.insert(std::make_pair(predId,
                     std::vector<GBGraph_TmpPredNode>()));
@@ -867,7 +895,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
     const size_t extracols = newtuples->getNOffsetColumns();
     Term_t row[ncols + extracols];
 
-    std::vector<size_t> filterIdxsDerivationNodes;
 
     //Do outer join
     auto leftItr = existuples->iterator();
@@ -923,11 +950,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 countNew++;
             }
         } else {
-            if (derivationNodes.size() > 0) {
-                assert(activeRightValue);
-                filterIdxsDerivationNodes.push_back(countRight);
-            }
-
             moveLeftItr = moveRightItr = true;
             activeRightValue = false;
             if (!isFiltered && countNew == 0)
@@ -988,10 +1010,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
             }
             inserter->add(row);
         }
-        if (derivationNodes.size() > 0) {
-            assert(filterIdxsDerivationNodes.size() > 0);
-            //filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
-        }
 
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
                 getSegProvenanceType(), extracols);
@@ -1022,11 +1040,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         inserter->add(row);
                     }
                     i++;
-                }
-
-                if (derivationNodes.size() > 0) {
-                    assert(filterIdxsDerivationNodes.size() > 0);
-                    //filterOutDerivationNodes(filterIdxsDerivationNodes, derivationNodes);
                 }
 
                 return inserter->getSegment(newtuples->getNodeId(),
@@ -1565,18 +1578,25 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         size_t counter = 0;
         //Copy all the data into newTuples
         for (auto &node : nodes) {
+            std::cout << "Copying node ruleIdx " << node.ruleIdx << std::endl;
             auto &d = node.data;
             auto itr = d->iterator();
             if (d->getProvenanceType() == SEG_DIFFNODES) {
+                std::cout << "DIFF NODE" << std::endl;
                 while (itr->hasNext()) {
                     itr->next();
+                    if (itr->get(0) == 13338203)
+                        std::cout << "   FOUND" << std::endl;
                     assert(itr->getNodeId() != ~0ul);
                     newTuples.push_back(std::make_pair(itr->get(0),
                                 itr->getNodeId() + counter));
                 }
             } else {
+                std::cout << "SAME NODE" << std::endl;
                 while (itr->hasNext()) {
                     itr->next();
+                    if (itr->get(0) == 13338203)
+                        std::cout << "   FOUND" << std::endl;
                     newTuples.push_back(std::make_pair(itr->get(0), counter));
                 }
             }
