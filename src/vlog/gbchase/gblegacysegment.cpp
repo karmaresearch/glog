@@ -176,11 +176,13 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sort() const {
             if (skipNode) {
                 newcols.push_back(columns[columns.size() - nprovcolumns]);
                 for(size_t i = 1; i < nprovcolumns; ++i) {
-                    newcols.push_back(columns[columns.size() - nprovcolumns + i]);
+                    newcols.push_back(news->
+                            getColumn(columns.size() - nprovcolumns + i-1));
                 }
             } else {
                 for(size_t i = 0; i < nprovcolumns; ++i) {
-                    newcols.push_back(columns[columns.size() - nprovcolumns + i]);
+                    newcols.push_back(news->
+                            getColumn(columns.size() - nprovcolumns + i));
                 }
             }
         }  else {
