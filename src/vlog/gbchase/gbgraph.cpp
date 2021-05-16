@@ -1578,25 +1578,18 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         size_t counter = 0;
         //Copy all the data into newTuples
         for (auto &node : nodes) {
-            std::cout << "Copying node ruleIdx " << node.ruleIdx << std::endl;
             auto &d = node.data;
             auto itr = d->iterator();
             if (d->getProvenanceType() == SEG_DIFFNODES) {
-                std::cout << "DIFF NODE" << std::endl;
                 while (itr->hasNext()) {
                     itr->next();
-                    if (itr->get(0) == 13338203)
-                        std::cout << "   FOUND" << std::endl;
                     assert(itr->getNodeId() != ~0ul);
                     newTuples.push_back(std::make_pair(itr->get(0),
                                 itr->getNodeId() + counter));
                 }
             } else {
-                std::cout << "SAME NODE" << std::endl;
                 while (itr->hasNext()) {
                     itr->next();
-                    if (itr->get(0) == 13338203)
-                        std::cout << "   FOUND" << std::endl;
                     newTuples.push_back(std::make_pair(itr->get(0), counter));
                 }
             }
