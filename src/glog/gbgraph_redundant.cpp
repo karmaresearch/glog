@@ -287,7 +287,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     }
     std::sort(bodyAtomsWithHeadVar.begin(), bodyAtomsWithHeadVar.end());
     size_t selectedBodyAtomIdx = bodyAtomsWithHeadVar[0].bodyAtomIdx;
-    size_t selectedPos = bodyAtomsWithHeadVar[0].posVar;
+    //size_t selectedPos = bodyAtomsWithHeadVar[0].posVar;
     size_t selectedPosInLiteral = bodyAtomsWithHeadVar[0].posVarInLiteral;
 
     if (bodyAtomsWithHeadVar[0].nhits < 18 || (!suitableForReplacement &&

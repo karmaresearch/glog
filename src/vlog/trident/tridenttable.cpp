@@ -87,11 +87,15 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::performAntiJoin(
         std::vector<uint8_t> &pos1,
         const std::vector<
         std::pair<Term_t, Term_t>> &existing) {
+    
+    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+    throw 10;
 
     TridentTupleItr itr1;
 
     //Prepare the iterators
     VTuple t1 = l1.getTuple();
+        
     std::vector<uint8_t> fieldToSort;
     fieldToSort.push_back(l1.getPosVars()[pos1[0]]);
     if (pos1.size() == 2) {
@@ -1019,6 +1023,9 @@ void TridentTable::join(std::vector<Term_t> &out1,
         std::vector<uint8_t> &posInL1, const uint8_t joinLeftVarPos,
         const Literal &l2, const uint8_t posInL2,
         const std::vector<uint8_t> copyVarPosLeft) {
+    
+    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+    throw 10;
 
     TridentTupleItr itr1;
     //Prepare the iterators
@@ -1169,13 +1176,27 @@ std::vector<Term_t> TridentTable::checkNewIn(
         const Literal &l1,
         int posInL1,
         std::shared_ptr<const TGSegment> oldSeg) {
-    std::vector<uint8_t> fieldToSort;
+    
+#ifdef DEBUG
+    //Double check that posInL2 does not refer to a constant. If so, probably the method was not invoked correctly
+    if (!l1.getTermAtPos(posInL1).isVariable()) {
+        throw 10;
+    }
+#endif
+    
     VTuple t1 = l1.getTuple();
-    fieldToSort.clear();
-    uint8_t posInLit = l1.getPosVars()[posInL1];
-    fieldToSort.push_back(posInLit);
+    
+    std::vector<uint8_t> fieldToSort;
+    //If I use the position of the variables, then the execution of the chase on DBpedia with
+    //edbcheck=true fails. It's likely that there are other cases where we need the position of variables instead.
+    //fieldToSort.clear();
+    //uint8_t posInLit = l1.getPosVars()[posInL1];
+    //fieldToSort.push_back(posInLit);
+    fieldToSort.push_back(posInL1);
+    
     TridentTupleItr itr1;
     itr1.init(q, &t1, &fieldToSort, true, multithreaded ? &mutex : NULL);
+
 
     int level = 0; //key
     if (l1.getNVars() == 2) {
@@ -1269,6 +1290,10 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(
         const Literal &l2,
         int posInL2_1,
         int posInL2_2) {
+    
+    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+    throw 10;
+    
     std::vector<uint8_t> fieldToSort;
     VTuple t2 = l2.getTuple();
     fieldToSort.clear();
@@ -1338,11 +1363,20 @@ std::vector<Term_t> TridentTable::checkNewIn(
         int posNew,
         const Literal &l2,
         int posInL2) {
+    
+#ifdef DEBUG
+    //Double check that posInL2 does not refer to a constant. If so, probably the method was not invoked correctly
+    if (!l2.getTermAtPos(posInL2).isVariable()) {
+        throw 10;
+    }
+#endif
+        
     std::vector<uint8_t> fieldToSort;
     VTuple t2 = l2.getTuple();
-    fieldToSort.clear();
-    uint8_t posInLit = l2.getPosVars()[posInL2];
-    fieldToSort.push_back(posInLit);
+    //fieldToSort.clear();
+    //uint8_t posInLit = l2.getPosVars()[posInL2];
+    //fieldToSort.push_back(posInLit);
+    fieldToSort.push_back(posInL2);
     TridentTupleItr itr2;
     itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
 
@@ -1429,6 +1463,10 @@ std::vector<std::pair<Term_t,Term_t>> TridentTable::checkNewIn(
         const Literal &l2,
         int posInL2_1,
         int posInL2_2) {
+    
+    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+    throw 10;
+    
     std::vector<uint8_t> fieldToSort;
     VTuple t2 = l2.getTuple();
     fieldToSort.clear();
