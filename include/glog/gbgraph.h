@@ -4,7 +4,7 @@
 #include <vlog/concepts.h>
 #include <vlog/chasemgmt.h>
 
-#include <vlog/gbchase/gbsegment.h>
+#include <glog/gbsegment.h>
 
 #include <map>
 

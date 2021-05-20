@@ -1,8 +1,8 @@
 #ifndef _SEGMENT_CONCATENATED_H
 #define _SEGMENT_CONCATENATED_H
 
-#include <vlog/gbchase/gbsegment.h>
-#include <vlog/gbchase/gbgraph.h>
+#include <glog/gbsegment.h>
+#include <glog/gbgraph.h>
 
 class CompositeTGSegment : public TGSegment {
     private:

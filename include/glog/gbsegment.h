@@ -5,7 +5,7 @@
 #include <vlog/column.h>
 #include <vlog/segment.h>
 
-#include <vlog/gbchase/gbsegmentitr.h>
+#include <glog/gbsegmentitr.h>
 
 #include <vector>
 #include <map>
@@ -418,9 +418,9 @@ class TGSegmentImpl : public TGSegment {
         virtual ~TGSegmentImpl() {}
 };
 
-#include <vlog/gbchase/gbsegment_unary.h>
+#include <glog/gbsegment_unary.h>
 
-#include <vlog/gbchase/gbsegment_binary.h>
+#include <glog/gbsegment_binary.h>
 
 
 #endif

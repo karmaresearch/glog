@@ -1,3 +1,6 @@
+#ifndef _SEGMENT_SUPPORT_H
+#define _SEGMENT_SUPPORT_H
+
 #include <vlog/column.h>
 
 #include <vector>
@@ -157,3 +160,5 @@ struct PairComparator {
         return v1[x] < v1[y];
     }
 };
+
+#endif

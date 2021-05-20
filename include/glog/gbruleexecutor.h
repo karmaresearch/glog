@@ -5,9 +5,9 @@
 #include <vlog/edb.h>
 #include <vlog/fcinttable.h>
 
-#include <vlog/gbchase/gbgraph.h>
-#include <vlog/gbchase/gbsegment.h>
-#include <vlog/gbchase/gbsegmentinserter.h>
+#include <glog/gbgraph.h>
+#include <glog/gbsegment.h>
+#include <glog/gbsegmentinserter.h>
 
 #include <chrono>
 

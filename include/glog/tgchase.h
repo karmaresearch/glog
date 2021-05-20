@@ -1,8 +1,8 @@
 #ifndef _TG_CHASE_H
 #define _TG_CHASE_H
 
-#include <vlog/gbchase/gbgraph.h>
-#include <vlog/gbchase/gbchase.h>
+#include <glog/gbgraph.h>
+#include <glog/gbchase.h>
 
 #include <chrono>
 

@@ -4,7 +4,7 @@
 #include <vlog/clique/cliqueiterator.h>
 
 #include <vlog/edbtable.h>
-#include <vlog/gbchase/gbgraph.h>
+#include <glog/gbgraph.h>
 
 #include <vector>
 

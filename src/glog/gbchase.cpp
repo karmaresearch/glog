@@ -1,5 +1,5 @@
-#include <vlog/gbchase/gbchase.h>
-#include <vlog/gbchase/gbsegmentcache.h>
+#include <glog/gbchase.h>
+#include <glog/gbsegmentcache.h>
 
 #include <unordered_set>
 

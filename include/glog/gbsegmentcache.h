@@ -3,7 +3,7 @@
 
 #include <vlog/concepts.h>
 
-#include <vlog/gbchase/gbsegmentitr.h>
+#include <glog/gbsegmentitr.h>
 
 #include <map>
 #include <vector>

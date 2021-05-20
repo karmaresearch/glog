@@ -1,5 +1,5 @@
 #ifndef _EXT_RESULT_H
-#define _EXT_RESULT_Hresultjoinproc
+#define _EXT_RESULT_H
 
 #include <vlog/finalresultjoinproc.h>
 #include <vlog/resultjoinproc.h>

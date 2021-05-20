@@ -1,3 +1,6 @@
+#ifndef _EXPORTER_H
+#define _EXPORTER_H
+
 #include <vlog/chase.h>
 #include <vlog/seminaiver.h>
 #include <vlog/consts.h>
@@ -41,3 +44,5 @@ class Exporter {
         VLIBEXP void storeOnFiles(std::string path, const bool decompress,
                 const int minLevel, const bool csv);
 };
+
+#endif

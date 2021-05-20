@@ -1,7 +1,7 @@
 #ifndef LEGACY_SEGMENT_H
 #define LEGACY_SEGMENT_H
 
-#include <vlog/gbchase/gbsegment.h>
+#include <glog/gbsegment.h>
 
 class TGSegmentLegacy : public TGSegment {
     private:

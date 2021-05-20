@@ -1,7 +1,7 @@
 #ifndef _DFS_CHASE_H
 #define _DFS_CHASE_H
 
-#include <vlog/gbchase/gbchase.h>
+#include <glog/gbchase.h>
 
 class DFStandardChase : public GBChase {
     public:

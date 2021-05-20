@@ -6,8 +6,8 @@
 #include <vlog/fctable.h>
 #include <vlog/seminaiver.h>
 #include <vlog/seminaiver_trigger.h>
-#include <vlog/gbchase/gbchase.h>
-#include <vlog/gbchase/tgchase.h>
+#include <glog/gbchase.h>
+#include <glog/tgchase.h>
 #include <vlog/consts.h>
 
 #include <trident/kb/kb.h>

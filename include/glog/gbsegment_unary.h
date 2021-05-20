@@ -1,8 +1,8 @@
 #ifndef _GBSEGMENT_UNARY_H
 #define _GBSEGMENT_UNARY_H
 
-#include <vlog/gbchase/gbsegmentitr.h>
-#include <vlog/gbchase/gbsegment.h>
+#include <glog/gbsegmentitr.h>
+#include <glog/gbsegment.h>
 
 template<typename S, typename K, typename I, SegProvenanceType CP>
 class UnaryTGSegmentImpl : public TGSegmentImpl<S,K,I,CP> {
