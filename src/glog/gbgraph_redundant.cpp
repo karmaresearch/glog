@@ -281,6 +281,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
             Term_t valueToLookup = itr->get(p.posVarInLiteral);
             termsToLookup.push_back(valueToLookup);
         }
+        std::sort(termsToLookup.begin(), termsToLookup.end());
         p.nhits = nodeData->countHits(termsToLookup, 0);
         p.probedhits = termsToLookup.size();
     }
@@ -758,6 +759,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
             termsToLookup.push_back(std::make_pair(valueToLookup1,
                         valueToLookup2));
         }
+        std::sort(termsToLookup.begin(), termsToLookup.end());
         p.nhits = nodeData->countHits(termsToLookup, 0, 1);
         //std::chrono::duration<double, std::milli> dur =
         //    std::chrono::steady_clock::now() - start;
