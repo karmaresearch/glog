@@ -101,6 +101,17 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
                 out.push_back(p);
             }
         }
+    
+        void appendTo(uint8_t colPos,
+                std::vector<UnWithFullProv> &out) const {
+            assert(colPos == 0);            
+            for(const auto &value : *tuples.get()) {
+                UnWithFullProv p;
+                p.first = value;
+                p.node = nodeId;
+                out.push_back(p);
+            }
+        }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
                 std::vector<std::pair<Term_t, Term_t>> &out) const {

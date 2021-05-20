@@ -34,9 +34,9 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
 
     rules = program->getAllRules();
-    if (shouldTrackProvenance()) {
-        g.setRulesProgramLayer(rules.data(), program, &layer);
-    }
+    //if (shouldTrackProvenance()) {
+    g.setRulesProgramLayer(rules.data(), program, &layer);
+    //}
 }
 
 Program *GBChase::getProgram() {
