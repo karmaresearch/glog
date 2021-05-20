@@ -1,5 +1,5 @@
-#include <vlog/gbchase/gbsegmentitr.h>
-#include <vlog/gbchase/gbsegment.h>
+#include <glog/gbsegmentitr.h>
+#include <glog/gbsegment.h>
 
 #include <vlog/trident/tridenttable.h>
 

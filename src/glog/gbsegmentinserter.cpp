@@ -1,5 +1,5 @@
-#include <vlog/gbchase/gbsegmentinserter.h>
-#include <vlog/gbchase/gbsegment.h>
+#include <glog/gbsegmentinserter.h>
+#include <glog/gbsegment.h>
 
 std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
         size_t nodeColumns,

@@ -1,5 +1,5 @@
-#include <vlog/gbchase/gbgraph.h>
-#include <vlog/gbchase/gblegacysegment.h>
+#include <glog/gbgraph.h>
+#include <glog/gblegacysegment.h>
 
 bool GBGraph::isRedundant_checkTypeAtoms(const std::vector<Literal> &atoms) {
     for(size_t i = 1; i < atoms.size(); ++i) {

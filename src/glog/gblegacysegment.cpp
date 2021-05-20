@@ -1,6 +1,6 @@
-#include <vlog/gbchase/gblegacysegment.h>
-#include <vlog/gbchase/gbsegmentitr.h>
-#include <vlog/gbchase/gbsegmentinserter.h>
+#include <glog/gblegacysegment.h>
+#include <glog/gbsegmentitr.h>
+#include <glog/gbsegmentinserter.h>
 
 #include <vlog/segment.h>
 

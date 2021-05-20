@@ -1,4 +1,4 @@
-#include <vlog/gbchase/dfstandardchase.h>
+#include <glog/dfstandardchase.h>
 
 size_t DFStandardChase::executeRulesInStratum(
         const std::vector<size_t> &ruleIdxs,

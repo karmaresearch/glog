@@ -1,7 +1,7 @@
-#include <vlog/gbchase/gbruleexecutor.h>
-#include <vlog/gbchase/gbsegmentcache.h>
-#include <vlog/gbchase/gbsegment.h>
-#include <vlog/gbchase/gbsegmentinserter.h>
+#include <glog/gbruleexecutor.h>
+#include <glog/gbsegmentcache.h>
+#include <glog/gbsegment.h>
+#include <glog/gbsegmentinserter.h>
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
         std::shared_ptr<const TGSegment> tuples,

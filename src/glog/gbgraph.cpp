@@ -1,6 +1,6 @@
-#include <vlog/gbchase/gbgraph.h>
-#include <vlog/gbchase/gbruleexecutor.h>
-#include <vlog/gbchase/gbcompositesegment.h>
+#include <glog/gbgraph.h>
+#include <glog/gbruleexecutor.h>
+#include <glog/gbcompositesegment.h>
 
 #include <vlog/support.h>
 

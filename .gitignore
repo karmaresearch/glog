@@ -1,3 +1,5 @@
+DerivedData/*
+glog.xcodeproj
 experiments
 TODO
 *.vs*

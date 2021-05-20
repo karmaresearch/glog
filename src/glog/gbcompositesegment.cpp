@@ -1,4 +1,4 @@
-#include <vlog/gbchase/gbcompositesegment.h>
+#include <glog/gbcompositesegment.h>
 
 std::shared_ptr<const TGSegment> CompositeTGSegment::merge() const {
     std::chrono::system_clock::time_point start =

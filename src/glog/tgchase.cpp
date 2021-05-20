@@ -1,5 +1,5 @@
 #include <vlog/seminaiver_trigger.h>
-#include <vlog/gbchase/tgchase.h>
+#include <glog/tgchase.h>
 #include <vlog/trigger/tgpath.h>
 
 TGChase::TGChase(EDBLayer &layer, Program *program) : GBChase(layer, program) {
@@ -71,7 +71,7 @@ void TGChaseStatic::run() {
     //Read the file one path at the time and execute the rules
     std::set<PredId_t> createdPredicates;
     std::unordered_map<std::string, size_t> iterations;
-    std::vector<StatIteration> costRules;
+    std::vector<StatIteration> costRules;    
     size_t nTriggers = 0;
 
     for(size_t i = 0; i < paths.getNPaths(); ++i) {
