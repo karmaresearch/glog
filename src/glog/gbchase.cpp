@@ -689,7 +689,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                         if (shouldTrackProvenance()) {
 #ifdef DEBUG
                             //Check derivation nodes
-                            for(auto i = 0; i < derivationNodes.size(); ++i) {
+                            /*for(auto i = 0; i < derivationNodes.size(); ++i) {
                                 auto c = derivationNodes[i];
                                 std::unordered_set<Term_t> acceptedvalues;
                                 for(auto nid : bodyNodes[i]) {
@@ -701,7 +701,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                                         throw 10;
                                     }
                                 }
-                            }
+                            }*/
 #endif
 
                             g.addNodesProv(currentPredicate, node.ruleIdx,

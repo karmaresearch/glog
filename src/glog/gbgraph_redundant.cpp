@@ -301,19 +301,23 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
 
     //New tuples
     auto newNodeData = getNodeData(bodyNodeIdxs[selectedBodyAtomIdx]);
-
+    bool isExistingColumnEDB = nodeData->hasColumnarBackend() &&
+                               ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB();
+    bool isNewColumnEDB = newNodeData->hasColumnarBackend() &&
+                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPosInLiteral)->isEDB();
+    
     //Here I check a EDB column (which we should process) against an existing
     //node which is not a EDB predicate
     std::vector<Term_t> retainedTerms;
-    if (newNodeData->hasColumnarBackend() && nodeData->hasColumnarBackend()) {
+    if (isNewColumnEDB && isExistingColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_one_edb_edb(retainedTerms,
                 newNodeData, selectedPosInLiteral, nodeData, 0,
                 !suitableForReplacement);
-    } else if (nodeData->hasColumnarBackend()) {
+    } else if (isExistingColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_one_mem_edb(retainedTerms,
                 newNodeData, selectedPosInLiteral, nodeData, 0,
                 !suitableForReplacement);
-    } else if (newNodeData->hasColumnarBackend()) {
+    } else if (isNewColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(retainedTerms,
                 newNodeData, selectedPosInLiteral, nodeData, 0,
                 !suitableForReplacement);
@@ -761,9 +765,6 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         }
         std::sort(termsToLookup.begin(), termsToLookup.end());
         p.nhits = nodeData->countHits(termsToLookup, 0, 1);
-        //std::chrono::duration<double, std::milli> dur =
-        //    std::chrono::steady_clock::now() - start;
-        //LOG(WARNL) << "TIME HITS " << dur.count();
         p.probedhits = termsToLookup.size();
     }
     std::sort(bodyAtomsWithHeadVar.begin(), bodyAtomsWithHeadVar.end());

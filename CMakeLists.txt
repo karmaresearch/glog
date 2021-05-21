@@ -60,12 +60,12 @@ file(GLOB vlog_SRC
     "src/vlog/cycles/*.cpp"
     "src/vlog/ml/*.cpp"
     "src/vlog/trigger/*.cpp"
-    "src/vlog/gbchase/*.cpp"
     "src/launcher/vloglayer.cpp"
     "src/launcher/vlogscan.cpp"
     "src/vlog/prediction/*.cpp"
     "src/vlog/clique/*.cpp"
     "src/vlog/util/*.cpp"
+    "src/glog/*.cpp"
     )
 
 #ZLIB

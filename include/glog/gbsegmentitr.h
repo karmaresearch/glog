@@ -25,6 +25,12 @@ struct BinWithProv {
 
 struct BinWithOff {
     size_t first, second, off;
+    
+    BinWithOff() : first(0), second(0), off(0) {
+    }
+    
+    BinWithOff(size_t first, size_t second) : first(first), second(second) {
+    }
 
     bool operator <(const BinWithOff &rhs) const {
         return first < rhs.first || (first == rhs.first && second < rhs.second) ||

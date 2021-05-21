@@ -88,8 +88,10 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::performAntiJoin(
         const std::vector<
         std::pair<Term_t, Term_t>> &existing) {
     
-    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
-    throw 10;
+    if (pos1.size() > 0 && pos1[0] > 0) {
+        LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+        throw 10;
+    }
 
     TridentTupleItr itr1;
 
@@ -97,9 +99,11 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::performAntiJoin(
     VTuple t1 = l1.getTuple();
         
     std::vector<uint8_t> fieldToSort;
-    fieldToSort.push_back(l1.getPosVars()[pos1[0]]);
+    //fieldToSort.push_back(l1.getPosVars()[pos1[0]]);
+    fieldToSort.push_back(pos1[0]);
     if (pos1.size() == 2) {
-        fieldToSort.push_back(l1.getPosVars()[pos1[1]]);
+        //fieldToSort.push_back(l1.getPosVars()[pos1[1]]);
+        fieldToSort.push_back(pos1[1]);
     }
     itr1.init(q, &t1, &fieldToSort, true, multithreaded ? &mutex : NULL);
 
@@ -1291,16 +1295,20 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::checkNewIn(
         int posInL2_1,
         int posInL2_2) {
     
-    LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
-    throw 10;
+    //if (posInL2_1 > 0) {
+        //LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
+        //throw 10;
+    //}
     
     std::vector<uint8_t> fieldToSort;
     VTuple t2 = l2.getTuple();
-    fieldToSort.clear();
-    uint8_t posInLit = l2.getPosVars()[posInL2_1];
-    fieldToSort.push_back(posInLit);
-    posInLit = l2.getPosVars()[posInL2_2];
-    fieldToSort.push_back(posInLit);
+    //fieldToSort.clear();
+    //uint8_t posInLit = l2.getPosVars()[posInL2_1];
+    //fieldToSort.push_back(posInLit);
+    //posInLit = l2.getPosVars()[posInL2_2];
+    //fieldToSort.push_back(posInLit);
+    fieldToSort.push_back(posInL2_1);
+    fieldToSort.push_back(posInL2_2);
     TridentTupleItr itr2;
     itr2.init(q, &t2, &fieldToSort, true, multithreaded ? &mutex : NULL);
 

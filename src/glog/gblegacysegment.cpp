@@ -634,9 +634,33 @@ size_t TGSegmentLegacy::countHits(const std::vector<std::pair<
         auto v = layer.checkNewIn(terms, l1, ec1->posColumnInLiteral(),
                 ec2->posColumnInLiteral());
         return terms.size() - v.size();
+    } else {
+        assert(column1 == 0 && column2 == 1); //I must ensure the columns are sorted
+        size_t count = 0;
+        auto itr1 = c1->getReader();
+        auto itr2 = c2->getReader();
+        size_t countTerms = 0;
+        while (itr1->hasNext() && itr2->hasNext()) {
+            if (countTerms == terms.size())
+                break;
+            auto v1 = itr1->next();
+            auto v2 = itr2->next();
+            if (v1 < terms[countTerms].first ||
+                (v1 == terms[countTerms].first && v2 < terms[countTerms].second)) {
+                //Go to the next one
+            } else {
+                while (countTerms < terms.size()) {
+                    if (v1 == terms[countTerms].first && v2 == terms[countTerms].second) {
+                        count++;
+                    } else if (v1 < terms[countTerms].first || (v1 == terms[countTerms].first && v2 < terms[countTerms].second)) {
+                        break;
+                    }
+                    countTerms++;
+                }
+            }
+        }
+        return count;
     }
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
 }
 
 TGSegmentLegacy::~TGSegmentLegacy() {

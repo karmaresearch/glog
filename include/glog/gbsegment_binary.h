@@ -409,6 +409,10 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                 const BinWithOff &b) {
             return a.off < b.off;
         }
+    
+        static bool cmp_hits(const BinWithOff &a, const BinWithOff &b) {
+            return a.first < b.first || (a.first == b.first && a.second < b.second);
+        }
 
     public:
         BinaryWithConstNodeFullProvTGSegment(std::vector<BinWithOff> &tuples,
@@ -438,6 +442,19 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                 LOG(ERRORL) << "Not implemented";
                 throw 10;
             }
+        }
+    
+        size_t countHits(const std::vector<
+                std::pair<Term_t,Term_t>> &terms,
+                int column1, int column2) const {
+            size_t c = 0;
+            for(auto &t : terms) {
+                if (std::binary_search(tuples->begin(),
+                            tuples->end(), BinWithOff(t.first, t.second),
+                                       BinaryWithConstNodeFullProvTGSegment::cmp_hits))
+                    c++;
+            }
+            return c;
         }
 
         void appendTo(uint8_t colPos1, uint8_t colPos2,
