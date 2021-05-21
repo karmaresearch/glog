@@ -780,15 +780,21 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
 
     //New
     auto newNodeData = getNodeData(bodyNodeIdxs[selectedBodyAtomIdx]);
+    bool isExistingColumnEDB = nodeData->hasColumnarBackend() &&
+                               ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB() &&
+                               ((TGSegmentLegacy*)nodeData.get())->getColumn(1)->isEDB();
+    bool isNewColumnEDB = newNodeData->hasColumnarBackend() &&
+                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos1)->isEDB() &&
+                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos2)->isEDB();
 
     std::vector<std::pair<Term_t, Term_t>> retainedTerms;
-    if (newNodeData->hasColumnarBackend() && nodeData->hasColumnarBackend()) {
+    if (isNewColumnEDB && isExistingColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(retainedTerms,
                 newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
-    } else if (nodeData->hasColumnarBackend()) {
+    } else if (isExistingColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_two_mem_edb(retainedTerms,
                 newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
-    } else if (newNodeData->hasColumnarBackend()) {
+    } else if (isNewColumnEDB) {
         isRedundant_checkEquivalenceEDBAtoms_two_edb_mem(retainedTerms,
                 newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
     } else {
