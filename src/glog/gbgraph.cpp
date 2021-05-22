@@ -1584,9 +1584,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         auto itr = d->iterator();
         const auto max_offset_node = node.data->getNOffsetColumns();
         assert(max_offset_node <= n_offsetcolumns);
-        assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);
-        if (node.ruleIdx == 2434 && node.step == 3)
-             std::cout << "stop";
+        assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);        
         while (itr->hasNext()) {
             itr->next();
             for(int i = 0; i < n_columns; ++i) {
@@ -1628,9 +1626,11 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         auto counter = itr->getNodeId();
         if (counter >= endSegment) {
             assert(node != nodes.end());
-            auto slicedNode = toBeAddedSeg->slice(startSlice, counterSlice);
-            auto rewrittenNode = retainAndAddFromTmpNodes_rewriteNode(slicedNode, *node);
-            addNodesProv(predId, node->ruleIdx, node->step, rewrittenNode, node->nodes);
+            if (startSlice < counterSlice) {
+                auto slicedNode = toBeAddedSeg->slice(startSlice, counterSlice);
+                auto rewrittenNode = retainAndAddFromTmpNodes_rewriteNode(slicedNode, *node);
+                addNodesProv(predId, node->ruleIdx, node->step, rewrittenNode, node->nodes);
+             }
             startSlice = counterSlice;
             
             //Advance to a node that has a limit
