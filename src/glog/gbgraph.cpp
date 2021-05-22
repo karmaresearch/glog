@@ -1613,7 +1613,12 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
     auto retainedSeg = retain(predId, uniqueSeg);
     if (retainedSeg.get() == NULL)
         return;
-    auto toBeAddedSeg = retainedSeg->sortByProv();
+    std::shared_ptr<const TGSegment> toBeAddedSeg;
+    if (!retainedSeg->isNodeConstant()) {
+        toBeAddedSeg = retainedSeg->sortByProv();
+    } else {
+        toBeAddedSeg = retainedSeg;
+    }
     auto itr = toBeAddedSeg->iterator();
     auto node = nodes.begin();
     size_t beginSegment = 0;
@@ -1687,8 +1692,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
     }
     if (!constantNode) {
         currentNode = ~0ul;
-    } else {
-        assert(node.data->getProvenanceType() == SEG_FULLPROV || node.data->getProvenanceType() == SEG_NOPROV);
     }
     return inserter->getSegment(currentNode, true, 0, node.data->getProvenanceType(), n_offsetcolumns);
 }
