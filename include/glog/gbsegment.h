@@ -72,6 +72,13 @@ class TGSegment {
             LOG(ERRORL) << "Not implemented";
             throw 10;
         }
+    
+        virtual std::shared_ptr<TGSegment> slice(
+                const size_t start,
+                const size_t end) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
 
         virtual std::vector<
             std::shared_ptr<const TGSegment>> sliceByNodes(
@@ -265,6 +272,25 @@ class TGSegmentImpl : public TGSegment {
 
         virtual std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
+            if (start == 0 && end == getNRows()) {
+                return std::shared_ptr<TGSegment>(new S(tuples,
+                            nodeId,
+                            TGSegmentImpl<S,K,I,CP>::f_isSorted,
+                            TGSegmentImpl<S,K,I,CP>::sortedField));
+            } else {
+                std::vector<K> out(end - start);
+                std::copy(TGSegmentImpl<S,K,I,CP>::tuples->begin() + start,
+                        TGSegmentImpl<S,K,I,CP>::tuples->begin() + end, out.begin());
+                return std::shared_ptr<TGSegment>(new S(out,
+                            nodeId,
+                            TGSegmentImpl<S,K,I,CP>::f_isSorted,
+                            TGSegmentImpl<S,K,I,CP>::sortedField));
+            }
+        }
+    
+        virtual std::shared_ptr<TGSegment> slice(
+                const size_t start,
+                const size_t end) const {
             if (start == 0 && end == getNRows()) {
                 return std::shared_ptr<TGSegment>(new S(tuples,
                             nodeId,

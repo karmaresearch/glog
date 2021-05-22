@@ -345,6 +345,20 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             }
             return c;
         }
+    
+        std::shared_ptr<const TGSegment> sortByProv() const {
+            //Return itself
+            auto t = std::vector<std::pair<Term_t,Term_t>>(
+                    *TGSegmentImpl<UnaryWithConstNodeFullProvTGSegment,
+                    std::pair<Term_t,Term_t>, UnaryWithConstNodeFullProvTGSegmentItr, SEG_FULLPROV>::tuples.get());
+            return std::shared_ptr<const TGSegment>(
+                    new UnaryWithConstNodeFullProvTGSegment(
+                        t,
+                        TGSegmentImpl<UnaryWithConstNodeFullProvTGSegment,
+                        std::pair<Term_t, Term_t>,
+                        UnaryWithConstNodeFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(),
+                                                            f_isSorted, sortedField));
+        }
 };
 
 /* The container stores the values, the nodes, and the offsets */
@@ -434,8 +448,6 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
             for(size_t j = start; j < end; ++j) {
                 out[m].first = tuples->at(j).first;
                 out[m++].second = tuples->at(j).prov;
-                if (j > start)
-                    assert(tuples->at(j - 1).node == tuples->at(j).node);
             }
             return std::shared_ptr<TGSegment>(
                     new UnaryWithConstNodeFullProvTGSegment(out,

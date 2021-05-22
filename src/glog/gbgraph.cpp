@@ -424,8 +424,6 @@ void GBGraph::addNodeToBeRetained(PredId_t predId,
     }
 #endif
 
-
-
     if (!mapPredTmpNodes.count(predId)) {
         mapPredTmpNodes.insert(std::make_pair(predId,
                     std::vector<GBGraph_TmpPredNode>()));
@@ -1557,11 +1555,6 @@ bool retainAndAddFromTmpNodes_uniq(
 }
 
 void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
-    if (provenanceType == FULLPROV) {
-        LOG(ERRORL) << "This method is not supported";
-        throw 10;
-    }
-
     if (!mapPredTmpNodes.count(predId))
         return;
 
@@ -1573,93 +1566,134 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         //counter
         throw 10;
     };
-    if (card == 1) {
-        std::vector<std::pair<Term_t, Term_t>> newTuples;
-        size_t counter = 0;
-        //Copy all the data into newTuples
-        for (auto &node : nodes) {
-            auto &d = node.data;
-            auto itr = d->iterator();
-            if (d->getProvenanceType() == SEG_DIFFNODES) {
-                while (itr->hasNext()) {
-                    itr->next();
-                    assert(itr->getNodeId() != ~0ul);
-                    newTuples.push_back(std::make_pair(itr->get(0),
-                                itr->getNodeId() + counter));
-                }
-            } else {
-                while (itr->hasNext()) {
-                    itr->next();
-                    newTuples.push_back(std::make_pair(itr->get(0), counter));
-                }
-            }
-            counter += (size_t)1 << 40;
+    
+    const size_t n_columns = nodes[0].data->getNColumns();
+    size_t n_offsetcolumns = 1;
+    for (auto &node : nodes) {
+        assert(node.data->getNColumns() == n_columns);
+        if (node.data->getNOffsetColumns() > n_offsetcolumns) {
+            n_offsetcolumns = node.data->getNOffsetColumns();
         }
-
-        std::sort(newTuples.begin(), newTuples.end());
-        auto e = std::unique(newTuples.begin(), newTuples.end(),
-                retainAndAddFromTmpNodes_uniq);
-        newTuples.erase(e, newTuples.end());
-
-        auto newTuples_seg = std::shared_ptr<TGSegment>(
-                new UnaryWithProvTGSegment(newTuples, ~0ul, true, 0));
-        //Retain new tuples
-        auto retainedSeg = retain(predId, newTuples_seg);
-        if (retainedSeg.get() == NULL)
-            return;
-        //Add the nodes
-        std::shared_ptr<const TGSegment> toBeAddedSeg;
-        if (retainedSeg->getProvenanceType() == SEG_DIFFNODES)
-            toBeAddedSeg = retainedSeg->sortByProv();
-        else
-            toBeAddedSeg = retainedSeg;
-
-        std::vector<Term_t> t1;
-        std::vector<std::pair<Term_t, Term_t>> t2;
-
-        auto itr = toBeAddedSeg->iterator();
-        auto node = nodes.begin();
-        size_t beginSegment = 0;
-        size_t endSegment = (size_t)1 << 40;
-        bool storeNode = node->data->getProvenanceType() == SEG_DIFFNODES;
-
+        assert(node.data->getNRows() < 0xFFFFFFFFFF); //Otherwise, the offset no longer works
+    }
+    auto inserter = GBSegmentInserter::getInserter(n_columns + n_offsetcolumns, n_offsetcolumns, true);
+    auto row = std::unique_ptr<Term_t[]>(new Term_t[n_columns + n_offsetcolumns]);
+    size_t counter = 0;
+    for (auto &node : nodes) {
+        auto &d = node.data;
+        auto itr = d->iterator();
+        const auto max_offset_node = node.data->getNOffsetColumns();
+        assert(max_offset_node <= n_offsetcolumns);
+        assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);
+        if (node.ruleIdx == 2434 && node.step == 3)
+             std::cout << "stop";
         while (itr->hasNext()) {
             itr->next();
-            auto counter = itr->getNodeId();
-            if (counter >= endSegment) {
-                assert(node != nodes.end());
-                retainAndAddFromTmpNodes_add_unary(storeNode, t1, t2, predId,
-                        *node, beginSegment);
-                //Advance to a node that has a limit
-                while (counter >= endSegment) {
-                    if (node >= nodes.end() - 1) {
-                        throw 10; //This should not happen!
-                    }
-                    node++;
-                    storeNode = node->data->getProvenanceType() == SEG_DIFFNODES;
-                    beginSegment += (size_t)1 << 40;
-                    endSegment += (size_t)1 << 40;
-                }
+            for(int i = 0; i < n_columns; ++i) {
+                row[i] = itr->get(i);
             }
-            if (storeNode) {
-                t2.push_back(std::make_pair(itr->get(0), itr->getNodeId()));
+            if (provenanceType != NOPROV) {
+                if (itr->getNodeId() == ~0ul)
+                    row[n_columns] = counter + 0xFFFFFFFFFFl;
+                else {
+                    row[n_columns] = counter + itr->getNodeId();
+                }
+                for(int i = 1; i < max_offset_node; ++i) {
+                    row[n_columns + i] = itr->getProvenanceOffset(i-1);
+                }
             } else {
-                t1.push_back(itr->get(0));
+                row[n_columns] = counter;
+            }
+            inserter->add(row.get());
+        }
+        counter += (size_t)1 << 40;
+    }
+    
+    auto seg = inserter->getSegment(~0ul, false, 0, getSegProvenanceType(true), n_offsetcolumns);
+    auto sortedSeg = seg->sort();
+    auto uniqueSeg = sortedSeg->unique();
+    auto retainedSeg = retain(predId, uniqueSeg);
+    if (retainedSeg.get() == NULL)
+        return;
+    auto toBeAddedSeg = retainedSeg->sortByProv();
+    auto itr = toBeAddedSeg->iterator();
+    auto node = nodes.begin();
+    size_t beginSegment = 0;
+    size_t endSegment = (size_t) 1 << 40;
+    size_t counterSlice = 0;
+    size_t startSlice = 0;
+    
+    while (itr->hasNext()) {
+        itr->next();
+        auto counter = itr->getNodeId();
+        if (counter >= endSegment) {
+            assert(node != nodes.end());
+            auto slicedNode = toBeAddedSeg->slice(startSlice, counterSlice);
+            auto rewrittenNode = retainAndAddFromTmpNodes_rewriteNode(slicedNode, *node);
+            addNodesProv(predId, node->ruleIdx, node->step, rewrittenNode, node->nodes);
+            startSlice = counterSlice;
+            
+            //Advance to a node that has a limit
+            while (counter >= endSegment) {
+                if (node >= nodes.end() - 1) {
+                    throw 10; //This should not happen!
+                }
+                node++;
+                beginSegment += (size_t)1 << 40;
+                endSegment += (size_t)1 << 40;
             }
         }
-        assert(node != nodes.end());
-        retainAndAddFromTmpNodes_add_unary(storeNode, t1, t2, predId, *node,
-                beginSegment);
-    } else if (card == 2) {
-        LOG(ERRORL) << "Not implemented yet";
-        throw 10;
-    } else {
-        LOG(ERRORL) << "Not implemented yet";
-        throw 10;
+        counterSlice++;
     }
+    assert(node != nodes.end());
+    auto slicedNode = toBeAddedSeg->slice(startSlice, counterSlice);
+    auto rewrittenNode = retainAndAddFromTmpNodes_rewriteNode(slicedNode, *node);
+    addNodesProv(predId, node->ruleIdx, node->step, rewrittenNode, node->nodes);
 }
 
-void GBGraph::retainAndAddFromTmpNodes_add_unary(
+std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
+                                        std::shared_ptr<const TGSegment> toBeRewrittenNode,
+                                        const GBGraph_TmpPredNode &node) {
+    auto n_columns = toBeRewrittenNode->getNColumns();
+    auto n_offsetcolumns = node.data->getNOffsetColumns(); //It's important that we pick the number of offset columns from the old node
+    auto inserter = GBSegmentInserter::getInserter(n_columns + n_offsetcolumns, n_offsetcolumns, true);
+    auto row = std::unique_ptr<Term_t[]>(new Term_t[n_columns + n_offsetcolumns]);
+    auto itr = toBeRewrittenNode->iterator();
+    
+    size_t currentNode = ~0ul;
+    bool firstRow = true;
+    bool constantNode = true;
+    while (itr->hasNext()) {
+        itr->next();
+        for(int i = 0; i < n_columns; ++i) {
+            row[i] = itr->get(i);
+        }
+        if (provenanceType != NOPROV) {
+            auto nodeId = itr->getNodeId() & 0xFFFFFFFFFFl; //Removing the initial prefix
+            if (nodeId == 0xFFFFFFFFFFl)
+                nodeId = ~0ul;
+            row[n_columns] = nodeId;
+            for(int i = 1; i < n_offsetcolumns; ++i) {
+                row[n_columns + i] = itr->getProvenanceOffset(i - 1);
+            }
+            if (firstRow) {
+                currentNode = nodeId;
+                firstRow = false;
+            } else if (currentNode != nodeId) {
+                constantNode = false;
+            }
+        }
+        inserter->add(row.get());
+    }
+    if (!constantNode) {
+        currentNode = ~0ul;
+    } else {
+        assert(node.data->getProvenanceType() == SEG_FULLPROV || node.data->getProvenanceType() == SEG_NOPROV);
+    }
+    return inserter->getSegment(currentNode, true, 0, node.data->getProvenanceType(), n_offsetcolumns);
+}
+
+/*void GBGraph::retainAndAddFromTmpNodes_add_unary(
         bool storeNode,
         std::vector<Term_t> &t1,
         std::vector<std::pair<Term_t, Term_t>> &t2,
@@ -1687,7 +1721,7 @@ void GBGraph::retainAndAddFromTmpNodes_add_unary(
         addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
         t2 = std::vector<std::pair<Term_t, Term_t>>();
     }
-}
+}*/
 
 uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {
     if (!areNodesWithPredicate(predId)) {

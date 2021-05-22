@@ -258,13 +258,17 @@ class GBGraph {
             return n.getQueryBody(*this);
         }
 
-        void retainAndAddFromTmpNodes_add_unary(
+        /*void retainAndAddFromTmpNodes_add_unary(
                 bool storeNode,
                 std::vector<Term_t> &t1,
                 std::vector<std::pair<Term_t, Term_t>> &t2,
                 PredId_t predId,
                 const GBGraph_TmpPredNode &node,
-                size_t beginSegment);
+                size_t beginSegment);*/
+    
+        std::shared_ptr<const TGSegment> retainAndAddFromTmpNodes_rewriteNode(
+                std::shared_ptr<const TGSegment> toBeRewrittenNode,
+                const GBGraph_TmpPredNode &node);
 
         std::shared_ptr<const TGSegment> mergeNodes_special_unary1(
                 std::shared_ptr<const TGSegment> seg,
