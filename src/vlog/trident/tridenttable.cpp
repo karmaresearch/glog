@@ -87,11 +87,6 @@ std::vector<std::pair<Term_t, Term_t>> TridentTable::performAntiJoin(
         std::vector<uint8_t> &pos1,
         const std::vector<
         std::pair<Term_t, Term_t>> &existing) {
-    
-    if (pos1.size() > 0 && pos1[0] > 0) {
-        LOG(ERRORL) << "The invocation of this function must be double-checked. PosInL2_1 and PosInL2_2 are supposed to take constants in the literal into account. Eg, if we want Y in P(X,0,Y), then we must pass 2. The implementation takes the position of the variable, which should be fixed";
-        throw 10;
-    }
 
     TridentTupleItr itr1;
 
@@ -762,9 +757,15 @@ std::shared_ptr<Column> TridentTable::checkIn(
                     break;
                 }
             } else {
-                col->add(v1);
-                sizeOutput++;
-                idx1++;
+                while(idx1 < values.size()) {
+                    col->add(v1);
+                    sizeOutput++;
+                    idx1++;
+                    if (idx1 == values.size() ||
+                        values[idx1] !=values[idx1 - 1]) {
+                        break;
+                    }
+                }
                 if (idx1 == values.size()) {
                     break;
                 }
