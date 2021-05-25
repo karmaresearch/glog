@@ -41,7 +41,8 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
         glog_EDBLayer *e;
-    Program *program;
+    std::shared_ptr<Program> program;
+    std::pair<PredId_t, PredId_t> ioPredIDs;
 } glog_Program;
 
 typedef struct {
@@ -51,6 +52,8 @@ typedef struct {
     std::shared_ptr<GBChase> sn;
 } glog_Reasoner;
 
-
+typedef struct {
+    PyObject_HEAD
+} glog_Wizard;
 
 #endif

@@ -162,8 +162,8 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
     Py_INCREF(edbLayer);
     Py_INCREF(program);
     EDBLayer *db = ((glog_EDBLayer*)edbLayer)->e;
-    Program *p = ((glog_Program*)program)->program;
-    self->sn = Reasoner::getGBChase(*db, p, tc,
+    auto p = ((glog_Program*)program)->program;
+    self->sn = Reasoner::getGBChase(*db, p.get(), tc,
             queryCont,
             edbCheck,
             rewriteCliques,
