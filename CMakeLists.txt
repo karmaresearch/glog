@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 2.8.12)
 
 set(CMAKE_C_COMPILER "gcc")
 set(CMAKE_CXX_COMPILER "g++")
@@ -242,7 +242,7 @@ set_target_properties(vlog-core PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}")
 IF(JAVA)
     set_target_properties(vlog-java PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}")
 ENDIF()
-set_target_properties(vlog PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}" OUTPUT_NAME "vlog")
+set_target_properties(vlog PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}" OUTPUT_NAME "glog")
 
 #standard include
 include_directories(include/)
@@ -266,4 +266,45 @@ if(JAVA)
     add_custom_command(TARGET jvlog POST_BUILD COMMAND ${CMAKE_COMMAND} -E remove $<TARGET_FILE:vlog-java>)
     add_dependencies(jvlog vlog-java)
 ENDIF()
+
+IF(PYTHON)
+    find_package (Python3 COMPONENTS Interpreter Development)
+    IF(Python3_FOUND)
+        INCLUDE_DIRECTORIES(${Python3_INCLUDE_DIRS})
+        #message("Python include path = ${Python3_INCLUDE_DIRS}")
+    ENDIF()
+    #NumPY
+    if (Python3_EXECUTABLE)
+        # Find out the include path
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" -c
+            "from __future__ import print_function\ntry: import numpy; print(numpy.get_include(), end='')\nexcept:pass\n"
+            OUTPUT_VARIABLE __numpy_path)
+        # And the version
+        execute_process(
+            COMMAND "${Python3_EXECUTABLE}" -c
+            "from __future__ import print_function\ntry: import numpy; print(numpy.__version__, end='')\nexcept:pass\n"
+            OUTPUT_VARIABLE __numpy_version)
+    elseif(__numpy_out)
+        message(STATUS "Python executable not found.")
+    endif(Python3_EXECUTABLE)
+
+    find_path(PYTHON_NUMPY_INCLUDE_DIR numpy/arrayobject.h
+        HINTS "${__numpy_path}" "${Python3_INCLUDE_DIRS}" NO_DEFAULT_PATH)
+    if(PYTHON_NUMPY_INCLUDE_DIR)
+        set(PYTHON_NUMPY_FOUND 1 CACHE INTERNAL "Python numpy found")
+        include_directories(${PYTHON_NUMPY_INCLUDE_DIR} SYSTEM)
+    endif(PYTHON_NUMPY_INCLUDE_DIR)
+
+    include(FindPackageHandleStandardArgs)
+    find_package_handle_standard_args(NumPy REQUIRED_VARS PYTHON_NUMPY_INCLUDE_DIR
+        VERSION_VAR __numpy_version)
+
+    file(GLOB glogp_SRC "src/python/*.cpp")
+    add_library(glogp SHARED ${glogp_SRC}) #Python library
+    set_target_properties(glogp PROPERTIES OUTPUT_NAME "glog" PREFIX "" SUFFIX ".so")
+    set_target_properties(glogp PROPERTIES COMPILE_FLAGS "${COMPILE_FLAGS}")
+    TARGET_LINK_LIBRARIES(glogp vlog-core ${Python3_LIBRARIES})
+ENDIF()
+
 TARGET_LINK_LIBRARIES(vlog vlog-core)
