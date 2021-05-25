@@ -248,7 +248,7 @@ class ColumnWriter {
 #endif
 
 #ifdef USE_COMPRESSED_COLUMNS
-            if (! compressed) {
+            if (!compressed) {
                 values.push_back((Term_t) v);
             } else {
                 if (isEmpty()) {
@@ -290,6 +290,8 @@ class ColumnWriter {
         Term_t lastValue() const {
             return lastv;
         }
+    
+        Term_t getValue(size_t idx) const;
 
         void concatenate(Column *c);
 

@@ -3,6 +3,7 @@
 
 #include <glog/gbsegment.h>
 #include <glog/gblegacysegment.h>
+#include <glog/hashset.h>
 
 #include <vlog/term.h>
 #include <vlog/column.h>
@@ -19,11 +20,26 @@ typedef google::dense_hash_set<Term_t> GBSegmentInserterEntities;
 class GBSegmentInserter {
     private:
         std::vector<BuiltinFunction> fns;
+    
+        bool shouldRemoveDuplicates;
+        size_t checkDuplicatesAfter;
+        bool useDuplicateMap;
+        virtual bool isInMap(Term_t *row) = 0;
+        virtual void populateMap() = 0;
+        virtual size_t removeDuplicates() = 0;
+        size_t processedRecords;
 
     protected:
         virtual void addRow(Term_t *row) = 0;
 
     public:
+        GBSegmentInserter(bool shouldRemoveDuplicates) :
+            shouldRemoveDuplicates(shouldRemoveDuplicates),
+            checkDuplicatesAfter(THRESHOLD_CHECK_DUPLICATES),
+            useDuplicateMap(false),
+            processedRecords(0) {
+    }
+    
         static std::unique_ptr<GBSegmentInserter> getInserter(size_t card,
                 size_t nodeColumns, //n. columns which contain nodes
                 bool delDupl);
@@ -71,71 +87,28 @@ template<class K, typename V, typename H=std::hash<V>>
 class GBSegmentInserterImpl : public GBSegmentInserter {
     protected:
         const size_t card;
-
-        bool shouldRemoveDuplicates;
-        size_t checkDuplicatesAfter;
-        bool useDuplicateMap;
         google::dense_hash_set<V, H> novelTuples;
-        virtual bool isInMap(Term_t *row) = 0;
-        virtual void populateMap() = 0;
-
-        size_t processedRecords;
-
         K tuples;
+    
+    private:
+        size_t removeDuplicates() {
+            size_t oldSize = tuples.size();
+            std::sort(tuples.begin(), tuples.end());
+            auto e = std::unique(tuples.begin(), tuples.end());
+            tuples.erase(e, tuples.end());
+            size_t newSize = tuples.size();
+            size_t diff = oldSize - newSize;
+            return diff;
+        }
 
     public:
-        GBSegmentInserterImpl(size_t card,
-                bool shouldRemoveDuplicates) : card(card),
-        shouldRemoveDuplicates(shouldRemoveDuplicates),
-        checkDuplicatesAfter(THRESHOLD_CHECK_DUPLICATES) {
-            processedRecords = 0;
-            useDuplicateMap = false;
+        GBSegmentInserterImpl(size_t card, bool shouldRemoveDuplicates) :
+                GBSegmentInserter(shouldRemoveDuplicates),
+                card(card) {
         }
 
         bool isEmpty() const {
             return tuples.empty();
-        }
-
-        void add(Term_t *row) {
-            if (shouldRemoveDuplicates) {
-                processedRecords++;
-                if (processedRecords % 10000000 == 0)
-                    LOG(DEBUGL) << "Processed records: " << processedRecords;
-                if (useDuplicateMap && isInMap(row)) {
-                    return;
-                }
-
-                if (tuples.size() > checkDuplicatesAfter) {
-                    //Sort and remove duplicates
-                    std::sort(tuples.begin(), tuples.end());
-                    auto e = std::unique(tuples.begin(), tuples.end());
-                    //Are there duplicates?
-                    LOG(DEBUGL) << "Removed tuples " <<
-                        std::distance(tuples.end(), e);
-                    if (e != tuples.end()) {
-                        size_t oldSize = tuples.size();
-                        tuples.erase(e, tuples.end());
-                        size_t newSize = tuples.size();
-                        size_t diff = oldSize - newSize;
-                        LOG(DEBUGL) << "Diff: " << diff << " " <<
-                            0.8 * THRESHOLD_CHECK_DUPLICATES;
-                        if (!useDuplicateMap &&
-                                diff > 0.8 * THRESHOLD_CHECK_DUPLICATES) {
-                            LOG(DEBUGL) << "Decided to use the map with " <<
-                                tuples.size() << " elements to filter out "
-                                "duplicates immediately";
-                            useDuplicateMap = true;
-                            populateMap();
-                        }
-                        checkDuplicatesAfter = tuples.size() +
-                            THRESHOLD_CHECK_DUPLICATES;
-                    } else {
-                        shouldRemoveDuplicates = false;
-                        LOG(DEBUGL) << "No longer check!";
-                    }
-                }
-            }
-            GBSegmentInserter::add(row);
         }
 
         void swap(K &t) {
@@ -454,9 +427,17 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         std::vector<ColumnWriter> writers;
         std::vector<std::shared_ptr<Column>> columns;
         const size_t card;
+        const size_t cardCheckDuplicates;
         size_t addedRows;
         bool isFinal;
-
+        
+        HashSet s; //For general case
+        google::dense_hash_set<std::pair<Term_t,Term_t>, std::hash<std::pair<Term_t,Term_t>>> s_binary;
+    
+        bool isInMap(Term_t *row);
+        void populateMap();
+        size_t removeDuplicates();
+    
     protected:
         void addRow(Term_t *row) {
             for(size_t i = 0; i < card; ++i) {
@@ -466,10 +447,14 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         }
 
     public:
-        GBSegmentInserterNAry(size_t card) :
+        GBSegmentInserterNAry(size_t card, size_t cardCheckDuplicates, bool shouldRemoveDuplicates) :
+            GBSegmentInserter(shouldRemoveDuplicates),
             writers(card),
             card(card),
-            addedRows(0), isFinal(false) { }
+            cardCheckDuplicates(cardCheckDuplicates),
+            addedRows(0), isFinal(false), s(cardCheckDuplicates, THRESHOLD_CHECK_DUPLICATES / 10) {
+                s_binary.set_empty_key(std::make_pair(~0ul, ~0ul));
+            }
 
         bool isEmpty() const  {
             return addedRows == 0;
@@ -477,6 +462,18 @@ class GBSegmentInserterNAry : public GBSegmentInserter
 
         size_t getNRows() const {
             return addedRows;
+        }
+    
+        GBSegmentInserterEntities getEntitiesAddedSoFar(int pos) {
+            GBSegmentInserterEntities e;
+            e.set_empty_key(~0ul);
+            assert(!isFinal);
+            assert(pos < writers.size());
+            for(size_t i = 0; i < addedRows; ++i) {
+                e.insert(writers[pos].getValue(i));
+            }
+            return e;
+            
         }
 
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
@@ -669,8 +666,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                 sortedField, provenanceType, nProvenanceColumns));
                 }
             }
-        }
-
+        }        
+    
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
                 &intermediateResultsNodes,
                 size_t nOffsetColumns) {

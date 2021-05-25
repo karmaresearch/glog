@@ -670,6 +670,15 @@ std::shared_ptr<Column> ColumnWriter::getColumn() {
     return cachedColumn;
 }
 
+Term_t ColumnWriter::getValue(size_t idx) const {
+    assert(!cached);
+    if (blocks.size() > 0 || idx >= values.size()) {
+        throw 10; //not supported yet
+    } else {
+        return values[idx];
+    }
+}
+
 std::shared_ptr<Column> ColumnWriter::getColumn(std::vector<Term_t> &values, bool isSorted) {
 
 #ifdef USE_COMPRESSED_COLUMNS
