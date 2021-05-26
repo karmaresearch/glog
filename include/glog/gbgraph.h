@@ -258,14 +258,6 @@ class GBGraph {
             return n.getQueryBody(*this);
         }
 
-        /*void retainAndAddFromTmpNodes_add_unary(
-                bool storeNode,
-                std::vector<Term_t> &t1,
-                std::vector<std::pair<Term_t, Term_t>> &t2,
-                PredId_t predId,
-                const GBGraph_TmpPredNode &node,
-                size_t beginSegment);*/
-    
         std::shared_ptr<const TGSegment> retainAndAddFromTmpNodes_rewriteNode(
                 std::shared_ptr<const TGSegment> toBeRewrittenNode,
                 const GBGraph_TmpPredNode &node);
@@ -395,6 +387,10 @@ class GBGraph {
                 size_t ruleIdx,
                 size_t step);
 
+        void addNode(PredId_t predId,
+                size_t step,
+                std::vector<std::vector<std::string>> &facts);
+
         void replaceEqualTerms(
                 size_t ruleIdx,
                 size_t step,
@@ -439,10 +435,10 @@ class GBGraph {
                 bool &retainFree);
 
         /*static void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
-                std::vector<std::shared_ptr<Column>> &derivationNodes);
+          std::vector<std::shared_ptr<Column>> &derivationNodes);
 
-        static void shuffleDerivationNodes(std::vector<size_t> &idsToFilter,
-                std::vector<std::shared_ptr<Column>> &derivationNodes);*/
+          static void shuffleDerivationNodes(std::vector<size_t> &idsToFilter,
+          std::vector<std::shared_ptr<Column>> &derivationNodes);*/
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

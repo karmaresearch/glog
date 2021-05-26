@@ -26,6 +26,7 @@
 #include <Python.h>
 
 #include <glog/gbchase.h>
+#include <glog/gbgraph.h>
 
 #include <vlog/edb.h>
 #include <vlog/concepts.h>
@@ -42,7 +43,6 @@ typedef struct {
     PyObject_HEAD
         glog_EDBLayer *e;
     std::shared_ptr<Program> program;
-    std::pair<PredId_t, PredId_t> ioPredIDs;
 } glog_Program;
 
 typedef struct {
@@ -55,5 +55,11 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
 } glog_Wizard;
+
+typedef struct {
+    PyObject_HEAD
+        GBGraph *g;
+        glog_Reasoner *reasoner;
+} glog_TG;
 
 #endif

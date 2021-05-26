@@ -47,6 +47,10 @@ EDBLayer &GBChase::getEDBLayer() {
     return layer;
 }
 
+GBGraph &GBChase::getGBGraph() {
+    return g;
+}
+
 std::shared_ptr<const Segment> fromTGSeg2Seg(std::shared_ptr<const TGSegment> seg) {
     auto nrows = seg->getNRows();
     auto ncols = seg->getNColumns();
@@ -690,18 +694,18 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #ifdef DEBUG
                             //Check derivation nodes
                             /*for(auto i = 0; i < derivationNodes.size(); ++i) {
-                                auto c = derivationNodes[i];
-                                std::unordered_set<Term_t> acceptedvalues;
-                                for(auto nid : bodyNodes[i]) {
-                                    acceptedvalues.insert(nid);
-                                }
-                                for(auto j = 0; j < c->size(); ++j) {
-                                    auto v = c->getValue(j);
-                                    if (!acceptedvalues.count(v)) {
-                                        throw 10;
-                                    }
-                                }
-                            }*/
+                              auto c = derivationNodes[i];
+                              std::unordered_set<Term_t> acceptedvalues;
+                              for(auto nid : bodyNodes[i]) {
+                              acceptedvalues.insert(nid);
+                              }
+                              for(auto j = 0; j < c->size(); ++j) {
+                              auto v = c->getValue(j);
+                              if (!acceptedvalues.count(v)) {
+                              throw 10;
+                              }
+                              }
+                              }*/
 #endif
 
                             g.addNodesProv(currentPredicate, node.ruleIdx,

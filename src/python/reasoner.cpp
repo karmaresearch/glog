@@ -33,10 +33,11 @@ static PyObject * reasoner_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds);
 static void reasoner_dealloc(glog_Reasoner* self);
 static PyObject *reasoner_create_model(PyObject *self, PyObject *args);
-
+static PyObject *reasoner_get_TG(PyObject *self, PyObject *args);
 
 static PyMethodDef Reasoner_methods[] = {
     {"create_model", reasoner_create_model, METH_VARARGS, "Create a model." },
+    {"get_TG", reasoner_get_TG, METH_VARARGS, "Get the TG associated with the model." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -193,4 +194,12 @@ static PyObject *reasoner_create_model(PyObject *self, PyObject *args) {
     LOG(INFOL) << "Triggers = " << s->sn->getNTriggers();
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+extern PyTypeObject glog_TGType;
+static PyObject *reasoner_get_TG(PyObject *self, PyObject *args) {
+    auto arglist = Py_BuildValue("(O)", (PyObject*)self);
+    PyObject *obj = PyObject_CallObject((PyObject *) &glog_TGType, arglist);
+    Py_DECREF(arglist);
+    return obj;
 }

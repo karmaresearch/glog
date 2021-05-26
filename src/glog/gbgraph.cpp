@@ -103,6 +103,46 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
     return std::unique_ptr<Literal>(new Literal(newRule.getFirstHead()));
 }
 
+void GBGraph::addNode(PredId_t predId,
+        size_t step,
+        std::vector<std::vector<std::string>> &facts) {
+    //Convert the facts
+    size_t nExtraColumns = 0;
+    if (shouldTrackProvenance()) {
+        nExtraColumns++;
+        if (provenanceType == FULLPROV)
+            nExtraColumns++;
+    }
+    size_t cardPred = program->getPredicate(predId).getCardinality();
+    size_t rowSize = cardPred + nExtraColumns;
+    auto ins = GBSegmentInserter::getInserter(rowSize, nExtraColumns, false);
+    std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
+            new Term_t[rowSize]);
+    for(size_t i = 0; i < nExtraColumns; ++i)
+        row[cardPred + i] = ~0ul;
+    for(auto &fact : facts) {
+        assert(fact.size() == cardPred);
+        for(size_t j = 0; j < fact.size(); ++j) {
+            Term_t id;
+            layer->getOrAddDictNumber(fact[j].c_str(), fact[j].size(), id);
+            row[j] = id;
+        }
+        ins->add(row.get());
+    }
+    auto nodeId = getNNodes();
+    auto data = ins->getSegment(nodeId, false, 0, getSegProvenanceType(false),
+            nExtraColumns);
+    auto sortedData = data->sort();
+
+    //Add the node
+    if (!shouldTrackProvenance()) {
+        addNodeNoProv(predId, ~0ul, step, sortedData);
+    } else {
+        std::vector<size_t> incomingEdges;
+        addNodeProv(predId, ~0ul, step, sortedData, incomingEdges);
+    }
+}
+
 void GBGraph::addNodeNoProv(PredId_t predId,
         size_t ruleIdx,
         size_t step,
@@ -1566,7 +1606,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         //counter
         throw 10;
     };
-    
+
     const size_t n_columns = nodes[0].data->getNColumns();
     size_t n_offsetcolumns = 1;
     for (auto &node : nodes) {
@@ -1584,7 +1624,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         auto itr = d->iterator();
         const auto max_offset_node = node.data->getNOffsetColumns();
         assert(max_offset_node <= n_offsetcolumns);
-        assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);        
+        assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);
         while (itr->hasNext()) {
             itr->next();
             for(int i = 0; i < n_columns; ++i) {
@@ -1606,7 +1646,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         }
         counter += (size_t)1 << 40;
     }
-    
+
     auto seg = inserter->getSegment(~0ul, false, 0, getSegProvenanceType(true), n_offsetcolumns);
     auto sortedSeg = seg->sort();
     auto uniqueSeg = sortedSeg->unique();
@@ -1625,7 +1665,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
     size_t endSegment = (size_t) 1 << 40;
     size_t counterSlice = 0;
     size_t startSlice = 0;
-    
+
     while (itr->hasNext()) {
         itr->next();
         auto counter = itr->getNodeId();
@@ -1635,9 +1675,9 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
                 auto slicedNode = toBeAddedSeg->slice(startSlice, counterSlice);
                 auto rewrittenNode = retainAndAddFromTmpNodes_rewriteNode(slicedNode, *node);
                 addNodesProv(predId, node->ruleIdx, node->step, rewrittenNode, node->nodes);
-             }
+            }
             startSlice = counterSlice;
-            
+
             //Advance to a node that has a limit
             while (counter >= endSegment) {
                 if (node >= nodes.end() - 1) {
@@ -1657,14 +1697,14 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
-                                        std::shared_ptr<const TGSegment> toBeRewrittenNode,
-                                        const GBGraph_TmpPredNode &node) {
+        std::shared_ptr<const TGSegment> toBeRewrittenNode,
+        const GBGraph_TmpPredNode &node) {
     auto n_columns = toBeRewrittenNode->getNColumns();
     auto n_offsetcolumns = node.data->getNOffsetColumns(); //It's important that we pick the number of offset columns from the old node
     auto inserter = GBSegmentInserter::getInserter(n_columns + n_offsetcolumns, n_offsetcolumns, true);
     auto row = std::unique_ptr<Term_t[]>(new Term_t[n_columns + n_offsetcolumns]);
     auto itr = toBeRewrittenNode->iterator();
-    
+
     size_t currentNode = ~0ul;
     bool firstRow = true;
     bool constantNode = true;
@@ -1697,33 +1737,33 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
 }
 
 /*void GBGraph::retainAndAddFromTmpNodes_add_unary(
-        bool storeNode,
-        std::vector<Term_t> &t1,
-        std::vector<std::pair<Term_t, Term_t>> &t2,
-        PredId_t predId,
-        const GBGraph_TmpPredNode &node,
-        size_t beginSegment) {
-    if (!storeNode && !t1.empty()) {
-        auto segToStore = std::shared_ptr<TGSegment>(
-                new UnaryWithConstProvTGSegment(t1, node.data->getNodeId(),
-                    true, 0));
-        addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
-        t1 = std::vector<Term_t>();
-    }
-    if (storeNode && !t2.empty()) {
-        //Rewrite the counters so that they will be equivalent
-        //to the ones in the original
-        for(auto &t : t2) {
-            assert(t.second >= beginSegment);
-            t.second = t.second - beginSegment;
-            if (t.second >= ((size_t)1 << 40))
-                throw 10;
-        }
-        auto segToStore = std::shared_ptr<TGSegment>(
-                new UnaryWithProvTGSegment(t2, node.data->getNodeId(), true, 0));
-        addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
-        t2 = std::vector<std::pair<Term_t, Term_t>>();
-    }
+  bool storeNode,
+  std::vector<Term_t> &t1,
+  std::vector<std::pair<Term_t, Term_t>> &t2,
+  PredId_t predId,
+  const GBGraph_TmpPredNode &node,
+  size_t beginSegment) {
+  if (!storeNode && !t1.empty()) {
+  auto segToStore = std::shared_ptr<TGSegment>(
+  new UnaryWithConstProvTGSegment(t1, node.data->getNodeId(),
+  true, 0));
+  addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
+  t1 = std::vector<Term_t>();
+  }
+  if (storeNode && !t2.empty()) {
+//Rewrite the counters so that they will be equivalent
+//to the ones in the original
+for(auto &t : t2) {
+assert(t.second >= beginSegment);
+t.second = t.second - beginSegment;
+if (t.second >= ((size_t)1 << 40))
+throw 10;
+}
+auto segToStore = std::shared_ptr<TGSegment>(
+new UnaryWithProvTGSegment(t2, node.data->getNodeId(), true, 0));
+addNodesProv(predId, node.ruleIdx, node.step, segToStore, node.nodes);
+t2 = std::vector<std::pair<Term_t, Term_t>>();
+}
 }*/
 
 uint64_t GBGraph::mergeNodesWithPredicateIntoOne(PredId_t predId) {

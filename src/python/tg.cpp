@@ -25,29 +25,24 @@
 #include <vector>
 
 #include <python/glog.h>
-#include <kognac/utils.h>
 
 /*** Methods ***/
-static PyObject * program_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-static int program_init(glog_Program *self, PyObject *args, PyObject *kwds);
-static void program_dealloc(glog_Program* self);
-static PyObject* program_load_from_file(PyObject* self, PyObject *args);
-static PyObject* program_get_n_rules(PyObject* self, PyObject *args);
-static PyObject* program_get_rule(PyObject* self, PyObject *args);
+static PyObject * tg_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static int tg_init(glog_TG *self, PyObject *args, PyObject *kwds);
+static void tg_dealloc(glog_TG* self);
+static PyObject* tg_add_node(PyObject* self, PyObject *args);
 
-static PyMethodDef Program_methods[] = {
-    {"load_from_file", program_load_from_file, METH_VARARGS, "Load rules from file." },
-    {"get_n_rules", program_get_n_rules, METH_VARARGS, "Return n rules." },
-    {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
+static PyMethodDef TG_methods[] = {
+    {"add_node", tg_add_node, METH_VARARGS, "Add a node with some provided facts." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-PyTypeObject glog_ProgramType = {
+PyTypeObject glog_TGType = {
     PyVarObject_HEAD_INIT(NULL, 0)
-        "glog.Program",             /* tp_name */
-    sizeof(glog_Program),             /* tp_basicsize */
+        "glog.TG",             /* tp_name */
+    sizeof(glog_TG),             /* tp_basicsize */
     0,                         /* tp_itemsize */
-    (destructor) program_dealloc, /* tp_dealloc */
+    (destructor) tg_dealloc, /* tp_dealloc */
     0,                         /* tp_print */
     0,                         /* tp_getattr */
     0,                         /* tp_setattr */
@@ -64,14 +59,14 @@ PyTypeObject glog_ProgramType = {
     0,                         /* tp_as_buffer */
     Py_TPFLAGS_DEFAULT |
         Py_TPFLAGS_BASETYPE,   /* tp_flags */
-    "Program",           /* tp_doc */
+    "TG",           /* tp_doc */
     0,                         /* tp_traverse */
     0,                         /* tp_clear */
     0,                         /* tp_richcompare */
     0,                         /* tp_weaklistoffset */
     0,                         /* tp_iter */
     0,                         /* tp_iternext */
-    Program_methods,             /* tp_methods */
+    TG_methods,             /* tp_methods */
     0,             /* tp_members */
     0,                         /* tp_getset */
     0,                         /* tp_base */
@@ -79,64 +74,68 @@ PyTypeObject glog_ProgramType = {
     0,                         /* tp_descr_get */
     0,                         /* tp_descr_set */
     0,                         /* tp_dictoffset */
-    (initproc)program_init,      /* tp_init */
+    (initproc)tg_init,      /* tp_init */
     0,                         /* tp_alloc */
-    program_new,                 /* tp_new */
+    tg_new,                 /* tp_new */
 };
 
-static PyObject * program_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
-    glog_Program *self;
-    self = (glog_Program*)type->tp_alloc(type, 0);
-    self->e = NULL;
-    self->program = NULL;
+static PyObject * tg_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+    glog_TG *self;
+    self = (glog_TG*)type->tp_alloc(type, 0);
+    self->reasoner = NULL;
     return (PyObject *)self;
 }
 
-static int program_init(glog_Program *self, PyObject *args, PyObject *kwds) {
+static int tg_init(glog_TG *self, PyObject *args, PyObject *kwds) {
     PyObject *arg = NULL;
     if (!PyArg_ParseTuple(args, "O", &arg))
         return -1;
     if (arg != NULL) {
-        if (strcmp(arg->ob_type->tp_name, "glog.EDBLayer") != 0)
+        if (strcmp(arg->ob_type->tp_name, "glog.Reasoner") != 0)
             return -1;
         Py_INCREF(arg);
-        self->e = (glog_EDBLayer*)arg;
-        self->program = std::shared_ptr<Program>(new Program(self->e->e));
+        self->reasoner = (glog_Reasoner*)arg;
+        auto &g = self->reasoner->sn->getGBGraph();
+        self->g = &g;
     }
     return 0;
 }
 
-static void program_dealloc(glog_Program* self) {
-    if (self->program) {
-        Py_DECREF(self->e);
+static void tg_dealloc(glog_TG* self) {
+    if (self->reasoner != NULL) {
+        Py_DECREF(self->reasoner);
     }
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject* program_load_from_file(PyObject *self, PyObject *args) {
-    const char *path = NULL;
-    if (PyArg_ParseTuple(args, "|s", &path)) {
-        ((glog_Program*)self)->program->readFromFile(std::string(path));
+static PyObject* tg_add_node(PyObject* self, PyObject *args) {
+    PredId_t predid;
+    size_t step;
+    PyObject *facts;
+    std::vector<std::vector<std::string>> parsedFacts;
+    if (PyArg_ParseTuple(args, "ILO", &predid, &step, &facts)) {
+        PyObject *iter = PyObject_GetIter(facts);
+        while (true) {
+            PyObject *next = PyIter_Next(iter);
+            if (!next) {
+                break;
+            }
+            if (PyTuple_Check(next)) {
+                parsedFacts.emplace_back();
+                auto card = PyTuple_Size(next);
+                for(size_t i = 0; i < card; ++i) {
+                    auto el = PyTuple_GetItem(next, i);
+                    const char *s = PyBytes_AsString(el);
+                    parsedFacts.back().push_back(std::string(s));
+                }
+            }
+            Py_DECREF(next);
+        }
+    }
+    if (!parsedFacts.empty()) {
+        glog_TG *s = (glog_TG*)self;
+        s->g->addNode(predid, step, parsedFacts);
     }
     Py_INCREF(Py_None);
     return Py_None;
 }
-
-static PyObject* program_get_n_rules(PyObject* self, PyObject *args) {
-    auto nrules = ((glog_Program*)self)->program->getNRules();
-    return PyLong_FromLong(nrules);
-}
-
-static PyObject* program_get_rule(PyObject* self, PyObject *args) {
-    size_t ruleIdx = 0;
-    if (PyArg_ParseTuple(args, "i", &ruleIdx)) {
-        //Get the rule
-        auto rule =  ((glog_Program*)self)->program->getRule(ruleIdx);
-        std::string sRule = rule.tostring(((glog_Program*)self)->program.get(),
-               ((glog_Program*)self)->e->e);
-        return PyUnicode_FromStringAndSize(sRule.c_str(), sRule.size());
-    }
-    Py_INCREF(Py_None);
-    return Py_None;
-}
-

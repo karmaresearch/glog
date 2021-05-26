@@ -123,8 +123,10 @@ static PyObject *wizard_rewrite_program(PyObject *self, PyObject *args) {
             Py_DECREF(arglist);
             glog_Program *newP = (glog_Program*)obj;
             newP->program = newProgram;
-            newP->ioPredIDs = ioPredIDs;
-            return obj;
+
+            auto out = PyTuple_Pack(3, obj, PyLong_FromLong(ioPredIDs.first),
+                    PyLong_FromLong(ioPredIDs.second));
+            return out;
         }
     }
     Py_INCREF(Py_None);

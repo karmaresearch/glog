@@ -20,7 +20,7 @@ typedef google::dense_hash_set<Term_t> GBSegmentInserterEntities;
 class GBSegmentInserter {
     private:
         std::vector<BuiltinFunction> fns;
-    
+
         bool shouldRemoveDuplicates;
         size_t checkDuplicatesAfter;
         bool useDuplicateMap;
@@ -38,8 +38,8 @@ class GBSegmentInserter {
             checkDuplicatesAfter(THRESHOLD_CHECK_DUPLICATES),
             useDuplicateMap(false),
             processedRecords(0) {
-    }
-    
+            }
+
         static std::unique_ptr<GBSegmentInserter> getInserter(size_t card,
                 size_t nodeColumns, //n. columns which contain nodes
                 bool delDupl);
@@ -89,7 +89,7 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
         const size_t card;
         google::dense_hash_set<V, H> novelTuples;
         K tuples;
-    
+
     private:
         size_t removeDuplicates() {
             size_t oldSize = tuples.size();
@@ -103,9 +103,9 @@ class GBSegmentInserterImpl : public GBSegmentInserter {
 
     public:
         GBSegmentInserterImpl(size_t card, bool shouldRemoveDuplicates) :
-                GBSegmentInserter(shouldRemoveDuplicates),
-                card(card) {
-        }
+            GBSegmentInserter(shouldRemoveDuplicates),
+            card(card) {
+            }
 
         bool isEmpty() const {
             return tuples.empty();
@@ -430,14 +430,14 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         const size_t cardCheckDuplicates;
         size_t addedRows;
         bool isFinal;
-        
+
         HashSet s; //For general case
         google::dense_hash_set<std::pair<Term_t,Term_t>, std::hash<std::pair<Term_t,Term_t>>> s_binary;
-    
+
         bool isInMap(Term_t *row);
         void populateMap();
         size_t removeDuplicates();
-    
+
     protected:
         void addRow(Term_t *row) {
             for(size_t i = 0; i < card; ++i) {
@@ -463,7 +463,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         size_t getNRows() const {
             return addedRows;
         }
-    
+
         GBSegmentInserterEntities getEntitiesAddedSoFar(int pos) {
             GBSegmentInserterEntities e;
             e.set_empty_key(~0ul);
@@ -473,7 +473,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 e.insert(writers[pos].getValue(i));
             }
             return e;
-            
+
         }
 
         std::shared_ptr<const TGSegment> getSegment(size_t nodeId,
@@ -666,8 +666,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                 sortedField, provenanceType, nProvenanceColumns));
                 }
             }
-        }        
-    
+        }
+
         void postprocessJoin(std::vector<std::shared_ptr<Column>>
                 &intermediateResultsNodes,
                 size_t nOffsetColumns) {

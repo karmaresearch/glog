@@ -30,6 +30,7 @@ extern PyTypeObject glog_EDBLayerType;
 extern PyTypeObject glog_ProgramType;
 extern PyTypeObject glog_ReasonerType;
 extern PyTypeObject glog_WizardType;
+extern PyTypeObject glog_TGType;
 
 PyMODINIT_FUNC PyInit_glog(void) {
     PyObject *m;
@@ -45,16 +46,20 @@ PyMODINIT_FUNC PyInit_glog(void) {
         return NULL;
     if (PyType_Ready(&glog_WizardType) < 0)
         return NULL;
+    if (PyType_Ready(&glog_TGType) < 0)
+        return NULL;
 
 
     Py_INCREF(&glog_EDBLayerType);
     Py_INCREF(&glog_ProgramType);
     Py_INCREF(&glog_ReasonerType);
     Py_INCREF(&glog_WizardType);
+    Py_INCREF(&glog_TGType);
     PyModule_AddObject(m, "EDBLayer", (PyObject *)&glog_EDBLayerType);
     PyModule_AddObject(m, "Program", (PyObject *)&glog_ProgramType);
     PyModule_AddObject(m, "Reasoner", (PyObject *)&glog_ReasonerType);
     PyModule_AddObject(m, "Wizard", (PyObject *)&glog_WizardType);
+    PyModule_AddObject(m, "TG", (PyObject *)&glog_TGType);
     PyModule_AddFunctions(m, globalFunctions);
 
     //Default logging level to warn

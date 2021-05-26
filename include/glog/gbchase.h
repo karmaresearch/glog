@@ -110,6 +110,8 @@ class GBChase : public Chase {
 
         FCTable *getTable(const PredId_t predid);
 
+        GBGraph &getGBGraph();
+
         size_t getCurrentIteration();
 
         size_t getNDerivedFacts();
