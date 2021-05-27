@@ -393,6 +393,15 @@ class BinaryWithConstNodeOffFullProvTGSegment : public BinaryTGSegmentImpl<
                 }
             }
         }
+
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx).first);
+            out.push_back(tuples->at(rowIdx).second);
+            out.push_back(nodeId);
+            out.push_back(rowIdx);
+            return out;
+        }
 };
 
 class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
@@ -409,7 +418,7 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                 const BinWithOff &b) {
             return a.off < b.off;
         }
-    
+
         static bool cmp_hits(const BinWithOff &a, const BinWithOff &b) {
             return a.first < b.first || (a.first == b.first && a.second < b.second);
         }
@@ -443,7 +452,7 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                 throw 10;
             }
         }
-    
+
         size_t countHits(const std::vector<
                 std::pair<Term_t,Term_t>> &terms,
                 int column1, int column2) const {
@@ -451,7 +460,7 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
             for(auto &t : terms) {
                 if (std::binary_search(tuples->begin(),
                             tuples->end(), BinWithOff(t.first, t.second),
-                                       BinaryWithConstNodeFullProvTGSegment::cmp_hits))
+                            BinaryWithConstNodeFullProvTGSegment::cmp_hits))
                     c++;
             }
             return c;
@@ -606,6 +615,15 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                         BinaryWithOffTGSegmentItr, SEG_FULLPROV>::getNodeId(),
                         false, 0));
         }
+
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx).first);
+            out.push_back(tuples->at(rowIdx).second);
+            out.push_back(nodeId);
+            out.push_back(tuples->at(rowIdx).off);
+            return out;
+        }
 };
 
 class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
@@ -745,6 +763,15 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
                         BinWithFullProv,
                         BinaryWithFullProvTGSegmentItr,
                         SEG_FULLPROV>::getNodeId(), false, 0));
+        }
+
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx).first);
+            out.push_back(tuples->at(rowIdx).second);
+            out.push_back(tuples->at(rowIdx).node);
+            out.push_back(tuples->at(rowIdx).prov);
+            return out;
         }
 };
 

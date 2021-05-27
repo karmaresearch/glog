@@ -824,9 +824,7 @@ class EDBColumn final : public Column {
             return false;
         }
 
-        Term_t getValue(const size_t pos) const {
-            throw 10;
-        }
+        Term_t getValue(const size_t pos) const;
 
         EDBLayer &getEDBLayer() {
             return layer;

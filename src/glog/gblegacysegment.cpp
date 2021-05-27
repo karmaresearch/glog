@@ -13,6 +13,14 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator(
             new TGSegmentLegacyItr(columns, provenanceType, nprovcolumns));
 }
 
+std::vector<Term_t> TGSegmentLegacy::getRow(size_t rowIdx) const {
+    std::vector<Term_t> out;
+    for(auto c : columns) {
+        out.push_back(c->getValue(rowIdx));
+    }
+    return out;
+}
+
 bool TGSegmentLegacy::isProvenanceAutomatic() const {
     assert(shouldTrackProvenance());
     assert(nprovcolumns > 0);
@@ -558,25 +566,25 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::sortByProv() const {
     assert(shouldTrackProvenance() == true);
     assert(columns.size() > 1);
     //if (!isProvenanceAutomatic()) {
-        std::vector<uint8_t> sortedFields;
-        //Node ID
-        sortedFields.push_back(columns.size() - nprovcolumns);
-        //Other fields
-        for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
-            if (i != columns.size() - nprovcolumns)
-                sortedFields.push_back(i);
-        }
-        auto nfields = columns.size();
-        auto oldcols(columns);
-        Segment s(nfields, oldcols);
-        auto news = s.sortBy(&sortedFields);
-        std::vector<std::shared_ptr<Column>> newcols;
-        for(int i = 0; i < news->getNColumns(); ++i) {
-            newcols.push_back(news->getColumn(i));
-        }
-        return std::shared_ptr<TGSegment>(
-                new TGSegmentLegacy(newcols, nrows, true, 0,
-                    provenanceType, nprovcolumns));
+    std::vector<uint8_t> sortedFields;
+    //Node ID
+    sortedFields.push_back(columns.size() - nprovcolumns);
+    //Other fields
+    for(int i = 0; i < columns.size() - nprovcolumns; ++i) {
+        if (i != columns.size() - nprovcolumns)
+            sortedFields.push_back(i);
+    }
+    auto nfields = columns.size();
+    auto oldcols(columns);
+    Segment s(nfields, oldcols);
+    auto news = s.sortBy(&sortedFields);
+    std::vector<std::shared_ptr<Column>> newcols;
+    for(int i = 0; i < news->getNColumns(); ++i) {
+        newcols.push_back(news->getColumn(i));
+    }
+    return std::shared_ptr<TGSegment>(
+            new TGSegmentLegacy(newcols, nrows, true, 0,
+                provenanceType, nprovcolumns));
     //} else {
     //    return std::shared_ptr<TGSegment>(
     //            new TGSegmentLegacy(columns, nrows, f_isSorted,
@@ -646,7 +654,7 @@ size_t TGSegmentLegacy::countHits(const std::vector<std::pair<
             auto v1 = itr1->next();
             auto v2 = itr2->next();
             if (v1 < terms[countTerms].first ||
-                (v1 == terms[countTerms].first && v2 < terms[countTerms].second)) {
+                    (v1 == terms[countTerms].first && v2 < terms[countTerms].second)) {
                 //Go to the next one
             } else {
                 while (countTerms < terms.size()) {

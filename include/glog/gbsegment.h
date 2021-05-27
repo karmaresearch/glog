@@ -72,7 +72,7 @@ class TGSegment {
             LOG(ERRORL) << "Not implemented";
             throw 10;
         }
-    
+
         virtual std::shared_ptr<TGSegment> slice(
                 const size_t start,
                 const size_t end) const {
@@ -185,6 +185,10 @@ class TGSegment {
             return true;
         }
 
+        virtual std::vector<Term_t> getRow(size_t rowIdx) const {
+            throw 10;
+        }
+
         virtual ~TGSegment() {}
 };
 
@@ -287,7 +291,7 @@ class TGSegmentImpl : public TGSegment {
                             TGSegmentImpl<S,K,I,CP>::sortedField));
             }
         }
-    
+
         virtual std::shared_ptr<TGSegment> slice(
                 const size_t start,
                 const size_t end) const {

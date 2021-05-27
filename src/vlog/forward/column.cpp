@@ -402,6 +402,26 @@ std::unique_ptr<ColumnReader> EDBColumn::getReader() const {
                 presortPos, layer, unq));
 }
 
+Term_t EDBColumn::getValue(const size_t pos) const {
+    auto reader = getReader();
+    auto v = reader->asVector();
+    return v[pos];
+    /*
+    //This method works only with Trident, I think
+    auto *array = getUnderlyingArray();
+    auto pairs = getSizeElemUnderlyingArray();
+    if (array == NULL) {
+        throw 10;
+    }
+    const int totalsize = pairs.first + pairs.second.first + pairs.second.second;
+    if (pairs.second.first != 0) {
+        throw 10;
+    } else {
+        auto start = array + totalsize * pos;
+        return Utils::decode_longFixedBytes(start, pairs.first);
+    }*/
+}
+
 const char *EDBColumn::getUnderlyingArray() const {
     EDBColumnReader reader(l, posColumn, presortPos, layer, unq);
     return reader.getUnderlyingArray();

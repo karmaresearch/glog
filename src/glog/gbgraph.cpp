@@ -1830,6 +1830,10 @@ size_t GBGraph::getNEdges() const {
     return out;
 }
 
+std::shared_ptr<GBQuerier> GBGraph::getQuerier() const {
+    return std::shared_ptr<GBQuerier>(new GBQuerier(*this, *program, *layer));
+}
+
 SegProvenanceType GBGraph::getSegProvenanceType(bool multipleNodes) const {
     if (provenanceType == ProvenanceType::NOPROV) {
         return SegProvenanceType::SEG_NOPROV;

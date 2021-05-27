@@ -101,10 +101,10 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
                 out.push_back(p);
             }
         }
-    
+
         void appendTo(uint8_t colPos,
                 std::vector<UnWithFullProv> &out) const {
-            assert(colPos == 0);            
+            assert(colPos == 0);
             for(const auto &value : *tuples.get()) {
                 UnWithFullProv p;
                 p.first = value;
@@ -244,6 +244,14 @@ class UnaryWithConstNodeOffFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWi
             return 2;
         }
 
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx));
+            out.push_back(nodeId);
+            out.push_back(rowIdx);
+            return out;
+        }
+
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
             throw 10;
@@ -313,6 +321,14 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             }
         }
 
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx).first);
+            out.push_back(nodeId);
+            out.push_back(tuples->at(rowIdx).second);
+            return out;
+        }
+
         std::shared_ptr<const TGSegment> unique() const {
             auto t = std::vector<std::pair<Term_t,Term_t>>(
                     *TGSegmentImpl<UnaryWithConstNodeFullProvTGSegment,
@@ -345,7 +361,7 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             }
             return c;
         }
-    
+
         std::shared_ptr<const TGSegment> sortByProv() const {
             //Return itself
             auto t = std::vector<std::pair<Term_t,Term_t>>(
@@ -357,7 +373,7 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
                         TGSegmentImpl<UnaryWithConstNodeFullProvTGSegment,
                         std::pair<Term_t, Term_t>,
                         UnaryWithConstNodeFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(),
-                                                            f_isSorted, sortedField));
+                        f_isSorted, sortedField));
         }
 };
 
@@ -454,6 +470,14 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
                         nodeId,
                         f_isSorted,
                         sortedField));
+        }
+
+        std::vector<Term_t> getRow(size_t rowIdx) const {
+            std::vector<Term_t> out;
+            out.push_back(tuples->at(rowIdx).first);
+            out.push_back(tuples->at(rowIdx).node);
+            out.push_back(tuples->at(rowIdx).prov);
+            return out;
         }
 };
 

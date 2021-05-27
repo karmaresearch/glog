@@ -136,10 +136,10 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
     std::string tChase = std::string(typeChase);
 
     GBChaseAlgorithm tc = GBChaseAlgorithm::GBCHASE;
+    auto tp = std::string(typeProv);
     if (tChase == "tgchase_static") {
         tc = GBChaseAlgorithm::TGCHASE_STATIC;
     } else if (tChase == "tgchase") {
-        auto tp = std::string(typeProv);
         if (tp == "NOPROV") {
             tc = GBChaseAlgorithm::GBCHASE;
         } else if (tp == "NODEPROV") {
@@ -150,6 +150,11 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
             return -1;
         }
     }
+
+    if (tp == "FULLPROV") {
+        rewriteCliques = false;
+    }
+
 
     LOG(INFOL) << "Reasoner created with parameters "
         "queryCont=" << queryCont << " "

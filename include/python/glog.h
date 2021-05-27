@@ -27,6 +27,7 @@
 
 #include <glog/gbchase.h>
 #include <glog/gbgraph.h>
+#include <glog/gbquerier.h>
 
 #include <vlog/edb.h>
 #include <vlog/concepts.h>
@@ -61,5 +62,11 @@ typedef struct {
         GBGraph *g;
         glog_Reasoner *reasoner;
 } glog_TG;
+
+typedef struct {
+    PyObject_HEAD
+        glog_TG *g;
+        std::shared_ptr<GBQuerier> q;
+} glog_Querier;
 
 #endif

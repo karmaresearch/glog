@@ -8,6 +8,7 @@
 
 #include <map>
 
+class GBQuerier;
 class GBGraph {
     public:
         typedef enum ProvenanceType {
@@ -325,6 +326,10 @@ class GBGraph {
             return getNode(nodeId).ruleIdx;
         }
 
+        const std::vector<size_t> &getNodeIncomingEdges(size_t nodeId) const {
+            return getNode(nodeId).incomingEdges;
+        }
+
         void setRulesProgramLayer(Rule *allRules,
                 Program *program,
                 EDBLayer *layer) {
@@ -434,11 +439,7 @@ class GBGraph {
                 bool edbCheck,
                 bool &retainFree);
 
-        /*static void filterOutDerivationNodes(std::vector<size_t> &idsToFilter,
-          std::vector<std::shared_ptr<Column>> &derivationNodes);
-
-          static void shuffleDerivationNodes(std::vector<size_t> &idsToFilter,
-          std::vector<std::shared_ptr<Column>> &derivationNodes);*/
+        std::shared_ptr<GBQuerier> getQuerier() const;
 
         void printStats() {
             LOG(INFOL) << "Time retain (ms): " << durationRetain.count();

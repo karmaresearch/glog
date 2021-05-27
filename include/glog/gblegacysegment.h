@@ -141,6 +141,8 @@ class TGSegmentLegacy : public TGSegment {
                 std::pair<Term_t,Term_t>> &terms,
                 int column1, int column2) const;
 
+        std::vector<Term_t> getRow(size_t rowIdx) const;
+
         ~TGSegmentLegacy();
 };
 

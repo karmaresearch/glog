@@ -31,8 +31,12 @@ static PyObject * tg_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int tg_init(glog_TG *self, PyObject *args, PyObject *kwds);
 static void tg_dealloc(glog_TG* self);
 static PyObject* tg_add_node(PyObject* self, PyObject *args);
+static PyObject* tg_get_n_nodes(PyObject* self, PyObject *args);
+static PyObject* tg_get_node_size(PyObject* self, PyObject *args);
 
 static PyMethodDef TG_methods[] = {
+    {"get_n_nodes", tg_get_n_nodes, METH_VARARGS, "Get n. nodes." },
+    {"get_node_size", tg_get_node_size, METH_VARARGS, "Get node's size." },
     {"add_node", tg_add_node, METH_VARARGS, "Add a node with some provided facts." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -83,6 +87,7 @@ static PyObject * tg_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     glog_TG *self;
     self = (glog_TG*)type->tp_alloc(type, 0);
     self->reasoner = NULL;
+    self->g = NULL;
     return (PyObject *)self;
 }
 
@@ -138,4 +143,19 @@ static PyObject* tg_add_node(PyObject* self, PyObject *args) {
     }
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+static PyObject* tg_get_n_nodes(PyObject* self, PyObject *args) {
+    glog_TG *s = (glog_TG*)self;
+    return PyLong_FromLong(s->g->getNNodes());
+}
+
+static PyObject* tg_get_node_size(PyObject* self, PyObject *args) {
+    glog_TG *s = (glog_TG*)self;
+    size_t nodeId;
+    if (!PyArg_ParseTuple(args, "l", &nodeId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    return PyLong_FromLong(s->g->getNodeSize(nodeId));
 }

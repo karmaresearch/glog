@@ -1,5 +1,6 @@
 #include <glog/gbchase.h>
 #include <glog/gbsegmentcache.h>
+#include <glog/gbquerier.h>
 
 #include <unordered_set>
 
