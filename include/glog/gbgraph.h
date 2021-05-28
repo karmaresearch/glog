@@ -9,6 +9,7 @@
 #include <map>
 
 class GBQuerier;
+class GBSegmentInserter;
 class GBGraph {
     public:
         typedef enum ProvenanceType {
@@ -148,7 +149,15 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> oldSeg,
                 int posOld,
                 bool stopAfterFirst);
-
+        
+        void isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
+                std::unique_ptr<GBSegmentInserter> &out,
+                std::shared_ptr<const TGSegment> newSeg,
+                int posNew,
+                std::shared_ptr<const TGSegment> oldSeg,
+                int posOld,
+                bool stopAfterFirst);
+    
         void isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
                 std::vector<Term_t> &out,
                 std::shared_ptr<const TGSegment> newSeg,
@@ -190,7 +199,7 @@ class GBGraph {
                 int posNew2,
                 std::shared_ptr<const TGSegment> oldSeg,
                 int posOld1,
-                int posOld2);
+                int posOld2);    
 
         void isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(
                 std::vector<std::pair<Term_t,Term_t>> &out,

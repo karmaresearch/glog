@@ -49,8 +49,10 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId) {
             auto fl = Literal(l.getPredicate(), tuple);
             auto sfl = fl.toprettystring(&p, &this->l);
             out.put("rule", "none");
+            out.put("ruleIdx", "none");
             out.put("fact", sfl);
             out.put("nodeId", "none");
+            out.put("step", "none");
             out.put("factId", factId);
             out.put("tupleIds", getTupleIDs(fl));
 
@@ -67,6 +69,8 @@ void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
 
     std::string sRule = p.getRule(ruleIdx).toprettystring(&p, &l);
     out.put("rule", sRule);
+    out.put("ruleIdx", ruleIdx);
+    out.put("step", g.getNodeStep(nodeId));
     out.put("nodeId", nodeId);
     out.put("factId", factId);
 

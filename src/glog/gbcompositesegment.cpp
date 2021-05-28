@@ -63,34 +63,11 @@ bool CompositeTGSegment::isSortedBy(std::vector<uint8_t> &fields) const {
 std::shared_ptr<const TGSegment> CompositeTGSegment::sort() const {
     assert(nodes.size() > 0);
     assert(copyVarPos.size() == 1 || copyVarPos[0] != copyVarPos[1]);
-    /*bool seq = true;
-      for(int i = 0; i < copyVarPos.size(); ++i) {
-      if (copyVarPos[i] != i) {
-      seq = false;
-      break;
-      }
-      }
-
-      if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns() ||
-      !seq) {*/
     auto mergedSegment = merge();
     if (mergedSegment->isSorted())
         return mergedSegment;
     else
         return mergedSegment->sort();
-    /*} else {
-      throw 10; //Not sure that this code below is correct. Are we sure
-    //the segment is always sorted?
-    return std::shared_ptr<const TGSegment>(new CompositeTGSegment(g,
-    nodes,
-    copyVarPos,
-    f_isSorted,
-    sortedField,
-    provenanceType,
-    !isSorted(),
-    false,
-    replaceOffsets));
-    }*/
 }
 
 void CompositeTGSegment::argsort(std::vector<size_t> &indices) const {

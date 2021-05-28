@@ -1,4 +1,5 @@
 #include <glog/gbgraph.h>
+#include <glog/gbquerier.h>
 #include <glog/gbruleexecutor.h>
 #include <glog/gbcompositesegment.h>
 
@@ -1249,7 +1250,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
         const std::vector<size_t> &nodeIdxs,
         const std::vector<int> &copyVarPos, bool lazyMode,
         bool replaceOffsets) const {
-    assert(nodeIdxs.size() > 0);
+    assert(nodeIdxs.size() == 1);
+    assert(!replaceOffsets || !isTmpNode(nodeIdxs[0])); //This procedure should not be called if there is a temporary nodes
+    //because temporary nodes do not create nodes with columnar layouts. If this condition is false, then we must fix the code
+    //below to do the replacement only if the node is not temporary
     auto ncols = copyVarPos.size();
     bool project = ncols > 0 && ncols < getNodeData(nodeIdxs[0])->getNColumns();
     bool shouldSortAndUnique = (project ||
@@ -1348,8 +1352,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
                     getNodeData(idbBodyAtomIdx)->appendTo(
                             copyVarPos[0], tuples);
                     if (replaceOffsets) {
-                        for(size_t i = start; i < tuples.size(); ++i) {
-                            tuples[i].prov = i - start;
+                        if (!isTmpNode(idbBodyAtomIdx)) {
+                            for(size_t i = start; i < tuples.size(); ++i) {
+                                tuples[i].prov = i - start;
+                            }
                         }
                     }
                 }
@@ -1434,6 +1440,12 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 replaceOffsets);
 
     } else if (copyVarPos.size() == 2) {
+        //Check that node of the nodes is temporary. If they are, then I must fix the replaceOffset procedure, which should not apply for temporaty nodes
+        for(auto ni : nodeIdxs) {
+            if (isTmpNode(ni))
+                throw 10;
+        }
+        
         if (nodeIdxs.size() == 1 && !project &&
                 copyVarPos[0] == 0 && copyVarPos[1] == 1 &&
                 (provenanceType != GBGraph::ProvenanceType::FULLPROV || !replaceOffsets)) {
@@ -1518,6 +1530,12 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
             }
         }
     } else {
+        //Check that node of the nodes is temporary. If they are, then I must fix the replaceOffset procedure, which should not apply for temporaty nodes
+        for(auto ni : nodeIdxs) {
+            if (isTmpNode(ni))
+                throw 10;
+        }
+        
         //Could be 0 or > 2
         assert(copyVarPos.size() == 0 || copyVarPos.size() > 2);
         size_t ncolumns = copyVarPos.size();
