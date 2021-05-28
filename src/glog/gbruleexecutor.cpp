@@ -40,10 +40,7 @@ std::string GBRuleExecutor::getStat(StatType typ) {
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<int> &posKnownVariables) {
-    if (posKnownVariables.size() == 0) {
-        LOG(ERRORL) << "Projections with no columns are not supported";
-        throw 10;
-    } else if (posKnownVariables.size() == 1) {
+    if (posKnownVariables.size() == 1) {
         if (shouldTrackProvenance()) {
             assert(tuples->getProvenanceType() != SEG_NOPROV);
             if (tuples->getProvenanceType() == SEG_SAMENODE) {
@@ -95,7 +92,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
             return std::shared_ptr<const TGSegment>(new BinaryTGSegment(
                         projection, ~0ul, false, 0));
         }
-    } else { //More than 2
+    } else { //0 or more than 2
         std::vector<std::shared_ptr<Column>> columns;
         tuples->projectTo(posKnownVariables, columns);
         bool remainSorted = true;
@@ -106,7 +103,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
             }
         }
         return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
-                    tuples->getNRows(), remainSorted, 0, getSegProvenanceType()));
+                    tuples->getNRows(), remainSorted, 0,
+                    getSegProvenanceType(), tuples->getNOffsetColumns()));
     }
 }
 
@@ -136,10 +134,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
         }
     }
 
-    //Project the variables in the order specified by the head atom
-    assert(posKnownVariables.size() > 0); //For now, I do not support relations
-    //with arity = 0
-    if (posKnownVariables.size() == 1) {
+    if (posKnownVariables.size() == 0) {
+        tuples = projectTuples(tuples, posKnownVariables);
+    } else if (posKnownVariables.size() == 1) {
         if (tuples->getNColumns() == 1) {
             //Do nothing
         } else {
@@ -166,35 +163,13 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
     //Clean up the duplicates if necessary
     if (shouldSort) {
         if (shouldDelDupl) {
-            //if (intermediateResultsNodes.size() > 0) {
-            //std::vector<size_t> indices;
-            //tuples->argsort(indices);
-            //tuples = tuples->shuffle(indices);
-            //GBGraph::shuffleDerivationNodes(indices,
-            //        intermediateResultsNodes);
-            //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
-            //tuples->argunique(indices);
-            //tuples = tuples->shuffle(indices);
-            //GBGraph::shuffleDerivationNodes(indices, intermediateResultsNodes);
-            //assert(intermediateResultsNodes.back()->size() == tuples->getNRows());
-            //} else {
             tuples = tuples->sort();
             tuples = tuples->unique();
-            //}
         } else {
-            //if (intermediateResultsNodes.size() > 0) {
-            //    std::vector<size_t> indices;
-            //    tuples->argsort(indices);
-            //    tuples = tuples->shuffle(indices);
-            //GBGraph::shuffleDerivationNodes(indices,
-            //        intermediateResultsNodes);
-            //} else {
             tuples = tuples->sort();
-            //}
         }
     } else {
         if (shouldDelDupl) {
-            //Not implemented
             assert(intermediateResultsNodes.size() == 0);
             tuples = tuples->unique();
         }
@@ -295,6 +270,12 @@ void GBRuleExecutor::shouldSortAndRetainEDBSegments(
         bool &shouldRetainUnique,
         const Literal &atom,
         std::vector<int> &copyVarPos) {
+    if (copyVarPos.size() == 0) {
+        shouldSort = false;
+        shouldRetainUnique = false;
+        return;
+    }
+    
     //Sort should be done if the order of variables does not reflect the one of
     //the literal (we assume that the relation is sorted left-to-right
 
@@ -1579,18 +1560,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         GBRuleInput &node) {
     auto &bodyNodes = node.incomingEdges;
 
-#ifdef DEBUG
-    if (rule.getFrontierVariables().empty()) {
-        if (rule.getBody().size() == 2 ||
-                rule.getBody()[0].getPredicate().getType() == EDB) {
-            LOG(ERRORL) << "The system does not yet support the execution of rules"
-                " with empty frontier variables set";
-            throw 10;
-        }
-    }
-    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
-#endif
-
     lastDurationFirst = std::chrono::duration<double, std::milli>(0);
     lastDurationMergeSort = std::chrono::duration<double, std::milli>(0);
     lastDurationJoin = std::chrono::duration<double, std::milli>(0);
@@ -1779,7 +1748,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
 
             if (shouldTrackProvenance()) {
-                if (multipleComb) {
+                if  (multipleComb) {
                     //Process the output of nodes
                     newIntermediateResults->postprocessJoin(
                             intermediateResultsNodes, extraColumns);

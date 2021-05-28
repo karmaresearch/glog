@@ -78,7 +78,11 @@ class TGSegmentLegacy : public TGSegment {
         std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const;
-
+    
+        std::shared_ptr<TGSegment> slice(
+            const size_t start,
+            const size_t end) const;
+    
         std::unique_ptr<TGSegmentItr> iterator(
                 std::shared_ptr<const TGSegment> selfref = NULL) const;
 

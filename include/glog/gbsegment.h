@@ -75,10 +75,7 @@ class TGSegment {
 
         virtual std::shared_ptr<TGSegment> slice(
                 const size_t start,
-                const size_t end) const {
-            LOG(ERRORL) << "Not implemented";
-            throw 10;
-        }
+                const size_t end) const = 0;
 
         virtual std::vector<
             std::shared_ptr<const TGSegment>> sliceByNodes(

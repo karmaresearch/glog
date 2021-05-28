@@ -119,7 +119,14 @@ std::shared_ptr<const TGSegment> TGSegmentLegacy::unique() const {
     std::vector<std::shared_ptr<Column>> newcols;
     size_t nrows;
 
-    if (shouldTrackProvenance() &&
+    if (columns.size() - nprovcolumns == 0) {
+        if (!shouldTrackProvenance() || getNRows() == 0) {
+            throw 10; //I'm not sure about what to do here, let's capture this case with an exception for now
+        } else {
+            //Just copy the first row
+            return this->slice(0, 1);
+        }
+    } else if (shouldTrackProvenance() &&
             columns[columns.size() - nprovcolumns]->isConstant()) {
         size_t nfields = columns.size() - nprovcolumns;
         for(int i = 0; i < nfields; ++i)
@@ -350,6 +357,23 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
                 f_isSorted, sortedField, provenanceType, nprovcolumns));
 }
 
+std::shared_ptr<TGSegment> TGSegmentLegacy::slice(
+        const size_t start,
+        const size_t end) const {
+    std::vector<std::shared_ptr<Column>> newcols;
+    auto length = end - start;
+    for(int i = 0; i < columns.size(); ++i) {
+        if (start > 0 || end < nrows) {
+            auto c = columns[i]->slice(start, end);
+            newcols.push_back(c);
+        } else {
+            newcols.push_back(columns[i]);
+        }
+    }    
+    return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length,
+                f_isSorted, sortedField, provenanceType, nprovcolumns));
+}
+
 void TGSegmentLegacy::appendTo(uint8_t colPos, std::vector<Term_t> &out) const {
     assert(colPos < columns.size());
     auto &col = columns[colPos];
@@ -475,34 +499,58 @@ void TGSegmentLegacy::appendTo(uint8_t colPos1,
 void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
         std::vector<std::vector<Term_t>> &out,
         bool withProv) const {
-    assert(provenanceType != SEG_FULLPROV);
-
-    //The current implementation does not copy the nodeID, thus the size of
-    //out should reflect the positions
-    if (!withProv) {
-        assert(posFields.size() == out.size());
-    } else {
-        assert(posFields.size() == out.size() - 1);
-    }
-    size_t i = 0;
-    for(auto pos : posFields) {
-        auto c = columns[pos];
-        auto itr = c->getReader();
-        while (itr->hasNext()) {
-            out[i].push_back(itr->next());
-        }
-        i++;
-    }
-    if (shouldTrackProvenance()) { //Add the nodeID
-        auto &o = out.back();
-        auto itr = columns.back()->getReader();
-        if (posFields.size() > 0) {
-            while (itr->hasNext()) {
-                o.push_back(itr->next());
-            }
+    if (provenanceType == SEG_FULLPROV) {
+        size_t copyNProvColumns = nprovcolumns;
+        if (!withProv) {
+            copyNProvColumns = 0;
+            assert(out.size() == posFields.size());
         } else {
-            if (itr->hasNext()) {
-                o.push_back(itr->next());
+            assert(out.size() >= posFields.size() + copyNProvColumns);
+        }
+        assert(posFields.size() > 0 || copyNProvColumns > 0); //Otherwise, we won't be able to copy anything
+        size_t i = 0;
+        for(auto pos : posFields) {
+            auto c = columns[pos];
+            auto itr = c->getReader();
+            while (itr->hasNext()) {
+                out[i].push_back(itr->next());
+            }
+            i++;
+        }
+        for(size_t j = 0; j < copyNProvColumns; ++j) {
+            auto c = columns[columns.size() - nprovcolumns + j];
+            auto itr = c->getReader();
+            while (itr->hasNext()) {
+                out[i].push_back(itr->next());
+            }
+            i++;
+        }
+    } else {
+        if (!withProv) {
+            assert(posFields.size() == out.size());
+        } else {
+            assert(posFields.size() == out.size() - 1);
+        }
+        size_t i = 0;
+        for(auto pos : posFields) {
+            auto c = columns[pos];
+            auto itr = c->getReader();
+            while (itr->hasNext()) {
+                out[i].push_back(itr->next());
+            }
+            i++;
+        }
+        if (shouldTrackProvenance()) { //Add the nodeID
+            auto &o = out.back();
+            auto itr = columns.back()->getReader();
+            if (posFields.size() > 0) {
+                while (itr->hasNext()) {
+                    o.push_back(itr->next());
+                }
+            } else {
+                if (itr->hasNext()) {
+                    o.push_back(itr->next());
+                }
             }
         }
     }

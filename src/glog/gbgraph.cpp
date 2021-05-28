@@ -1570,7 +1570,14 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                     assert(data->getNOffsetColumns() == maxOffset + 1);
                     //The other case is not implemented
                 }
+                auto start = tuples.back().size();
                 data->appendTo(copyVarPos, tuples, true);
+                if (replaceOffsets) {
+                    assert(data->getProvenanceType() == SEG_FULLPROV); //Otherwise, the last column contains something else
+                    for(size_t i = start; i < tuples.size(); ++i) {
+                        tuples.back()[i] = i - start;
+                    }
+                }
             } else {
                 data->appendTo(copyVarPos, tuples, false);
             }
@@ -1586,17 +1593,20 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         if (shouldTrackProvenance()) {
             //Add the column with the node IDs
             columns.push_back(std::shared_ptr<Column>(
-                        new InmemoryColumn(tuples.back(), true)));
+                        new InmemoryColumn(tuples[copyVarPos.size()], true)));
             if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-                throw 10;
-                //If replaceOffset is true, then I should have another column with
-                //the offsets, otherwise there should be more columns with the
-                //existing offsets
+                if (replaceOffsets) {
+                    columns.push_back(std::shared_ptr<Column>(
+                                new InmemoryColumn(tuples.back(), true)));
+                } else {
+                    throw 10; //Not implemented. Here we should copy all the offset columns
+                }
             }
         }
         seg = std::shared_ptr<const TGSegment>(
-                new TGSegmentLegacy(columns, nrows, false, 0,
-                    getSegProvenanceType(nodeIdxs.size() > 1)));
+                new TGSegmentLegacy(columns, nrows, false,
+                                    0, getSegProvenanceType(nodeIdxs.size() > 1),
+                                    columns.size() - copyVarPos.size()));
         if (shouldSortAndUnique) {
             auto sortedSeg = seg->sort();
             return sortedSeg->unique();

@@ -122,6 +122,13 @@ class CompositeTGSegment : public TGSegment {
         size_t getNodeId() const {
             return nodeId;
         }
+    
+        std::shared_ptr<TGSegment> slice(
+            const size_t start,
+            const size_t end) const {
+            LOG(ERRORL) << "Not implemented";
+            throw 10;
+        }
 
         size_t getNRows() const;
 

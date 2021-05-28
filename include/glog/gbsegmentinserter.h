@@ -537,8 +537,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                 }
             } else if (ncols == 3 &&
                     provenanceType != SegProvenanceType::SEG_NOPROV &&
-                    nProvenanceColumns > 0) {
-                if (provenanceType != SegProvenanceType::SEG_FULLPROV) {
+                    nProvenanceColumns > 0 && nProvenanceColumns < 3) {
+                if (provenanceType != SegProvenanceType::SEG_FULLPROV) {                    
                     //Another special case. We had two columns with terms
                     //and two columns with nodes. The last two were replaced by
                     //a single one
@@ -571,11 +571,10 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                     out, ~0ul, isSorted, sortedField));
                     }
                 } else {
-                    assert(nProvenanceColumns < 3);
                     if (nProvenanceColumns == 1) {
                         //Binary
                         throw 10;
-                    } else {
+                    } else if (nProvenanceColumns == 2) {
                         //Unary
                         auto &col1 = columns[0]->getVectorRef();
                         auto &col2 = columns[1]->getVectorRef();
@@ -609,6 +608,8 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                     new UnaryWithFullProvTGSegment(
                                         out, nodeId, isSorted, sortedField));
                         }
+                    } else {
+                        throw 10; //should not happen
                     }
                 }
             } else {

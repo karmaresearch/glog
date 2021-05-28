@@ -609,6 +609,10 @@ void GBChase::run() {
     //LOG(INFOL) << "(GBChase) Time debug (ms): " << durationDebug.count();
     g.printStats();
     stopRun();
+    
+    /*std::cout << "Testing derivation trees..." << std::endl;
+    GBQuerier q = GBQuerier(g, *program, layer);
+    auto out = q.getDerivationTree(0, 0);*/
 }
 
 size_t GBChase::getNDerivedFacts() {
@@ -637,6 +641,15 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE
     currentRule = rule.tostring();
+#endif
+    
+#ifdef DEBUG
+    if (rule.getBody().size() > 1 &&
+                rule.getBody()[0].getPredicate().getType() == EDB) {
+            LOG(ERRORL) << "The system does not yet support joins between multiple EDB atoms";
+            throw 10;
+    }
+    LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 
 #ifdef DEBUG
@@ -692,23 +705,6 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
                     } else {
                         //Add new nodes
                         if (shouldTrackProvenance()) {
-#ifdef DEBUG
-                            //Check derivation nodes
-                            /*for(auto i = 0; i < derivationNodes.size(); ++i) {
-                              auto c = derivationNodes[i];
-                              std::unordered_set<Term_t> acceptedvalues;
-                              for(auto nid : bodyNodes[i]) {
-                              acceptedvalues.insert(nid);
-                              }
-                              for(auto j = 0; j < c->size(); ++j) {
-                              auto v = c->getValue(j);
-                              if (!acceptedvalues.count(v)) {
-                              throw 10;
-                              }
-                              }
-                              }*/
-#endif
-
                             g.addNodesProv(currentPredicate, node.ruleIdx,
                                     node.step, retainedTuples, derivationNodes);
                         } else {
@@ -775,10 +771,14 @@ FCTable *GBChase::getTable(const PredId_t predid) {
         auto &nodeIDs = g.getNodeIDsWithPredicate(predid);
         for (auto &nodeId : nodeIDs) {
             auto nodeData = g.getNodeData(nodeId);
-            auto data = fromTGSeg2Seg(nodeData);
-            std::shared_ptr<const FCInternalTable> table =
-                std::shared_ptr<const FCInternalTable>(
-                        new InmemoryFCInternalTable(card, nodeId, true, data));
+            std::shared_ptr<const FCInternalTable> table;
+            if (nodeData->getNColumns() > 0) {
+                auto data = fromTGSeg2Seg(nodeData);
+                table = std::shared_ptr<const FCInternalTable>(
+                            new InmemoryFCInternalTable(card, nodeId, true, data));
+            } else {
+                table = std::shared_ptr<const FCInternalTable>(new SingletonTable(nodeId));
+            }
             FCBlock block(nodeId, table, query, 0, NULL, 0, true);
             t->addBlock(block);
         }
