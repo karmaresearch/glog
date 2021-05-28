@@ -149,7 +149,7 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> oldSeg,
                 int posOld,
                 bool stopAfterFirst);
-        
+
         void isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
                 std::unique_ptr<GBSegmentInserter> &out,
                 std::shared_ptr<const TGSegment> newSeg,
@@ -157,7 +157,7 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> oldSeg,
                 int posOld,
                 bool stopAfterFirst);
-    
+
         void isRedundant_checkEquivalenceEDBAtoms_one_edb_mem(
                 std::vector<Term_t> &out,
                 std::shared_ptr<const TGSegment> newSeg,
@@ -199,7 +199,7 @@ class GBGraph {
                 int posNew2,
                 std::shared_ptr<const TGSegment> oldSeg,
                 int posOld1,
-                int posOld2);    
+                int posOld2);
 
         void isRedundant_checkEquivalenceEDBAtoms_two_edb_edb(
                 std::vector<std::pair<Term_t,Term_t>> &out,
@@ -284,6 +284,14 @@ class GBGraph {
                 const std::vector<int> &copyVarPos,
                 bool lazyMode = false,
                 bool replaceOffsets = false) const;
+
+        std::shared_ptr<const TGSegment> mergeNodes_general(
+                const std::vector<size_t> &nodeIdxs,
+                const std::vector<Term_t> &filterConstants,
+                const std::vector<int> &copyVarPos,
+                bool lazyMode,
+                bool replaceOffsets,
+                bool shouldSortAndUnique) const;
 
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
@@ -374,9 +382,20 @@ class GBGraph {
 
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,
+                const std::vector<Term_t> &filterConstants,
                 const std::vector<int> &copyVarPos,
                 bool lazyMode = false,
                 bool replaceOffsets = false) const;
+
+        std::shared_ptr<const TGSegment> mergeNodes(
+                const std::vector<size_t> &nodeIdxs,
+                const std::vector<int> &copyVarPos,
+                bool lazyMode = false,
+                bool replaceOffsets = false) const {
+            std::vector<Term_t> filterConstants;
+            return mergeNodes(nodeIdxs, filterConstants, copyVarPos,
+                    lazyMode, replaceOffsets);
+        }
 
         void addNodeNoProv(PredId_t predId,
                 size_t ruleIdx,

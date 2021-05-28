@@ -91,7 +91,6 @@ void TopKTable::getScores(Term_t e, Term_t r) {
 EDBIterator *TopKTable::getIterator(const Literal &query) {
     auto v1 = query.getTermAtPos(0);
     auto v2 = query.getTermAtPos(1);
-    auto v3 = query.getTermAtPos(2);
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,
@@ -106,7 +105,6 @@ EDBIterator *TopKTable::getSortedIterator(const Literal &query,
         const std::vector<uint8_t> &fields) {
     auto v1 = query.getTermAtPos(0);
     auto v2 = query.getTermAtPos(1);
-    auto v3 = query.getTermAtPos(2);
     if (!v1.isVariable() && !v2.isVariable()) {
         getScores(v1.getValue(), v2.getValue());
         return new TopKIterator(predid, topk,

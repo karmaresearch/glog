@@ -170,7 +170,6 @@ EDBIterator *SQLTable::getSortedIterator(const Literal &q,
     // Awful semantics: "fields" counts the variable numbers, not the actual fields of the literal...
     std::vector<uint8_t> offsets;
     int nConstantsSeen = 0;
-    int varNo = 0;
     for (int i = 0; i < q.getTupleSize(); i++) {
         if (! q.getTermAtPos(i).isVariable()) {
             nConstantsSeen++;

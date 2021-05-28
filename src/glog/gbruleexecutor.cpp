@@ -275,7 +275,7 @@ void GBRuleExecutor::shouldSortAndRetainEDBSegments(
         shouldRetainUnique = false;
         return;
     }
-    
+
     //Sort should be done if the order of variables does not reflect the one of
     //the literal (we assume that the relation is sorted left-to-right
 
@@ -302,7 +302,31 @@ void GBRuleExecutor::shouldSortAndRetainEDBSegments(
     shouldRetainUnique = copyVarPos.size() < nvars;
 }
 
-std::shared_ptr<const TGSegment> GBRuleExecutor::processFirstAtom_EDB(
+std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_IDB(
+        const Literal &atom, std::vector<size_t> &nodeIdxs,
+        std::vector<int> &copyVarPos,
+        bool lazyMode,
+        bool replaceOffsets) {
+    if (atom.getNConstants() > 0) {
+        std::vector<Term_t> filterConstants;
+        for(size_t i = 0; i < atom.getTupleSize(); ++i) {
+            if (atom.getTermAtPos(i).isVariable()) {
+                filterConstants.push_back(~0ul);
+            } else {
+                filterConstants.push_back(atom.getTermAtPos(i).getValue());
+            }
+        }
+        auto intermediateResults = g.mergeNodes(nodeIdxs, filterConstants,
+                copyVarPos, lazyMode, replaceOffsets);
+        return intermediateResults;
+    } else {
+        auto intermediateResults = g.mergeNodes(
+                nodeIdxs, copyVarPos, lazyMode, replaceOffsets);
+        return intermediateResults;
+    }
+}
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
         const Literal &atom,
         std::vector<int> &copyVarPos) {
     PredId_t p = atom.getPredicate().getId();
@@ -421,18 +445,7 @@ void GBRuleExecutor::nestedloopjoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        //Caching works only if there is at most one join variable...
-        /*if (nodesLeft.size() > 0) {
-          SegmentCache &c = SegmentCache::getInstance();
-          if (!c.contains(nodesLeft, fields1)) {
-          inputLeft = inputLeft->sortBy(fields1);
-          c.insert(nodesLeft, fields1, inputLeft);
-          } else {
-          inputLeft = c.get(nodesLeft, fields1);
-          }
-          } else {*/
         inputLeft = inputLeft->sortBy(fields1);
-        /*}*/
     }
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
 
@@ -458,7 +471,7 @@ void GBRuleExecutor::nestedloopjoin(
             t.set(VTerm(0,currentKey[i]),fields2[i]);
         }
         Literal l(literalRight.getPredicate(), t);
-        auto segRight = processFirstAtom_EDB(l, positions);
+        auto segRight = processAtom_EDB(l, positions);
         auto itrRight = segRight->iterator();
         if (itrRight->hasNext()) {
             countLeft = 1; //First determine how many rows in the left side
@@ -1095,9 +1108,9 @@ void GBRuleExecutor::join(
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
         if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-            inputRight = g.mergeNodes(nodesRight, projectedPos, false, true);
+            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, true);
         } else {
-            inputRight = g.mergeNodes(nodesRight, projectedPos, false);
+            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, false);
         }
     } else {
         //It must be an EDB literal because only these do not have nodes
@@ -1110,7 +1123,7 @@ void GBRuleExecutor::join(
             std::vector<int> allVars;
             for(int i = 0; i < literalRight.getTupleSize(); ++i)
                 allVars.push_back(i);
-            inputRight = processFirstAtom_EDB(literalRight, allVars);
+            inputRight = processAtom_EDB(literalRight, allVars);
         }
     }
 
@@ -1673,11 +1686,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
             if (isEDB) {
-                intermediateResults = processFirstAtom_EDB(currentBodyAtom,
+                intermediateResults = processAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
                 firstBodyAtomIsIDB = true;
-                intermediateResults = g.mergeNodes(
+                intermediateResults = processAtom_IDB(currentBodyAtom,
                         bodyNodes[currentBodyNode], copyVarPosRight, true, true);
                 currentBodyNode++;
             }

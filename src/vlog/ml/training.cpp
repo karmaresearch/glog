@@ -496,7 +496,6 @@ std::vector<std::pair<std::string, int>> Training::generateNewTrainingQueries(ED
         std::string query = makeGenericQuery(p, idbPred.getId(), idbPred.getCardinality());
         genericQueriesVector.push_back(query);
         Literal literal = p.parseLiteral(query, dictVariables);
-        int nVars = literal.getNVars();
 
         PredId_t predId = idbPred.getId();
         bool reachedEDB = false;

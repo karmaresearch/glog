@@ -100,9 +100,16 @@ class GBRuleExecutor {
                 const std::vector<Literal> &atoms,
                 const std::vector<size_t> &vars);
 
-        std::shared_ptr<const TGSegment> processFirstAtom_EDB(
+        std::shared_ptr<const TGSegment> processAtom_EDB(
                 const Literal &atom,
                 std::vector<int> &copyVarPos);
+
+        std::shared_ptr<const TGSegment> processAtom_IDB(
+                const Literal &atom,
+                std::vector<size_t> &nodeIdxs,
+                std::vector<int> &copyVarPos,
+                bool lazyMode,
+                bool replaceOffsets);
 
         void joinTwoOne_EDB(
                 std::shared_ptr<const TGSegment> inputLeft,
