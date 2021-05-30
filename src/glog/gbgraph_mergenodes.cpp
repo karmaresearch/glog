@@ -384,14 +384,16 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
                     }
                     if (shouldTrackProvenance()) {
                         tuples[copyVarPos.size()].push_back(itr->getNodeId());
-                        if (replaceOffsets) {
-                            assert(tuples.size() == copyVarPos.size() + 2);
-                            tuples.back().push_back(idxRow);
-                        } else {
-                            //Copy the remaining offsets
-                            for(size_t j = 1; j < maxOffset; ++j) {
-                                tuples[copyVarPos.size() + j].push_back(
-                                        itr->getProvenanceOffset(j-1));
+                        if (provenanceType == FULLPROV) {
+                            if (replaceOffsets) {
+                                assert(tuples.size() == copyVarPos.size() + 2);
+                                tuples.back().push_back(idxRow);
+                            } else {
+                                //Copy the remaining offsets
+                                for(size_t j = 1; j < maxOffset; ++j) {
+                                    tuples[copyVarPos.size() + j].push_back(
+                                            itr->getProvenanceOffset(j-1));
+                                }
                             }
                         }
                     }
