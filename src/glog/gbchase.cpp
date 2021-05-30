@@ -93,7 +93,7 @@ void GBChase::prepareRuleExecutionPlans_queryContainment(
     for(size_t i = 0; i < acceptableNodes.size(); ++i) {
         nCombinations = nCombinations * acceptableNodes[i].size();
     }
-    if (/*acceptableNodes.size() > 1 &&*/ nCombinations > 10) {
+    if (nCombinations > 10) {
         LOG(DEBUGL) << "Skipping checking redundancies " << acceptableNodes.size() <<
             " " << nCombinations << " ...";
         //The combinations are too many to test...
@@ -262,10 +262,26 @@ void GBChase::prepareRuleExecutionPlans_SNE(
         }
 
         if (filterQueryCont) {
-            prepareRuleExecutionPlans_queryContainment(newnodes,
-                    acceptableNodes,
-                    ruleIdx,
-                    step);
+            //The implementation of query containment does not work if the rule contains constants in the body
+            bool canCheck = true;
+            for (auto &b : rules[ruleIdx].getBody()) {
+                if (b.getNConstants() > 0) {
+                    canCheck = false;
+                    break;
+                }
+            }
+            if (canCheck) {
+                prepareRuleExecutionPlans_queryContainment(newnodes,
+                        acceptableNodes,
+                        ruleIdx,
+                        step);
+            } else {
+                newnodes.emplace_back();
+                GBRuleInput &newnode = newnodes.back();
+                newnode.ruleIdx = ruleIdx;
+                newnode.step = step;
+                newnode.incomingEdges = acceptableNodes;
+            }
         } else {
             newnodes.emplace_back();
             GBRuleInput &newnode = newnodes.back();
@@ -304,69 +320,7 @@ void GBChase::prepareRuleExecutionPlans(
         newnode.step = step;
         newnode.incomingEdges = std::vector<std::vector<size_t>>();
     } else {
-        if (rule.isTransitive()) {
-            /*LOG(WARNL) << "There is a transitive rule!!!" << ruleIdx;
-              bool isOptimizationApplicable = true;
-              size_t minStep = ~0ul;
-              assert(nodesForRule.size() == 2);
-              for(size_t i = 0;
-              i < nodesForRule.size() && isOptimizationApplicable;
-              ++i) {
-              if (nodesForRule[i].first) { //is negated
-              isOptimizationApplicable = false;
-              break;
-              }
-              for (auto &nodeId : nodesForRule[i].second) {
-              auto nodeStep = g.getNodeStep(nodeId);
-              auto nodeRuleIdx = g.getNodeRuleIdx(nodeId);
-              if (nodeRuleIdx != ruleIdx) {
-              if (minStep == ~0ul) {
-              minStep = nodeStep;
-              } else if (minStep != nodeStep) {
-              isOptimizationApplicable = false;
-              break;
-              }
-              }
-              }
-              }
-              isOptimizationApplicable = isOptimizationApplicable &&
-              minStep != ~0ul;
-
-              if (!isOptimizationApplicable) {
-              LOG(WARNL) << "Missed optimization!";
-              prepareRuleExecutionPlans_SNE(nodesForRule,
-              ruleIdx, step, prevstep, newnodes);
-              } else {
-              size_t minStepLeft = prevstep;
-              size_t minStepRight = minStep;
-              std::vector<std::vector<size_t>> acceptableNodes;
-              acceptableNodes.resize(nodesForRule.size());
-              for(size_t i = 0; i < nodesForRule.size(); ++i) {
-              for (auto &nodeId : nodesForRule[i].second) {
-              if (i == 0) {
-              if (g.getNodeStep(nodeId) >= minStepLeft) {
-              acceptableNodes[i].push_back(nodeId);
-              }
-              } else { //i==1
-              if (g.getNodeStep(nodeId) == minStepRight) {
-              acceptableNodes[i].push_back(nodeId);
-              }
-              }
-              }
-              }
-              if (!acceptableNodes[0].empty() &&
-              !acceptableNodes[1].empty()) {
-              newnodes.emplace_back();
-              GBRuleInput &newnode = newnodes.back();
-              newnode.ruleIdx = ruleIdx;
-              newnode.step = step;
-              newnode.incomingEdges = acceptableNodes;
-              }
-              }
-              } else {
-              prepareRuleExecutionPlans_SNE(nodesForRule,
-              ruleIdx, step, prevstep, newnodes);
-              }*/
+        if (rule.isTransitive()) {            
             bool isOptimizationApplicable = true;
         assert(nodesForRule.size() == 2);
         for(size_t i = 0; i < nodesForRule.size(); ++i) {
