@@ -22,6 +22,18 @@ const std::vector<Literal> &GBGraph::GBGraph_Node::getQueryBody(GBGraph &g)
     return queryBody;
 }
 
+const std::vector<size_t> &GBGraph::GBGraph_Node::getIncomingEdges(bool c) const
+{
+#ifdef DEBUG
+    if (c) {
+        for(auto n : incomingEdges)
+            if (n == ~0ul)
+                throw 10;
+    }
+#endif
+    return incomingEdges;
+}
+
 const std::vector<PredId_t> GBGraph::getPredicateIDs() const
 {
     std::vector<PredId_t> out;
@@ -115,6 +127,7 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
 void GBGraph::addNode(PredId_t predId,
         size_t step,
         std::vector<std::vector<std::string>> &facts) {
+
     //Convert the facts
     size_t nExtraColumns = 0;
     if (shouldTrackProvenance()) {
@@ -128,7 +141,9 @@ void GBGraph::addNode(PredId_t predId,
     std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
             new Term_t[rowSize]);
 
-    for(size_t i = 0; i < nExtraColumns; ++i)
+    auto nodeId = getNNodes();
+    row[cardPred] = nodeId;
+    for(size_t i = 1; i < nExtraColumns; ++i)
         row[cardPred + i] = ~0ul;
     for(auto &fact : facts) {
         assert(fact.size() == cardPred);
@@ -139,8 +154,6 @@ void GBGraph::addNode(PredId_t predId,
         }
         ins->add(row.get());
     }
-    auto nodeId = getNNodes();
-
     auto data = ins->getSegment(nodeId, false, 0, getSegProvenanceType(false),
             nExtraColumns);
     auto sortedData = data->sort();
@@ -356,30 +369,33 @@ void GBGraph::addNodeProv(PredId_t predid,
 #endif
 
 #ifdef DEBUG
-    auto rule = program->getRule(ruleIdx);
-    auto firstHead = rule.getHeads()[0];
-    auto card = firstHead.getTupleSize();
-    assert(data->getNColumns() == card);
-    if (provenanceType == FULLPROV) {
-        assert(data->getProvenanceType() == SEG_FULLPROV);
-        auto n = rule.getBody().size();
-        assert(data->getNOffsetColumns() == 1 + n);
+    //ruleIdx can be ~0ul if the node is manually added (this happens, e.g., during MS)
+    if (ruleIdx != ~0ul) {
+        auto rule = program->getRule(ruleIdx);
+        auto firstHead = rule.getHeads()[0];
+        auto card = firstHead.getTupleSize();
+        assert(data->getNColumns() == card);
+        if (provenanceType == FULLPROV) {
+            assert(data->getProvenanceType() == SEG_FULLPROV);
+            auto n = rule.getBody().size();
+            assert(data->getNOffsetColumns() == 1 + n);
 
-        size_t idxIncomingEdge = 0;
-        for(int idxBodyAtom = 0; idxBodyAtom < rule.getBody().size();
-                idxBodyAtom++) {
-            auto b = rule.getBody()[idxBodyAtom];
-            if (b.getPredicate().getType() != EDB) {
-                assert(idxIncomingEdge < incomingEdges.size());
-                auto node = incomingEdges[idxIncomingEdge];
-                auto card = getNodeSize(node);
-                auto itr = data->iterator();
-                while (itr->hasNext()) {
-                    itr->next();
-                    auto off = itr->getProvenanceOffset(idxIncomingEdge);
-                    assert(off < card);
+            size_t idxIncomingEdge = 0;
+            for(int idxBodyAtom = 0; idxBodyAtom < rule.getBody().size();
+                    idxBodyAtom++) {
+                auto b = rule.getBody()[idxBodyAtom];
+                if (b.getPredicate().getType() != EDB) {
+                    assert(idxIncomingEdge < incomingEdges.size());
+                    auto node = incomingEdges[idxIncomingEdge];
+                    auto card = getNodeSize(node);
+                    auto itr = data->iterator();
+                    while (itr->hasNext()) {
+                        itr->next();
+                        auto off = itr->getProvenanceOffset(idxIncomingEdge);
+                        assert(off < card);
+                    }
+                    idxIncomingEdge += 1;
                 }
-                idxIncomingEdge += 1;
             }
         }
     }
@@ -424,9 +440,10 @@ void GBGraph::addNodeProv(PredId_t predid,
 #endif
 
     for(auto n : incomingEdges)
-        if (isTmpNode(n))
+        if (isTmpNode(n) && n != ~0ul) {
             throw 10;
-    outputNode.incomingEdges = incomingEdges;
+        }
+    outputNode.setIncomingEdges(incomingEdges);
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
@@ -1356,7 +1373,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
 size_t GBGraph::getNEdges() const {
     size_t out = 0;
     for (const auto &n : nodes) {
-        out += n.incomingEdges.size();
+        out += n.getIncomingEdges(false).size();
     }
     return out;
 }

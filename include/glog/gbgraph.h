@@ -28,6 +28,7 @@ class GBGraph {
                 std::vector<Literal> queryBody; //Used only for query containment
                 std::vector<size_t> rangeQueryBody; //Record the boundaries
                 //between the rewritings
+                std::vector<size_t> incomingEdges;
 
                 void createQueryFromNode(GBGraph &g);
 
@@ -35,7 +36,6 @@ class GBGraph {
                 PredId_t predid;
                 size_t ruleIdx;
                 size_t step;
-                std::vector<size_t> incomingEdges;
 
                 GBGraph_Node() : queryCreated(false), ruleIdx(0), step(0) {}
 
@@ -58,6 +58,13 @@ class GBGraph {
                 const Literal &getQueryHead(GBGraph &g);
 
                 const std::vector<Literal> &getQueryBody(GBGraph &g);
+
+                //the flag check is added for debugging purposes. Can be removed
+                const std::vector<size_t> &getIncomingEdges(bool check=true) const;
+
+                void setIncomingEdges(const std::vector<size_t> &i) {
+                    incomingEdges = i;
+                }
         };
 
         struct GBGraph_TmpPredNode {
@@ -346,7 +353,7 @@ class GBGraph {
         }
 
         const std::vector<size_t> &getNodeIncomingEdges(size_t nodeId) const {
-            return getNode(nodeId).incomingEdges;
+            return getNode(nodeId).getIncomingEdges();
         }
 
         void setRulesProgramLayer(Rule *allRules,

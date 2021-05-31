@@ -134,8 +134,9 @@ static PyObject* tg_add_node(PyObject* self, PyObject *args) {
                 auto card = PyTuple_Size(next);
                 for(size_t i = 0; i < card; ++i) {
                     auto el = PyTuple_GetItem(next, i);
-                    const char *s = PyBytes_AsString(el);
-                    parsedFacts.back().push_back(std::string(s));
+                    Py_ssize_t size;
+                    const char *s = PyUnicode_AsUTF8AndSize(el, &size);
+                    parsedFacts.back().push_back(std::string(s, size));
                 }
             }
             Py_DECREF(next);
