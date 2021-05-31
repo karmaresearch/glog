@@ -22,6 +22,14 @@ const std::vector<Literal> &GBGraph::GBGraph_Node::getQueryBody(GBGraph &g)
     return queryBody;
 }
 
+const std::vector<PredId_t> GBGraph::getPredicateIDs() const
+{
+    std::vector<PredId_t> out;
+    for(auto &p : pred2Nodes)
+        out.push_back(p.first);
+    return out;
+}
+
 void GBGraph::GBGraph_Node::createQueryFromNode(GBGraph &g)
 {
     auto newHead = GBGraph_Node::createQueryFromNode(
@@ -119,6 +127,7 @@ void GBGraph::addNode(PredId_t predId,
     auto ins = GBSegmentInserter::getInserter(rowSize, nExtraColumns, false);
     std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
             new Term_t[rowSize]);
+
     for(size_t i = 0; i < nExtraColumns; ++i)
         row[cardPred + i] = ~0ul;
     for(auto &fact : facts) {
@@ -131,6 +140,7 @@ void GBGraph::addNode(PredId_t predId,
         ins->add(row.get());
     }
     auto nodeId = getNNodes();
+
     auto data = ins->getSegment(nodeId, false, 0, getSegProvenanceType(false),
             nExtraColumns);
     auto sortedData = data->sort();
@@ -1347,6 +1357,14 @@ size_t GBGraph::getNEdges() const {
     size_t out = 0;
     for (const auto &n : nodes) {
         out += n.incomingEdges.size();
+    }
+    return out;
+}
+
+size_t GBGraph::getNFacts() const {
+    size_t out = 0;
+    for (const auto &n : nodes) {
+        out += n.getData()->getNRows();
     }
     return out;
 }

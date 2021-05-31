@@ -4,7 +4,10 @@
 std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
         size_t nodeColumns,
         bool delDupl) {
-    if (card == 1) {
+    if (card - nodeColumns == 0) {
+        return std::unique_ptr<GBSegmentInserter>(
+                new GBSegmentInserterNAry(card, card - nodeColumns, delDupl));
+    } else if (card == 1) {
         return std::unique_ptr<GBSegmentInserter>(new GBSegmentInserterUnary(
                     delDupl));
     } else if (card == 2) {
@@ -42,7 +45,7 @@ void GBSegmentInserter::add(Term_t *row) {
                 LOG(DEBUGL) << "Diff: " << nRemovedRecords << " " <<
                     0.8 * THRESHOLD_CHECK_DUPLICATES;
                 if (!useDuplicateMap &&
-                    nRemovedRecords > 0.8 * THRESHOLD_CHECK_DUPLICATES) {
+                        nRemovedRecords > 0.8 * THRESHOLD_CHECK_DUPLICATES) {
                     LOG(DEBUGL) << "Decided to use the map with " <<
                         getNRows() << " elements to filter out "
                         "duplicates immediately";
@@ -101,7 +104,7 @@ size_t GBSegmentInserterNAry::removeDuplicates() {
     size_t oldSize = addedRows;
     assert(!isFinal);
     assert(columns.empty());
-    
+
     //Transform the writers into columns
     std::vector<std::shared_ptr<Column>> columns;
     for(size_t j = 0; j < card; ++j) {
@@ -118,11 +121,11 @@ size_t GBSegmentInserterNAry::removeDuplicates() {
         const auto col1 = columns[0];
         const auto col2 = columns[1];
         std::sort(idxs.begin(), idxs.end(), [&col1, &col2](const size_t &a, const size_t &b) { return col1->getValue(a) < col1->getValue(b) ||
-            (col1->getValue(a) == col1->getValue(b) && col2->getValue(a) < col2->getValue(b)); });
+                (col1->getValue(a) == col1->getValue(b) && col2->getValue(a) < col2->getValue(b)); });
     } else {
         throw 10; //Not supported
     }
-    
+
     //Reset the writers
     addedRows = 0;
     for(size_t j = 0; j < card; ++j) {

@@ -447,12 +447,14 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         }
 
     public:
-        GBSegmentInserterNAry(size_t card, size_t cardCheckDuplicates, bool shouldRemoveDuplicates) :
+        GBSegmentInserterNAry(size_t card, size_t cardCheckDuplicates,
+                bool shouldRemoveDuplicates) :
             GBSegmentInserter(shouldRemoveDuplicates),
             writers(card),
             card(card),
             cardCheckDuplicates(cardCheckDuplicates),
-            addedRows(0), isFinal(false), s(cardCheckDuplicates, THRESHOLD_CHECK_DUPLICATES / 10) {
+            addedRows(0), isFinal(false), s(cardCheckDuplicates,
+                    THRESHOLD_CHECK_DUPLICATES / 10) {
                 s_binary.set_empty_key(std::make_pair(~0ul, ~0ul));
             }
 
@@ -490,7 +492,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             }
 
             auto ncols = columns.size();
-            if (ncols == 2) {
+            if (ncols == 2 && nProvenanceColumns < 2) {
                 assert(nProvenanceColumns > 0);
                 auto &col1 = columns[0]->getVectorRef();
                 size_t nrows = col1.size();
@@ -538,7 +540,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             } else if (ncols == 3 &&
                     provenanceType != SegProvenanceType::SEG_NOPROV &&
                     nProvenanceColumns > 0 && nProvenanceColumns < 3) {
-                if (provenanceType != SegProvenanceType::SEG_FULLPROV) {                    
+                if (provenanceType != SegProvenanceType::SEG_FULLPROV) {
                     //Another special case. We had two columns with terms
                     //and two columns with nodes. The last two were replaced by
                     //a single one

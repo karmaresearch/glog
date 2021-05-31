@@ -31,10 +31,15 @@ static PyObject * querier_new(PyTypeObject *type, PyObject *args, PyObject *kwds
 static int querier_init(glog_Querier *self, PyObject *args, PyObject *kwds);
 static void querier_dealloc(glog_Querier* self);
 static PyObject* querier_get_derivation_tree(PyObject* self, PyObject *args);
+static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args);
+static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *args);
+static PyObject* querier_get_node_facts(PyObject* self, PyObject *args);
 
 static PyMethodDef Querier_methods[] = {
     {"get_derivation_tree", querier_get_derivation_tree, METH_VARARGS, "Get derivation tree of a fact." },
-
+    {"get_list_predicates", querier_get_list_predicates, METH_VARARGS, "Get list predicates stored in the TG." },
+    {"get_node_details_predicate", querier_get_node_details_predicate, METH_VARARGS, "Get the nodes for a given predicate." },
+    {"get_node_facts", querier_get_node_facts, METH_VARARGS, "Get the facts stored on a given node." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -119,6 +124,45 @@ static PyObject* querier_get_derivation_tree(PyObject* self, PyObject *args) {
     std::stringstream ssOut;
     JSON::write(ssOut, out);
     std::string sOut = ssOut.str();
-    //Return JSON object
+    return PyUnicode_FromString(sOut.c_str());
+}
+
+static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args) {
+    glog_Querier *s = (glog_Querier*)self;
+    PyObject *obj = PyList_New(0);
+    auto predIds = s->q->getListPredicates();
+    for(auto pId : predIds) {
+        auto value = PyUnicode_FromString(pId.c_str());
+        PyList_Append(obj, value);
+        Py_DECREF(value);
+    }
+    return obj;
+}
+
+static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *args) {
+    const char *predName = NULL;
+    if (!PyArg_ParseTuple(args, "s", &predName) || predName == NULL) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    glog_Querier *s = (glog_Querier*)self;
+    auto out = ((glog_Querier*)self)->q->getNodeDetailsWithPredicate(
+            std::string(predName));
+    std::stringstream ssOut;
+    JSON::write(ssOut, out);
+    std::string sOut = ssOut.str();
+    return PyUnicode_FromString(sOut.c_str());
+}
+
+static PyObject* querier_get_node_facts(PyObject* self, PyObject *args) {
+    size_t nodeId;
+    if (!PyArg_ParseTuple(args, "l", &nodeId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    auto out = ((glog_Querier*)self)->q->getNodeFacts(nodeId);
+    std::stringstream ssOut;
+    JSON::write(ssOut, out);
+    std::string sOut = ssOut.str();
     return PyUnicode_FromString(sOut.c_str());
 }

@@ -32,11 +32,11 @@
 static PyObject * reasoner_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds);
 static void reasoner_dealloc(glog_Reasoner* self);
-static PyObject *reasoner_create_model(PyObject *self, PyObject *args);
+static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject *kwds);
 static PyObject *reasoner_get_TG(PyObject *self, PyObject *args);
 
 static PyMethodDef Reasoner_methods[] = {
-    {"create_model", reasoner_create_model, METH_VARARGS, "Create a model." },
+    {"create_model", (PyCFunction)reasoner_create_model, METH_VARARGS | METH_KEYWORDS, "Create a model." },
     {"get_TG", reasoner_get_TG, METH_VARARGS, "Get the TG associated with the model." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -187,9 +187,20 @@ static void reasoner_dealloc(glog_Reasoner* self) {
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject *reasoner_create_model(PyObject *self, PyObject *args) {
+static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject *kw) {
+
+    size_t startStep = 0;
+    size_t maxStep = ~0ul;
+    static char *kwlist[] = {(char*)"startStep", (char*)"maxStep", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kw, "|ll", kwlist,
+                &startStep, &maxStep)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
     glog_Reasoner *s = (glog_Reasoner*)self;
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    s->sn->prepareRun(startStep);
     s->sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
     LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
@@ -197,8 +208,17 @@ static PyObject *reasoner_create_model(PyObject *self, PyObject *args) {
     LOG(INFOL) << "N. nodes = " << s->sn->getNnodes();
     LOG(INFOL) << "N. edges = " << s->sn->getNedges();
     LOG(INFOL) << "Triggers = " << s->sn->getNTriggers();
-    Py_INCREF(Py_None);
-    return Py_None;
+
+    std::stringstream ssOut;
+    JSON out;
+    out.put("n_nodes", s->sn->getNnodes());
+    out.put("n_edges", s->sn->getNedges());
+    out.put("n_triggers", s->sn->getNTriggers());
+    out.put("n_derivations", s->sn->getNDerivedFacts());
+    out.put("runtime_ms", secMat.count() * 1000);
+    JSON::write(ssOut, out);
+    std::string sOut = ssOut.str();
+    return PyUnicode_FromString(sOut.c_str());
 }
 
 extern PyTypeObject glog_TGType;

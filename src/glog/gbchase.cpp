@@ -9,17 +9,18 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
         bool filterQueryCont,
         bool edbCheck,
         bool rewriteCliques) :
-    layer(layer),
-    program(program),
     provenanceType(provenanceType),
     filterQueryCont(filterQueryCont),
     edbCheck(edbCheck),
+    program(program),
+    layer(layer),
     g(provenanceType, useCacheRetain, filterQueryCont),
     executor(g, layer, program),
+    currentIteration(0),
+    startStep(0),
     triggers(0),
     durationPreparation(0),
-    durationRuleExec(0)/*,
-                         durationDebug(0)*/
+    durationRuleExec(0)
 {
     LOG(INFOL) << "Query cont=" << filterQueryCont <<
         " EDB check=" << edbCheck;
@@ -320,74 +321,74 @@ void GBChase::prepareRuleExecutionPlans(
         newnode.step = step;
         newnode.incomingEdges = std::vector<std::vector<size_t>>();
     } else {
-        if (rule.isTransitive()) {            
+        if (rule.isTransitive()) {
             bool isOptimizationApplicable = true;
-        assert(nodesForRule.size() == 2);
-        for(size_t i = 0; i < nodesForRule.size(); ++i) {
-            if (nodesForRule[i].first) { //is negated
-                isOptimizationApplicable = false;
-                break;
-            }
-        }
-        if (!isOptimizationApplicable) {
-            prepareRuleExecutionPlans_SNE(nodesForRule,
-                    ruleIdx, step, prevstep, newnodes);
-        } else {
-            //Get the nodes not produced by the transitive rule
-            std::vector<size_t> leftSidePrevStep;
-            std::vector<size_t> leftSideBeforePrevStep;
-            for (auto &nodeId : nodesForRule[0].second) {
-                auto nodeRuleIdx = g.getNodeRuleIdx(nodeId);
-                if (nodeRuleIdx != ruleIdx) {
-                    auto nodeStep = g.getNodeStep(nodeId);
-                    if (nodeStep == prevstep) {
-                        leftSidePrevStep.push_back(nodeId);
-                    } else {
-                        leftSideBeforePrevStep.push_back(nodeId);
-                    }
+            assert(nodesForRule.size() == 2);
+            for(size_t i = 0; i < nodesForRule.size(); ++i) {
+                if (nodesForRule[i].first) { //is negated
+                    isOptimizationApplicable = false;
+                    break;
                 }
             }
+            if (!isOptimizationApplicable) {
+                prepareRuleExecutionPlans_SNE(nodesForRule,
+                        ruleIdx, step, prevstep, newnodes);
+            } else {
+                //Get the nodes not produced by the transitive rule
+                std::vector<size_t> leftSidePrevStep;
+                std::vector<size_t> leftSideBeforePrevStep;
+                for (auto &nodeId : nodesForRule[0].second) {
+                    auto nodeRuleIdx = g.getNodeRuleIdx(nodeId);
+                    if (nodeRuleIdx != ruleIdx) {
+                        auto nodeStep = g.getNodeStep(nodeId);
+                        if (nodeStep == prevstep) {
+                            leftSidePrevStep.push_back(nodeId);
+                        } else {
+                            leftSideBeforePrevStep.push_back(nodeId);
+                        }
+                    }
+                }
 
-            if (leftSideBeforePrevStep.size() > 0) {
-                std::vector<std::vector<size_t>> acceptableNodes;
-                acceptableNodes.resize(nodesForRule.size());
-                acceptableNodes[0] = leftSideBeforePrevStep;
-                for (auto &nodeId : nodesForRule[1].second) {
-                    if (g.getNodeStep(nodeId) == prevstep) {
+                if (leftSideBeforePrevStep.size() > 0) {
+                    std::vector<std::vector<size_t>> acceptableNodes;
+                    acceptableNodes.resize(nodesForRule.size());
+                    acceptableNodes[0] = leftSideBeforePrevStep;
+                    for (auto &nodeId : nodesForRule[1].second) {
+                        if (g.getNodeStep(nodeId) == prevstep) {
+                            acceptableNodes[1].push_back(nodeId);
+                        }
+                    }
+                    if (!acceptableNodes[0].empty() &&
+                            !acceptableNodes[1].empty()) {
+                        newnodes.emplace_back();
+                        GBRuleInput &newnode = newnodes.back();
+                        newnode.ruleIdx = ruleIdx;
+                        newnode.step = step;
+                        newnode.incomingEdges = acceptableNodes;
+                    }
+                }
+                if (leftSidePrevStep.size() > 0) {
+                    std::vector<std::vector<size_t>> acceptableNodes;
+                    acceptableNodes.resize(nodesForRule.size());
+                    acceptableNodes[0] = leftSidePrevStep;
+                    for (auto &nodeId : nodesForRule[1].second) {
                         acceptableNodes[1].push_back(nodeId);
                     }
-                }
-                if (!acceptableNodes[0].empty() &&
-                        !acceptableNodes[1].empty()) {
-                    newnodes.emplace_back();
-                    GBRuleInput &newnode = newnodes.back();
-                    newnode.ruleIdx = ruleIdx;
-                    newnode.step = step;
-                    newnode.incomingEdges = acceptableNodes;
-                }
-            }
-            if (leftSidePrevStep.size() > 0) {
-                std::vector<std::vector<size_t>> acceptableNodes;
-                acceptableNodes.resize(nodesForRule.size());
-                acceptableNodes[0] = leftSidePrevStep;
-                for (auto &nodeId : nodesForRule[1].second) {
-                    acceptableNodes[1].push_back(nodeId);
-                }
-                if (!acceptableNodes[0].empty() &&
-                        !acceptableNodes[1].empty()) {
-                    newnodes.emplace_back();
-                    GBRuleInput &newnode = newnodes.back();
-                    newnode.ruleIdx = ruleIdx;
-                    newnode.step = step;
-                    newnode.incomingEdges = acceptableNodes;
+                    if (!acceptableNodes[0].empty() &&
+                            !acceptableNodes[1].empty()) {
+                        newnodes.emplace_back();
+                        GBRuleInput &newnode = newnodes.back();
+                        newnode.ruleIdx = ruleIdx;
+                        newnode.step = step;
+                        newnode.incomingEdges = acceptableNodes;
+                    }
                 }
             }
+        } else {
+            prepareRuleExecutionPlans_SNE(nodesForRule,
+                    ruleIdx, step, prevstep, newnodes);
         }
-    } else {
-        prepareRuleExecutionPlans_SNE(nodesForRule,
-                ruleIdx, step, prevstep, newnodes);
     }
-}
 }
 
 std::pair<bool, size_t> GBChase::determineAdmissibleRule(
@@ -508,12 +509,16 @@ size_t GBChase::executeRulesInStratum(
     }
 }
 
+void GBChase::prepareRun(size_t startStep) {
+    this->startStep = startStep;
+}
+
 void GBChase::run() {
     std::chrono::system_clock::time_point start =
         std::chrono::system_clock::now();
     initRun();
     size_t nnodes = 0;
-    size_t step = 0;
+    size_t step = startStep;
 
     //Mark the predicates that should be cleaned at the end
     for (auto &predId : program->getAllPredicateIDs()) {
@@ -563,10 +568,10 @@ void GBChase::run() {
     //LOG(INFOL) << "(GBChase) Time debug (ms): " << durationDebug.count();
     g.printStats();
     stopRun();
-    
+
     /*std::cout << "Testing derivation trees..." << std::endl;
-    GBQuerier q = GBQuerier(g, *program, layer);
-    auto out = q.getDerivationTree(0, 0);*/
+      GBQuerier q = GBQuerier(g, *program, layer);
+      auto out = q.getDerivationTree(0, 0);*/
 }
 
 size_t GBChase::getNDerivedFacts() {
@@ -596,12 +601,12 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #ifdef WEBINTERFACE
     currentRule = rule.tostring();
 #endif
-    
+
 #ifdef DEBUG
     if (rule.getBody().size() > 1 &&
-                rule.getBody()[0].getPredicate().getType() == EDB) {
-            LOG(ERRORL) << "The system does not yet support joins between multiple EDB atoms";
-            throw 10;
+            rule.getBody()[0].getPredicate().getType() == EDB) {
+        LOG(ERRORL) << "The system does not yet support joins between multiple EDB atoms";
+        throw 10;
     }
     LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
@@ -729,7 +734,7 @@ FCTable *GBChase::getTable(const PredId_t predid) {
             if (nodeData->getNColumns() > 0) {
                 auto data = fromTGSeg2Seg(nodeData);
                 table = std::shared_ptr<const FCInternalTable>(
-                            new InmemoryFCInternalTable(card, nodeId, true, data));
+                        new InmemoryFCInternalTable(card, nodeId, true, data));
             } else {
                 table = std::shared_ptr<const FCInternalTable>(new SingletonTable(nodeId));
             }

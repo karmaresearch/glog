@@ -34,11 +34,14 @@ static void program_dealloc(glog_Program* self);
 static PyObject* program_load_from_file(PyObject* self, PyObject *args);
 static PyObject* program_get_n_rules(PyObject* self, PyObject *args);
 static PyObject* program_get_rule(PyObject* self, PyObject *args);
+static PyObject* program_get_predicate_name(PyObject* self, PyObject *args);
 
 static PyMethodDef Program_methods[] = {
     {"load_from_file", program_load_from_file, METH_VARARGS, "Load rules from file." },
     {"get_n_rules", program_get_n_rules, METH_VARARGS, "Return n rules." },
     {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
+    {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
+    {"get_predicate_name", program_get_predicate_name, METH_VARARGS, "Get name predicate." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -133,10 +136,19 @@ static PyObject* program_get_rule(PyObject* self, PyObject *args) {
         //Get the rule
         auto rule =  ((glog_Program*)self)->program->getRule(ruleIdx);
         std::string sRule = rule.tostring(((glog_Program*)self)->program.get(),
-               ((glog_Program*)self)->e->e);
+                ((glog_Program*)self)->e->e);
         return PyUnicode_FromStringAndSize(sRule.c_str(), sRule.size());
     }
     Py_INCREF(Py_None);
     return Py_None;
 }
 
+static PyObject* program_get_predicate_name(PyObject* self, PyObject *args) {
+    size_t predId = 0;
+    if (!PyArg_ParseTuple(args, "l", &predId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    auto predName = ((glog_Program*)self)->program->getPredicateName(predId);
+    return PyUnicode_FromString(predName.c_str());
+}

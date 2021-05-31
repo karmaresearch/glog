@@ -32,11 +32,15 @@ static int tg_init(glog_TG *self, PyObject *args, PyObject *kwds);
 static void tg_dealloc(glog_TG* self);
 static PyObject* tg_add_node(PyObject* self, PyObject *args);
 static PyObject* tg_get_n_nodes(PyObject* self, PyObject *args);
+static PyObject* tg_get_n_edges(PyObject* self, PyObject *args);
+static PyObject* tg_get_n_facts(PyObject* self, PyObject *args);
 static PyObject* tg_get_node_size(PyObject* self, PyObject *args);
 
 static PyMethodDef TG_methods[] = {
-    {"get_n_nodes", tg_get_n_nodes, METH_VARARGS, "Get n. nodes." },
-    {"get_node_size", tg_get_node_size, METH_VARARGS, "Get node's size." },
+    {"get_n_nodes", tg_get_n_nodes, METH_VARARGS, "Get n. nodes in the TG." },
+    {"get_n_edges", tg_get_n_edges, METH_VARARGS, "Get n. edges in the TG." },
+    {"get_n_facts", tg_get_n_facts, METH_VARARGS, "Get n. facts in the TG." },
+    {"get_node_size", tg_get_node_size, METH_VARARGS, "Get number of facts stored in a node." },
     {"add_node", tg_add_node, METH_VARARGS, "Add a node with some provided facts." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -148,6 +152,16 @@ static PyObject* tg_add_node(PyObject* self, PyObject *args) {
 static PyObject* tg_get_n_nodes(PyObject* self, PyObject *args) {
     glog_TG *s = (glog_TG*)self;
     return PyLong_FromLong(s->g->getNNodes());
+}
+
+static PyObject* tg_get_n_facts(PyObject* self, PyObject *args) {
+    glog_TG *s = (glog_TG*)self;
+    return PyLong_FromLong(s->g->getNNodes());
+}
+
+static PyObject* tg_get_n_edges(PyObject* self, PyObject *args) {
+    glog_TG *s = (glog_TG*)self;
+    return PyLong_FromLong(s->g->getNEdges());
 }
 
 static PyObject* tg_get_node_size(PyObject* self, PyObject *args) {

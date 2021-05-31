@@ -325,6 +325,8 @@ class GBGraph {
             return nodes.size();
         }
 
+        size_t getNFacts() const;
+
         size_t getNEdges() const;
 
         bool isTmpNode(size_t nodeId) const {
@@ -379,6 +381,8 @@ class GBGraph {
                 PredId_t predId) const {
             return pred2Nodes.at(predId);
         }
+
+        const std::vector<PredId_t> getPredicateIDs() const;
 
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,

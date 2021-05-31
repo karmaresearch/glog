@@ -103,3 +103,43 @@ void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
     }
     out.add_child("parents", parents);
 }
+
+std::vector<std::string> GBQuerier::getListPredicates() const {
+    std::vector<std::string> out;
+    auto predIds = g.getPredicateIDs();
+    for(auto &predId : predIds) {
+        std::string label = p.getPredicateName(predId);
+        out.push_back(label);
+    }
+    return out;
+}
+
+JSON GBQuerier::getNodeDetailsWithPredicate(std::string predName) const {
+    JSON out;
+    auto pred = p.getPredicate(predName);
+    auto nodeIds = g.getNodeIDsWithPredicate(pred.getId());
+    for(auto nodeId : nodeIds) {
+        JSON nodeDetails;
+        nodeDetails.put("id", nodeId);
+        out.push_back(nodeDetails);
+    }
+    return out;
+}
+
+JSON GBQuerier::getNodeFacts(size_t nodeId) const {
+    JSON out;
+    auto data = g.getNodeData(nodeId);
+    auto card = data->getNColumns();
+    auto itr = data->iterator();
+    while (itr->hasNext()) {
+        itr->next();
+        JSON row;
+        for(size_t i = 0; i < card; ++i) {
+            auto t = itr->get(i);
+            auto str = l.getDictText(t);
+            row.push_back(str);
+        }
+        out.push_back(row);
+    }
+    return out;
+}

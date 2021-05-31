@@ -29,6 +29,7 @@ class GBChase : public Chase {
         int nStratificationClasses;
         GBRuleExecutor executor; //Object that executes rules
         size_t currentIteration;
+        size_t startStep;
 
         PredId_t currentPredicate;
 #ifdef WEBINTERFACE
@@ -97,6 +98,8 @@ class GBChase : public Chase {
                 bool filterQueryCont = false,
                 bool edbCheck = false,
                 bool rewriteCliques = false);
+
+        void prepareRun(size_t startStep);
 
         VLIBEXP virtual void run();
 

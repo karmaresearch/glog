@@ -28,6 +28,12 @@ class GBQuerier {
         GBQuerier(const GBGraph &g, Program &p, EDBLayer &l) : g(g), p(p), l(l) {}
 
         JSON getDerivationTree(size_t nodeId, size_t factId);
+
+        std::vector<std::string> getListPredicates() const;
+
+        JSON getNodeDetailsWithPredicate(std::string predName) const;
+
+        JSON getNodeFacts(size_t nodeId) const;
 };
 
 #endif
