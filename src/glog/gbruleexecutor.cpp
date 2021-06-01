@@ -118,6 +118,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
         GBRuleInput &node) {
     const auto &tupleHead = head.getTuple();
     std::vector<int> posKnownVariables;
+    std::vector<std::pair<size_t, Term_t>> posConstants;
     for(int i = 0; i < tupleHead.getSize(); ++i) {
         auto varId = tupleHead.get(i).getId();
         bool found = false;
@@ -128,9 +129,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
                 break;
             }
         if (!found) {
-            LOG(ERRORL) << "Should not happen. At this stage, all variables "
-                "are known";
-            throw 10;
+            if (!tupleHead.get(i).isVariable()) {
+                posConstants.push_back(std::make_pair(
+                            i, tupleHead.get(i).getValue()));
+            } else {
+                LOG(ERRORL) << "Should not happen. At this stage, all variables "
+                    "are known";
+                throw 10;
+            }
         }
     }
 
@@ -174,8 +180,62 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectHead(
             tuples = tuples->unique();
         }
     }
+
+    if (!posConstants.empty()) {
+        tuples = addConstants(tuples, posConstants);
+    }
+
     return tuples;
 }
+
+std::shared_ptr<const TGSegment> GBRuleExecutor::addConstants(
+        std::shared_ptr<const TGSegment> tg,
+        std::vector<std::pair<size_t, Term_t>> constants)
+{
+    size_t nTerms = tg->getNColumns() + constants.size();
+    size_t sizeRow = nTerms + tg->getNOffsetColumns();
+    std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
+            new Term_t[sizeRow]);
+    std::vector<std::pair<size_t, size_t>> posVars;
+
+    size_t literalSize = tg->getNColumns() + constants.size();
+    size_t idxPosConsts = 0;
+    size_t idxPosVars = 0;
+    for(size_t i = 0; i < literalSize; ++i) {
+        if (idxPosConsts < constants.size() &&
+                i == constants[idxPosConsts].first) {
+            row[i] = constants[idxPosConsts].second;
+            idxPosConsts++;
+        } else if (idxPosVars < tg->getNColumns()) {
+            posVars.push_back(std::make_pair(idxPosVars, i));
+            idxPosVars++;
+        }
+    }
+    assert(constants.size() == idxPosConsts);
+    assert(idxPosVars == tg->getNColumns());
+    std::unique_ptr<GBSegmentInserter> ins = GBSegmentInserter::getInserter(
+            sizeRow, tg->getNOffsetColumns(), false);
+    auto itr = tg->iterator();
+    while (itr->hasNext()) {
+        itr->next();
+        //Copy the variables
+        for(auto &p : posVars) {
+            row[p.second] = itr->get(p.first);
+        }
+        if (tg->getNOffsetColumns() > 0) {
+            row[nTerms] = itr->getNodeId();
+            for(size_t i = 1; i < tg->getNOffsetColumns(); ++i) {
+                row[nTerms + i] = itr->getProvenanceOffset(i-1);
+            }
+        }
+        ins->add(row.get());
+    }
+
+    return ins->getSegment(tg->getNodeId(),
+            tg->isSorted(), 0, tg->getProvenanceType(),
+            tg->getNOffsetColumns());
+}
+
 
 void GBRuleExecutor::computeVarPos(std::vector<size_t> &leftVars,
         int bodyAtomIdx,
@@ -1124,6 +1184,8 @@ void GBRuleExecutor::join(
             for(int i = 0; i < literalRight.getTupleSize(); ++i)
                 allVars.push_back(i);
             inputRight = processAtom_EDB(literalRight, allVars);
+            if (inputRight->getNRows() == 0)
+                return;
         }
     }
 

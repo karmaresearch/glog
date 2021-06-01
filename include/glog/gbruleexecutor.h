@@ -88,6 +88,10 @@ class GBRuleExecutor {
                 std::vector<std::shared_ptr<Column>> &intermediateResultsNodes,
                 GBRuleInput &node);
 
+        std::shared_ptr<const TGSegment> addConstants(
+                std::shared_ptr<const TGSegment> tg,
+                std::vector<std::pair<size_t, Term_t>> constants);
+
         void computeVarPos(std::vector<size_t> &varsIntermediate,
                 int bodyAtomIdx,
                 const std::vector<Literal> &bodyAtoms,
