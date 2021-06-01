@@ -1184,10 +1184,10 @@ void GBRuleExecutor::join(
             for(int i = 0; i < literalRight.getTupleSize(); ++i)
                 allVars.push_back(i);
             inputRight = processAtom_EDB(literalRight, allVars);
-            if (inputRight->getNRows() == 0)
-                return;
         }
     }
+    if (inputRight->getNRows() == 0)
+        return;
 
     if (literalRight.isNegated()) {
         if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
