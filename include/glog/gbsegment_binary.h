@@ -618,21 +618,20 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                         true, 0));
         }
 
-        std::shared_ptr<TGSegment> slice(size_t nodeId,
+        /*std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
-            std::vector<std::pair<Term_t,Term_t>> out(end - start);
+            std::vector<BinWithOff,> out(end - start);
             size_t m = 0;
             for(size_t j = start; j < end; ++j) {
-                out[m].first = tuples->at(j).first;
-                out[m].second = tuples->at(j).second;
+                out[m] = tuples->at(j);
                 m++;
             }
             return std::shared_ptr<TGSegment>(
-                    new BinaryWithConstProvTGSegment(out,
+                    new BinaryWithConstNodeFullProvTGSegment(out,
                         nodeId,
                         f_isSorted,
                         sortedField));
-        }
+        }*/
 
         std::shared_ptr<const TGSegment> sortByProv() const {
             auto t = std::vector<BinWithOff>(
