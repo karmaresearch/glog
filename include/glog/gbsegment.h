@@ -186,6 +186,15 @@ class TGSegment {
             throw 10;
         }
 
+        virtual Term_t getOffsetAtRow(size_t rowIdx,
+                size_t offsetColumnIdx) const {
+            throw 10;
+        }
+
+        virtual Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            throw 10;
+        }
+
         virtual ~TGSegment() {}
 };
 

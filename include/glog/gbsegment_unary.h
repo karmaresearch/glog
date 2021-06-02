@@ -57,6 +57,11 @@ class UnaryTGSegment : public UnaryTGSegmentImpl<UnaryTGSegment, Term_t, UnaryTG
                 out.push_back(std::make_pair(t, t));
             }
         }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx);
+        }
 };
 
 class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
@@ -132,6 +137,11 @@ class UnaryWithConstProvTGSegment : public UnaryTGSegmentImpl<
                     c++;
             }
             return c;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx);
         }
 };
 
@@ -225,6 +235,11 @@ class UnaryWithProvTGSegment : public UnaryTGSegmentImpl<UnaryWithProvTGSegment,
                         f_isSorted,
                         sortedField));
         }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx).first;
+        }
 };
 
 /* Both the node and the offset can be determined automatically. The container stores only the constants */
@@ -255,6 +270,16 @@ class UnaryWithConstNodeOffFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWi
         std::shared_ptr<TGSegment> slice(size_t nodeId,
                 const size_t start, const size_t end) const {
             throw 10;
+        }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return rowIdx;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx);
         }
 };
 
@@ -300,6 +325,11 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
 
         size_t getNOffsetColumns() const {
             return 2;
+        }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return tuples->at(rowIdx).second;
         }
 
         void appendTo(uint8_t colPos,
@@ -374,6 +404,11 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
                         std::pair<Term_t, Term_t>,
                         UnaryWithConstNodeFullProvTGSegmentItr, SEG_FULLPROV>::getNodeId(),
                         f_isSorted, sortedField));
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx).first;
         }
 };
 
@@ -478,6 +513,16 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
             out.push_back(tuples->at(rowIdx).node);
             out.push_back(tuples->at(rowIdx).prov);
             return out;
+        }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return tuples->at(rowIdx).prov;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            assert(colIdx == 0);
+            return tuples->at(rowIdx).first;
         }
 };
 

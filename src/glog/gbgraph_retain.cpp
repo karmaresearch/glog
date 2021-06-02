@@ -2,12 +2,142 @@
 #include <glog/gbsegmentinserter.h>
 
 
+void GBGraph::retainFromDerivationTree_getNodes(size_t nodeId,
+        size_t offsetNodeId,
+        PredId_t predId,
+        std::vector<std::pair<size_t,size_t>> currentPath,
+        std::vector<std::vector<std::pair<size_t,size_t>>> &out) {
+    auto r = getNodeRuleIdx(nodeId);
+    Rule &rule = allRules[r];
+    auto &heads = rule.getHeads();
+    assert(heads.size() == 1);
+    auto id = heads[0].getPredicate().getId();
+    currentPath.push_back(std::make_pair(nodeId,offsetNodeId));
+    if (id == predId) {
+        out.push_back(currentPath);
+    }
+    auto &inc = getNodeIncomingEdges(nodeId);
+    for(size_t i = 0; i < inc.size(); ++i) {
+        auto pNodeId = inc[i];
+        if (pNodeId != ~0ul) {
+            retainFromDerivationTree_getNodes(pNodeId, i, predId, currentPath,
+                    out);
+        }
+    }
+}
+
 std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
         PredId_t p,
+        size_t ruleIdx,
         std::shared_ptr<const TGSegment> newtuples,
         std::vector<size_t> derivationNodes) {
-    //TODO
-    return newtuples;
+
+    assert(derivationNodes.empty() ||
+            derivationNodes.size() == newtuples->getNOffsetColumns() - 1);
+
+    size_t offsetColumn = 0;
+    std::vector<size_t> duplicateRowIdxs;
+    for(size_t i = 0; i < derivationNodes.size(); ++i) {
+        size_t node = derivationNodes[i];
+        //Search for nodes with predid=p
+        std::vector<std::vector<std::pair<size_t,size_t>>> nodesToCheckAgainst;
+        retainFromDerivationTree_getNodes(node, i, p,
+                std::vector<std::pair<size_t, size_t>>(), nodesToCheckAgainst);
+        if (nodesToCheckAgainst.empty()) {
+            continue;
+        }
+
+        //Fill the offsetMap
+        std::vector<std::pair<size_t, size_t>> offsetMap;
+        size_t idx = 0;
+        auto itr = newtuples->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            offsetMap.push_back(std::make_pair(
+                        idx, itr->getProvenanceOffset(offsetColumn)));
+            idx++;
+        }
+        for(auto &pathNodeToCheckAgainst : nodesToCheckAgainst) {
+            auto pathOffsetMap = offsetMap;
+            for(size_t j = 0; j < pathNodeToCheckAgainst.size(); ++j) {
+                auto n = pathNodeToCheckAgainst[j].first;
+                if (j == pathNodeToCheckAgainst.size() - 1) {
+                    auto newItr = newtuples->iterator();
+                    auto existData = getNodeData(n);
+                    size_t card = existData->getNColumns();
+                    size_t idx = 0;
+                    while (newItr->hasNext()) {
+                        newItr->next();
+                        bool equal = true;
+                        auto r = offsetMap[idx].second;
+                        for(size_t z = 0; z < card; ++z) {
+                            if (existData->getValueAtRow(r, z) !=
+                                    newItr->get(z)) {
+                                equal = false;
+                                break;
+                            }
+                        }
+                        if (equal) {
+                            duplicateRowIdxs.push_back(idx);
+                        }
+                        idx++;
+                    }
+                } else {
+                    //Take the offset specified in the next node
+                    size_t off = pathNodeToCheckAgainst[j+1].second;
+                    auto d = getNodeData(n);
+                    for(size_t m = 0; m < offsetMap.size(); ++m) {
+                        auto oldOff = offsetMap[m].second;
+                        auto value = d->getOffsetAtRow(oldOff, off);
+                        offsetMap[m].second = value;
+                    }
+                }
+            }
+        }
+        offsetColumn++;
+    }
+
+    if (duplicateRowIdxs.empty()) {
+        return newtuples;
+    } else {
+        std::sort(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
+        auto newend = std::unique(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
+        duplicateRowIdxs.erase(newend, duplicateRowIdxs.end());
+        const uint8_t ncols = newtuples->getNColumns();
+        const size_t extracols = newtuples->getNOffsetColumns();
+        auto inserter = GBSegmentInserter::getInserter(ncols + extracols,
+                extracols, false);
+        Term_t row[ncols + extracols];
+        size_t rowIdx = 0;
+        size_t curDuplRowIdx = 0;
+        auto itr = newtuples->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            if (curDuplRowIdx < duplicateRowIdxs.size() &&
+                    rowIdx == duplicateRowIdxs[curDuplRowIdx]) {
+                //skip it
+                curDuplRowIdx++;
+            } else {
+                for(size_t i = 0; i < ncols; ++i) {
+                    row[i] = itr->get(i);
+                }
+                row[ncols] = itr->getNodeId();
+                for(size_t i = 1; i < extracols; ++i) {
+                    row[ncols + i] = itr->getProvenanceOffset(i-1);
+                }
+
+                //add the row
+                inserter->add(row);
+            }
+            rowIdx++;
+        }
+        if (inserter->getNRows() == 0) {
+            return std::shared_ptr<const TGSegment>();
+        } else {
+            return inserter->getSegment(newtuples->getNodeId(), true, 0,
+                    getSegProvenanceType(), extracols);
+        }
+    }
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retain(

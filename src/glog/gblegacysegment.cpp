@@ -21,6 +21,17 @@ std::vector<Term_t> TGSegmentLegacy::getRow(size_t rowIdx) const {
     return out;
 }
 
+Term_t TGSegmentLegacy::getOffsetAtRow(size_t rowIdx,
+        size_t offsetColumnIdx) const {
+    assert(offsetColumnIdx < nprovcolumns - 1);
+    auto c = columns[columns.size() - nprovcolumns + 1 + offsetColumnIdx];
+    return c->getValue(rowIdx);
+}
+
+Term_t TGSegmentLegacy::getValueAtRow(size_t rowIdx, size_t colIdx) const {
+    return columns[colIdx]->getValue(rowIdx);
+}
+
 bool TGSegmentLegacy::isProvenanceAutomatic() const {
     assert(shouldTrackProvenance());
     assert(nprovcolumns > 0);
@@ -369,7 +380,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(
         } else {
             newcols.push_back(columns[i]);
         }
-    }    
+    }
     return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length,
                 f_isSorted, sortedField, provenanceType, nprovcolumns));
 }

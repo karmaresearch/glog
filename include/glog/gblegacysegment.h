@@ -78,11 +78,11 @@ class TGSegmentLegacy : public TGSegment {
         std::shared_ptr<TGSegment> slice(const size_t nodeId,
                 const size_t start,
                 const size_t end) const;
-    
+
         std::shared_ptr<TGSegment> slice(
-            const size_t start,
-            const size_t end) const;
-    
+                const size_t start,
+                const size_t end) const;
+
         std::unique_ptr<TGSegmentItr> iterator(
                 std::shared_ptr<const TGSegment> selfref = NULL) const;
 
@@ -146,6 +146,10 @@ class TGSegmentLegacy : public TGSegment {
                 int column1, int column2) const;
 
         std::vector<Term_t> getRow(size_t rowIdx) const;
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const;
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const;
 
         ~TGSegmentLegacy();
 };

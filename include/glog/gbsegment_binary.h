@@ -114,6 +114,13 @@ class BinaryTGSegment : public BinaryTGSegmentImpl<BinaryTGSegment,
                 }
             }
         }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
+        }
 };
 
 class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<
@@ -217,6 +224,13 @@ class BinaryWithConstProvTGSegment : public BinaryTGSegmentImpl<
                     c++;
             }
             return c;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
         }
 };
 
@@ -343,6 +357,13 @@ class BinaryWithProvTGSegment : public BinaryTGSegmentImpl<
                         BinaryWithProvTGSegmentItr, SEG_DIFFNODES>::getNodeId(),
                         false, 0));
         }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
+        }
 };
 
 class BinaryWithConstNodeOffFullProvTGSegment : public BinaryTGSegmentImpl<
@@ -401,6 +422,18 @@ class BinaryWithConstNodeOffFullProvTGSegment : public BinaryTGSegmentImpl<
             out.push_back(nodeId);
             out.push_back(rowIdx);
             return out;
+        }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return rowIdx;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
         }
 };
 
@@ -624,6 +657,18 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
             out.push_back(tuples->at(rowIdx).off);
             return out;
         }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return tuples->at(rowIdx).off;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
+        }
 };
 
 class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
@@ -772,6 +817,18 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
             out.push_back(tuples->at(rowIdx).node);
             out.push_back(tuples->at(rowIdx).prov);
             return out;
+        }
+
+        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+            assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
+            return tuples->at(rowIdx).prov;
+        }
+
+        Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const {
+            if (colIdx == 0)
+                return tuples->at(rowIdx).first;
+            else
+                return tuples->at(rowIdx).second;
         }
 };
 

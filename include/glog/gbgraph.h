@@ -314,9 +314,15 @@ class GBGraph {
 
         std::shared_ptr<const TGSegment> retainFromDerivationTree(
                 PredId_t p,
+                size_t ruleIdx,
                 std::shared_ptr<const TGSegment> newtuples,
                 std::vector<size_t> derivationNodes);
 
+        void retainFromDerivationTree_getNodes(size_t nodeId,
+                size_t offsetNodeId,
+                PredId_t predId,
+                std::vector<std::pair<size_t,size_t>> currentPath,
+                std::vector<std::vector<std::pair<size_t,size_t>>> &out);
 
     public:
         GBGraph(ProvenanceType provenanceType,
