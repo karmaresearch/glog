@@ -73,7 +73,7 @@ class TGSegment {
             throw 10;
         }
 
-        virtual std::shared_ptr<TGSegment> slice(
+        virtual std::shared_ptr<const TGSegment> slice(
                 const size_t start,
                 const size_t end) const = 0;
 
@@ -298,7 +298,7 @@ class TGSegmentImpl : public TGSegment {
             }
         }
 
-        virtual std::shared_ptr<TGSegment> slice(
+        virtual std::shared_ptr<const TGSegment> slice(
                 const size_t start,
                 const size_t end) const {
             if (start == 0 && end == getNRows()) {

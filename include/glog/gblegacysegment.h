@@ -79,7 +79,7 @@ class TGSegmentLegacy : public TGSegment {
                 const size_t start,
                 const size_t end) const;
 
-        std::shared_ptr<TGSegment> slice(
+        std::shared_ptr<const TGSegment> slice(
                 const size_t start,
                 const size_t end) const;
 

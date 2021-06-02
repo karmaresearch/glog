@@ -596,9 +596,12 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                                 out[i].first = col1[i];
                                 out[i].second = col3[i];
                             }
+                            auto nId = nodeId;
+                            if (nrows > 0)
+                                nId = col2[0];
                             return std::shared_ptr<const TGSegment>(
                                     new UnaryWithConstNodeFullProvTGSegment(
-                                        out, col2[0], isSorted, sortedField));
+                                        out, nId, isSorted, sortedField));
                         } else {
                             std::vector<UnWithFullProv> out(nrows);
                             for(size_t i = 0; i < nrows; ++i) {
@@ -649,13 +652,14 @@ class GBSegmentInserterNAry : public GBSegmentInserter
                         }
                         if (constantNodeVal) {
                             assert(nodeIdColumn < columns.size());
-                            assert(columns[nodeIdColumn]->size() > 0);
-                            assert(nodeId == ~0ul ||
-                                    nodeId == columns[nodeIdColumn]->getValue(0));
+                            size_t nId = nodeId;
+                            if (columns[nodeIdColumn]->size() > 0) {
+                                nId = columns[nodeIdColumn]->getValue(0);
+                            }
                             columns[nodeIdColumn] =
                                 std::shared_ptr<Column>(
                                         new CompressedColumn(
-                                            columns[nodeIdColumn]->getValue(0),
+                                            nId,
                                             addedRows));
                         }
                     }

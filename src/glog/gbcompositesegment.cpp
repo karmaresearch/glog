@@ -211,3 +211,42 @@ void CompositeTGSegment::appendTo(uint8_t colPos1, uint8_t colPos2,
         g.getNodeData(n)->appendTo(p1, p2, out);
     }
 }
+
+std::shared_ptr<const TGSegment> CompositeTGSegment::slice(const size_t start,
+        const size_t end) const {
+    //Does the start match one node?
+    size_t nrows = 0;
+    for(size_t i = 0; i < nodes.size(); ++i) {
+        auto node = nodes[i];
+        if (nrows == start) {
+            auto size = g.getNodeSize(node);
+            if (nrows + size == end) {
+                std::vector<size_t> n;
+                n.push_back(node);
+                auto t = g.mergeNodes(n, copyVarPos, false, replaceOffsets);
+                return t;
+            }
+        }
+    }
+    throw 10;
+}
+
+std::shared_ptr<TGSegment> CompositeTGSegment::slice(const size_t nodeId,
+        const size_t start,
+        const size_t end) const {
+    //Does the start match one node?
+    size_t nrows = 0;
+    for(size_t i = 0; i < nodes.size(); ++i) {
+        auto node = nodes[i];
+        if (nrows == start) {
+            auto size = g.getNodeSize(node);
+            if (nrows + size == end) {
+                std::vector<size_t> n;
+                n.push_back(node);
+                auto t = g.mergeNodes(n, copyVarPos, false, replaceOffsets);
+                return t->slice(nodeId, 0, size);
+            }
+        }
+    }
+    throw 10;
+}

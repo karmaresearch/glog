@@ -369,7 +369,7 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
                 f_isSorted, sortedField, provenanceType, nprovcolumns));
 }
 
-std::shared_ptr<TGSegment> TGSegmentLegacy::slice(
+std::shared_ptr<const TGSegment> TGSegmentLegacy::slice(
         const size_t start,
         const size_t end) const {
     std::vector<std::shared_ptr<Column>> newcols;
