@@ -541,13 +541,12 @@ void launchProbTGChase(int argc,
         return;
     }
 
+    if (vm["rewritecliques"].as<bool>()) {
+        LOG(WARNL) << "rewritecliques is disabled with this type of chase";
+    }
+
     //Obtain the chase procedure
-    GBChaseAlgorithm tc = GBChaseAlgorithm::PROBTGCHASE;
-    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(db, &p, tc,
-            vm["querycont"].as<bool>(),
-            vm["edbcheck"].as<bool>(),
-            vm["rewritecliques"].as<bool>(),
-            "");
+    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(db, &p);
 
     if (vm["profiler"].as<std::string>() != "") {
         sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
@@ -671,10 +670,17 @@ void launchGBChase(
     } else if (cmd == "tgchasefullprov") {
         tc = GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV;
     }
+
+    bool rewrite = vm["rewritecliques"].as<bool>();
+    if (tc == GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV && rewrite) {
+        LOG(WARNL) << "rewritecliques is disabled with this type of chase";
+        rewrite = false;
+    }
+
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(db, &p, tc,
             vm["querycont"].as<bool>(),
             vm["edbcheck"].as<bool>(),
-            vm["rewritecliques"].as<bool>(),
+            rewrite,
             param1);
 
     if (vm["profiler"].as<std::string>() != "") {

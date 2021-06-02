@@ -23,11 +23,16 @@ class GBChase : public Chase {
         EDBLayer &layer; //Stores the input data
         GBGraph g; //Stores the derivations
         std::vector<Rule> rules;
+        std::unique_ptr<GBRuleExecutor> executor; //Object that executes rules
+
+        //Used for statistics
+        size_t triggers;
+        std::chrono::duration<double, std::milli> durationRuleExec;
+
 
     private:
         std::vector<int> stratification;
         int nStratificationClasses;
-        GBRuleExecutor executor; //Object that executes rules
         size_t currentIteration;
         size_t startStep;
 
@@ -39,9 +44,7 @@ class GBChase : public Chase {
         std::set<PredId_t> predToBeRetainedEndStep;
 
         //Used for statistics
-        size_t triggers;
         std::chrono::duration<double, std::milli> durationPreparation;
-        std::chrono::duration<double, std::milli> durationRuleExec;
         //std::chrono::duration<double, std::milli> durationDebug;
 
         void prepareRuleExecutionPlans_queryContainment(
@@ -83,7 +86,7 @@ class GBChase : public Chase {
                 const size_t step,
                 std::vector<GBRuleInput> &newnodes);
 
-        bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
+        virtual bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
 
         virtual size_t executeRulesInStratum(
                 const std::vector<size_t> &ruleIdxs,

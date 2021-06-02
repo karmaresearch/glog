@@ -15,12 +15,11 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     program(program),
     layer(layer),
     g(provenanceType, useCacheRetain, filterQueryCont),
-    executor(g, layer, program),
+    triggers(0),
+    durationRuleExec(0),
     currentIteration(0),
     startStep(0),
-    triggers(0),
-    durationPreparation(0),
-    durationRuleExec(0)
+    durationPreparation(0)
 {
     LOG(INFOL) << "Query cont=" << filterQueryCont <<
         " EDB check=" << edbCheck;
@@ -36,9 +35,9 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     LOG(DEBUGL) << "nStratificationClasses = " << nStratificationClasses;
 
     rules = program->getAllRules();
-    //if (shouldTrackProvenance()) {
     g.setRulesProgramLayer(rules.data(), program, &layer);
-    //}
+    executor = std::unique_ptr<
+        GBRuleExecutor>(new GBRuleExecutor(g, layer, program));
 }
 
 Program *GBChase::getProgram() {
@@ -562,7 +561,7 @@ void GBChase::run() {
 
     layer.clearContext();
     SegmentCache::getInstance().clear();
-    executor.printStats();
+    executor->printStats();
     LOG(INFOL) << "(GBChase) Time stratum preparation (ms): " << durationPreparation.count();
     LOG(INFOL) << "(GBChase) Time rule exec (ms): " << durationRuleExec.count();
     //LOG(INFOL) << "(GBChase) Time debug (ms): " << durationDebug.count();
@@ -624,7 +623,7 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     auto &heads = rule.getHeads();
     int headIdx = 0;
     currentPredicate = heads[headIdx].getPredicate().getId();
-    auto outputsRule = executor.executeRule(rule, node);
+    auto outputsRule = executor->executeRule(rule, node);
     bool nonempty = false;
     std::chrono::duration<double, std::milli> execRuntime =
         std::chrono::system_clock::now() - start;
@@ -689,12 +688,12 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
         stats.nderivations_final = nders;
         stats.nderivations_unfiltered = nders_un;
         stats.timems = totalRuntime.count();
-        stats.timems_first = executor.getDuration(DurationType::DUR_FIRST).count();
-        stats.timems_merge = executor.getDuration(DurationType::DUR_MERGE).count();
-        stats.timems_join = executor.getDuration(DurationType::DUR_JOIN).count();
-        stats.timems_createhead = executor.getDuration(DurationType::DUR_HEAD).count();
+        stats.timems_first = executor->getDuration(DurationType::DUR_FIRST).count();
+        stats.timems_merge = executor->getDuration(DurationType::DUR_MERGE).count();
+        stats.timems_join = executor->getDuration(DurationType::DUR_JOIN).count();
+        stats.timems_createhead = executor->getDuration(DurationType::DUR_HEAD).count();
         stats.timems_retain = retainRuntime.count();
-        stats.nbdyatoms = executor.getStat(StatType::N_BDY_ATOMS);
+        stats.nbdyatoms = executor->getStat(StatType::N_BDY_ATOMS);
         saveStatistics(stats);
     }
 

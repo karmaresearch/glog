@@ -8,6 +8,7 @@
 #include <vlog/seminaiver_trigger.h>
 #include <glog/gbchase.h>
 #include <glog/tgchase.h>
+#include <glog/probgbchase.h>
 #include <vlog/consts.h>
 
 #include <trident/kb/kb.h>
@@ -136,12 +137,7 @@ class Reasoner {
 
         VLIBEXP static std::shared_ptr<GBChase> getProbTGChase(
                 EDBLayer &layer,
-                Program *p,
-                GBChaseAlgorithm typeChase,
-                bool queryCont = true,
-                bool edbCheck = true,
-                bool rewriteCliques = true,
-                std::string param1 = "");
+                Program *p);
 
         int getNumberOfIDBPredicates(Literal&, Program&);
 

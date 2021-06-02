@@ -14,7 +14,8 @@ std::shared_ptr<const TGSegment> CompositeTGSegment::merge() const {
 size_t CompositeTGSegment::getNRows() const {
     assert(nodes.size() > 0);
     assert(copyVarPos.size() == 1 || copyVarPos[0] != copyVarPos[1]);
-    if (copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns()) {
+    if (removeDuplBeforeAccess &&
+            copyVarPos.size() != g.getNodeData(nodes[0])->getNColumns()) {
         if (nodes.size() == 1) {
             auto nodeData = g.getNodeData(nodes[0]);
             if (copyVarPos.size() == 2) {

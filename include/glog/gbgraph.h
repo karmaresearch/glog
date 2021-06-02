@@ -283,14 +283,16 @@ class GBGraph {
                 std::shared_ptr<const TGSegment> seg,
                 const std::vector<size_t> &nodeIdxs,
                 const std::vector<int> &copyVarPos,
-                bool lazyMode = false,
-                bool replaceOffsets = false) const;
+                bool lazyMode,
+                bool replaceOffsets,
+                bool removeDuplicates) const;
 
         std::shared_ptr<const TGSegment> mergeNodes_special_unary2(
                 const std::vector<size_t> &nodeIdxs,
                 const std::vector<int> &copyVarPos,
-                bool lazyMode = false,
-                bool replaceOffsets = false) const;
+                bool lazyMode,
+                bool replaceOffsets,
+                bool removeDuplicates) const;
 
         std::shared_ptr<const TGSegment> mergeNodes_general(
                 const std::vector<size_t> &nodeIdxs,
@@ -298,7 +300,8 @@ class GBGraph {
                 const std::vector<int> &copyVarPos,
                 bool lazyMode,
                 bool replaceOffsets,
-                bool shouldSortAndUnique) const;
+                bool shouldSort,
+                bool removeDuplicates) const;
 
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
@@ -396,7 +399,8 @@ class GBGraph {
                 const std::vector<Term_t> &filterConstants,
                 const std::vector<int> &copyVarPos,
                 bool lazyMode = false,
-                bool replaceOffsets = false) const;
+                bool replaceOffsets = false,
+                bool removeDuplicates = true) const;
 
         std::shared_ptr<const TGSegment> mergeNodes(
                 const std::vector<size_t> &nodeIdxs,

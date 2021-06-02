@@ -6,7 +6,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
         std::shared_ptr<const TGSegment> seg,
         const std::vector<size_t> &nodeIdxs,
         const std::vector<int> &copyVarPos, bool lazyMode,
-        bool replaceOffsets) const {
+        bool replaceOffsets,
+        bool removeDuplicates) const {
     assert(nodeIdxs.size() == 1);
     assert(!replaceOffsets || !isTmpNode(nodeIdxs[0])); //This procedure should not be called if there is a temporary nodes
     //because temporary nodes do not create nodes with columnar layouts. If this condition is false, then we must fix the code
@@ -24,7 +25,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
     if (shouldSortAndUnique && provenanceType != FULLPROV) {
         if (outColumns.size() == 1) {
             auto sortedCol = outColumns[0]->sort();
-            outColumns[0] = sortedCol->unique();
+            if (removeDuplicates)
+                outColumns[0] = sortedCol->unique();
+            else
+                outColumns[0] = sortedCol;
         } else {
             LOG(ERRORL) << "Should never happen";
             throw 10;
@@ -80,7 +84,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary1(
 std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
         const std::vector<size_t> &nodeIdxs,
         const std::vector<int> &copyVarPos, bool lazyMode,
-        bool replaceOffsets) const {
+        bool replaceOffsets,
+        bool removeDuplicates) const {
     auto ncols = copyVarPos.size();
     bool project = ncols > 0 && ncols < getNodeData(nodeIdxs[0])->getNColumns();
     bool shouldSortAndUnique = (project ||
@@ -131,8 +136,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
             }
             if (shouldSortAndUnique) {
                 std::sort(tuples.begin(), tuples.end());
-                auto itr = std::unique(tuples.begin(), tuples.end());
-                tuples.erase(itr, tuples.end());
+                if (removeDuplicates) {
+                    auto itr = std::unique(tuples.begin(), tuples.end());
+                    tuples.erase(itr, tuples.end());
+                }
                 return std::shared_ptr<const TGSegment>(
                         new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
             } else {
@@ -146,8 +153,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
             getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
         if (shouldSortAndUnique) {
             std::sort(tuples.begin(), tuples.end());
-            auto itr = std::unique(tuples.begin(), tuples.end());
-            tuples.erase(itr, tuples.end());
+            if (removeDuplicates) {
+                auto itr = std::unique(tuples.begin(), tuples.end());
+                tuples.erase(itr, tuples.end());
+            }
             return std::shared_ptr<const TGSegment>(
                     new UnaryTGSegment(tuples, ~0ul, true, 0));
         } else {
@@ -161,7 +170,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         const std::vector<size_t> &nodeIdxs,
         const std::vector<Term_t> &filterConstants,
         const std::vector<int> &copyVarPos, bool lazyMode,
-        bool replaceOffsets) const {
+        bool replaceOffsets, bool removeDuplicates) const {
 
     if (lazyMode && provenanceType == NOPROV) {
         LOG(WARNL) << "Lazymode is deactivated with NOPROV";
@@ -186,7 +195,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                         nodeIdxs,
                         copyVarPos,
                         lazyMode,
-                        replaceOffsets);
+                        replaceOffsets,
+                        removeDuplicates);
             }
         }
 
@@ -201,7 +211,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 nodeIdxs,
                 copyVarPos,
                 lazyMode,
-                replaceOffsets);
+                replaceOffsets,
+                removeDuplicates);
 
     } else if (filterConstants.empty() && copyVarPos.size() == 2) {
         //Check that node of the nodes is temporary. If they are,
@@ -268,8 +279,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                     }
                     if (shouldSortAndUnique) {
                         std::sort(tuples.begin(), tuples.end());
-                        auto itr = std::unique(tuples.begin(), tuples.end());
-                        tuples.erase(itr, tuples.end());
+                        if (removeDuplicates) {
+                            auto itr = std::unique(tuples.begin(), tuples.end());
+                            tuples.erase(itr, tuples.end());
+                        }
                         return std::shared_ptr<const TGSegment>(
                                 new BinaryWithProvTGSegment(tuples, ~0ul, true, 0));
                     } else {
@@ -285,8 +298,10 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
                 }
                 if (shouldSortAndUnique) {
                     std::sort(tuples.begin(), tuples.end());
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
+                    if (removeDuplicates) {
+                        auto itr = std::unique(tuples.begin(), tuples.end());
+                        tuples.erase(itr, tuples.end());
+                    }
                     return std::shared_ptr<const TGSegment>(
                             new BinaryTGSegment(tuples, ~0ul, true, 0));
                 } else {
@@ -297,7 +312,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         }
     } else {
         return mergeNodes_general(nodeIdxs, filterConstants, copyVarPos,
-                lazyMode, replaceOffsets, shouldSortAndUnique);
+                lazyMode, replaceOffsets, shouldSortAndUnique,
+                shouldSortAndUnique && removeDuplicates);
     }
 }
 
@@ -307,7 +323,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
         const std::vector<int> &copyVarPos,
         bool lazyMode,
         bool replaceOffsets,
-        bool shouldSortAndUnique) const {
+        bool shouldSort,
+        bool shouldRemoveDuplicates) const {
     //Check that node of the nodes is temporary. If they are, then I must
     //fix the replaceOffset procedure, which should not apply for temporaty nodes
     for(auto ni : nodeIdxs) {
@@ -427,9 +444,12 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
             new TGSegmentLegacy(columns, nrows, false,
                 0, getSegProvenanceType(nodeIdxs.size() > 1),
                 columns.size() - copyVarPos.size()));
-    if (shouldSortAndUnique) {
+    if (shouldSort) {
         auto sortedSeg = seg->sort();
-        return sortedSeg->unique();
+        if (shouldRemoveDuplicates)
+            return sortedSeg->unique();
+        else
+            return sortedSeg;
     } else {
         return seg;
     }
