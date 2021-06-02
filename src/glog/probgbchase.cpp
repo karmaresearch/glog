@@ -5,7 +5,7 @@ ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program) :
             false, false, true)
 {
     executor = std::unique_ptr<GBRuleExecutor>(
-            new GBRuleExecutor(g, layer, &program, false));
+            new GBRuleExecutor(g, layer, &program, false, true));
 }
 
 bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)

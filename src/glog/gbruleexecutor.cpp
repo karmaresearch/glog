@@ -483,6 +483,28 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
     } else {
         output = seg;
     }
+
+    if (loadAllEDB) {
+        size_t ncols = output->getNColumns() + output->getNOffsetColumns();
+        auto inserter = GBSegmentInserter::getInserter(ncols,
+                output->getNOffsetColumns(), false);
+        std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
+        auto itr = output->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            for(size_t i = 0; i < output->getNColumns(); ++i) {
+                row[i] = itr->get(i);
+            }
+            row[output->getNColumns()] = itr->getNodeId();
+            for(size_t i = 1; i < output->getNOffsetColumns(); ++i) {
+                row[output->getNColumns() + i] = itr->getProvenanceOffset(i-1);
+            }
+            inserter->add(row.get());
+        }
+        output = inserter->getSegment(output->getNodeId(), output->isSorted(), 0,
+                output->getProvenanceType(), output->getNOffsetColumns());
+    }
+
     return output;
 }
 

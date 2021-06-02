@@ -47,6 +47,7 @@ class DuplManager {
 class GBRuleExecutor {
     private:
         const bool retainUnique;
+        const bool loadAllEDB;
         std::chrono::duration<double, std::milli> durationFirst;
         std::chrono::duration<double, std::milli> durationMergeSort;
         std::chrono::duration<double, std::milli> durationJoin;
@@ -194,8 +195,9 @@ class GBRuleExecutor {
 
     public:
         GBRuleExecutor(GBGraph &g, EDBLayer &layer,
-                Program *program, bool retainUnique = true) :
+                Program *program, bool retainUnique = true, bool loadAllEDB = false) :
             retainUnique(retainUnique),
+            loadAllEDB(loadAllEDB),
             durationMergeSort(0),
             durationJoin(0),
             durationCreateHead(0),
