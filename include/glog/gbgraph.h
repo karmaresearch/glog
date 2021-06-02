@@ -312,6 +312,12 @@ class GBGraph {
             return retain(pred, newtuples, derivationNodes);
         }
 
+        std::shared_ptr<const TGSegment> retainFromDerivationTree(
+                PredId_t p,
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<size_t> derivationNodes);
+
+
     public:
         GBGraph(ProvenanceType provenanceType,
                 bool cacheRetainEnabled,
@@ -435,7 +441,8 @@ class GBGraph {
                 size_t ruleIdx,
                 size_t step,
                 std::shared_ptr<const TGSegment> data,
-                const std::vector<std::shared_ptr<Column>> &provenance);
+                const std::vector<std::shared_ptr<Column>> &provenance,
+                bool filterFromProvenance = false);
 
         void addNodeToBeRetained(PredId_t predId,
                 std::shared_ptr<const TGSegment> data,

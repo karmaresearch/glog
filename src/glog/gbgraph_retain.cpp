@@ -1,6 +1,15 @@
 #include <glog/gbgraph.h>
 #include <glog/gbsegmentinserter.h>
 
+
+std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
+        PredId_t p,
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<size_t> derivationNodes) {
+    //TODO
+    return newtuples;
+}
+
 std::shared_ptr<const TGSegment> GBGraph::retain(
         PredId_t p,
         std::shared_ptr<const TGSegment> newtuples,

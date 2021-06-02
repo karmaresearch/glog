@@ -207,7 +207,8 @@ void GBGraph::addNodeNoProv(PredId_t predId,
 void GBGraph::addNodesProv(PredId_t predId,
         size_t ruleIdx, size_t step,
         std::shared_ptr<const TGSegment> seg,
-        const std::vector<std::shared_ptr<Column>> &provenance) {
+        const std::vector<std::shared_ptr<Column>> &provenance,
+        bool filterFromProvenance) {
 
 #ifdef DEBUG
     if (provenanceType == ProvenanceType::NOPROV) {
@@ -236,8 +237,16 @@ void GBGraph::addNodesProv(PredId_t predId,
                     addNodeProv(predId, ruleIdx, step, c,
                             std::vector<size_t>());
                 } else {
-                    addNodeProv(predId, ruleIdx, step, c,
-                            currentNodeList);
+                    if (filterFromProvenance) {
+                        auto retainedData = retainFromDerivationTree(predId,
+                                c, currentNodeList);
+                        if (retainedData->getNRows() > 0) {
+                            addNodeProv(predId, ruleIdx, step, retainedData,
+                                    currentNodeList);
+                        }
+                    } else {
+                        addNodeProv(predId, ruleIdx, step, c, currentNodeList);
+                    }
                 }
             }
         } else {
@@ -254,7 +263,15 @@ void GBGraph::addNodesProv(PredId_t predId,
             }
             auto nodeId = getNNodes();
             auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
-            addNodeProv(predId, ruleIdx, step, dataToAdd, provnodes);
+            if (filterFromProvenance) {
+                auto retainedData = retainFromDerivationTree(predId, dataToAdd,
+                        provnodes);
+                if (retainedData->getNRows() > 0) {
+                    addNodeProv(predId, ruleIdx, step, retainedData, provnodes);
+                }
+            } else {
+                addNodeProv(predId, ruleIdx, step, dataToAdd, provnodes);
+            }
         }
     } else {
         const auto nnodes = (provenance.size() + 2) / 2;
@@ -305,8 +322,17 @@ void GBGraph::addNodesProv(PredId_t predId,
                     //Create a new node
                     auto nodeId = getNNodes();
                     auto dataToAdd = resortedSeg->slice(nodeId, startidx, i);
-                    addNodeProv(predId, ruleIdx, step, dataToAdd,
-                            currentNodeList);
+                    if (filterFromProvenance) {
+                        auto retainedData = retainFromDerivationTree(predId,
+                                dataToAdd, currentNodeList);
+                        if (retainedData->getNRows() > 0) {
+                            addNodeProv(predId, ruleIdx, step, retainedData,
+                                    currentNodeList);
+                        }
+                    } else {
+                        addNodeProv(predId, ruleIdx, step, dataToAdd,
+                                currentNodeList);
+                    }
                 }
                 startidx = i;
                 for(size_t j = 0; j < nnodes; ++j) {
@@ -319,8 +345,17 @@ void GBGraph::addNodesProv(PredId_t predId,
         if (startidx < nrows) {
             auto nodeId = getNNodes();
             auto dataToAdd = resortedSeg->slice(nodeId, startidx, nrows);
-            addNodeProv(predId, ruleIdx,
-                    step, dataToAdd, currentNodeList);
+            if (filterFromProvenance) {
+                auto retainedData = retainFromDerivationTree(predId, dataToAdd,
+                        currentNodeList);
+                if (retainedData->getNRows() > 0) {
+                    addNodeProv(predId, ruleIdx, step, retainedData,
+                            currentNodeList);
+                }
+            } else {
+                addNodeProv(predId, ruleIdx,
+                        step, dataToAdd, currentNodeList);
+            }
         }
     }
 }
