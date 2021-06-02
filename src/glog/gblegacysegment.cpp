@@ -23,6 +23,7 @@ std::vector<Term_t> TGSegmentLegacy::getRow(size_t rowIdx) const {
 
 Term_t TGSegmentLegacy::getOffsetAtRow(size_t rowIdx,
         size_t offsetColumnIdx) const {
+    assert(rowIdx < getNRows());
     assert(offsetColumnIdx < nprovcolumns - 1);
     auto c = columns[columns.size() - nprovcolumns + 1 + offsetColumnIdx];
     return c->getValue(rowIdx);

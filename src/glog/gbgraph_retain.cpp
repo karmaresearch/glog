@@ -69,7 +69,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                     while (newItr->hasNext()) {
                         newItr->next();
                         bool equal = true;
-                        auto r = offsetMap[idx].second;
+                        auto r = pathOffsetMap [idx].second;
                         for(size_t z = 0; z < card; ++z) {
                             if (existData->getValueAtRow(r, z) !=
                                     newItr->get(z)) {
@@ -86,10 +86,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                     //Take the offset specified in the next node
                     size_t off = pathNodeToCheckAgainst[j+1].second;
                     auto d = getNodeData(n);
-                    for(size_t m = 0; m < offsetMap.size(); ++m) {
-                        auto oldOff = offsetMap[m].second;
+                    for(size_t m = 0; m < pathOffsetMap.size(); ++m) {
+                        auto oldOff = pathOffsetMap[m].second;
                         auto value = d->getOffsetAtRow(oldOff, off);
-                        offsetMap[m].second = value;
+                        pathOffsetMap[m].second = value;
                     }
                 }
             }
