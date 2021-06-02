@@ -82,6 +82,7 @@ class GBGraph {
         const ProvenanceType provenanceType;
         const bool cacheRetainEnabled;
         const bool queryContEnabled;
+        const bool duplAllowed;
 
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
         std::vector<GBGraph_Node> nodes;
@@ -314,10 +315,12 @@ class GBGraph {
     public:
         GBGraph(ProvenanceType provenanceType,
                 bool cacheRetainEnabled,
-                bool useQueryContainmentForRedundancyElim = false) :
+                bool useQueryContainmentForRedundancyElim = false,
+                bool duplAllowed = false) :
             provenanceType(provenanceType),
             cacheRetainEnabled(cacheRetainEnabled),
             queryContEnabled(useQueryContainmentForRedundancyElim),
+            duplAllowed(duplAllowed),
             durationRetain(0),
             durationQueryContain(0),
             durationQueryContain1(0),

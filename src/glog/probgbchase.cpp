@@ -2,7 +2,7 @@
 
 ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program) :
     GBChase(layer, &program, true, GBGraph::ProvenanceType::FULLPROV, false,
-            false, false)
+            false, false, true)
 {
     executor = std::unique_ptr<GBRuleExecutor>(
             new GBRuleExecutor(g, layer, &program, false));

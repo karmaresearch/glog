@@ -100,7 +100,8 @@ class GBChase : public Chase {
                 GBGraph::ProvenanceType provenanceType = GBGraph::ProvenanceType::NOPROV,
                 bool filterQueryCont = false,
                 bool edbCheck = false,
-                bool rewriteCliques = false);
+                bool rewriteCliques = false,
+                bool duplAllowed = false);
 
         void prepareRun(size_t startStep);
 
