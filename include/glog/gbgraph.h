@@ -85,6 +85,7 @@ class GBGraph {
 
         std::map<PredId_t, std::vector<size_t>> pred2Nodes;
         std::vector<GBGraph_Node> nodes;
+        std::vector<size_t> noNodes;
 
         std::map<uint64_t, GBGraph_Node> mapTmpNodes;
         std::map<PredId_t, std::vector<GBGraph_TmpPredNode>> mapPredTmpNodes;
@@ -389,7 +390,11 @@ class GBGraph {
 
         const std::vector<size_t> &getNodeIDsWithPredicate(
                 PredId_t predId) const {
-            return pred2Nodes.at(predId);
+            if (pred2Nodes.count(predId)) {
+                return pred2Nodes.at(predId);
+            } else {
+                return noNodes;
+            }
         }
 
         const std::vector<PredId_t> getPredicateIDs() const;
@@ -468,7 +473,8 @@ class GBGraph {
         std::shared_ptr<const TGSegment> retain(
                 PredId_t pred,
                 std::shared_ptr<const TGSegment> newtuples,
-                std::vector<std::shared_ptr<Column>> &derivationNodes);
+                std::vector<std::shared_ptr<Column>> &derivationNodes,
+                bool inputWithDuplicates = false);
 
         //Returns the number of retained tuples. The new node will get the last
         //step and will be assigned to rule ~0ul

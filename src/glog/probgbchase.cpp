@@ -46,7 +46,7 @@ bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
             //Notice that with this type of chase we never postpone the retain
             //operation to the end
             auto retainedTuples = g.retain(currentPredicate, derivations,
-                    derivationNodes);
+                    derivationNodes, true);
             nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
             if (nonempty) {
                 nders += retainedTuples->getNRows();

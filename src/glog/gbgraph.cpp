@@ -354,13 +354,19 @@ void GBGraph::addNodeProv(PredId_t predid,
     }
     while (itr->hasNext()) {
         itr->next();
+        bool equal = true;
         for(int i = 0; i < ncols; ++i) {
             if (itr->get(i) > values[i]) {
+                equal = false;
                 break;
             } else if (itr->get(i) < values[i]) {
                 LOG(ERRORL) << "Segment not sorted";
                 throw 10;
             }
+        }
+        if (equal) {
+            LOG(ERRORL) << "duplicate values are not allowed";
+            throw 10;
         }
         for(int i = 0; i < ncols; ++i) {
             values[i] = itr->get(i);
@@ -1072,7 +1078,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
 std::shared_ptr<const TGSegment> GBGraph::retain(
         PredId_t p,
         std::shared_ptr<const TGSegment> newtuples,
-        std::vector<std::shared_ptr<Column>> &derivationNodes) {
+        std::vector<std::shared_ptr<Column>> &derivationNodes,
+        bool inputWithDuplicates) {
     //Check that it is sorted
 #ifdef DEBUG
     auto ncols = newtuples->getNColumns();
@@ -1098,6 +1105,9 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
         }
     }
 #endif
+    if (inputWithDuplicates) {
+        newtuples = newtuples->unique();
+    }
 
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
@@ -1108,6 +1118,7 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
         return newtuples;
     }
     auto &nodeIdxs = getNodeIDsWithPredicate(p);
+    assert(nodeIdxs.size() > 0);
     if (cacheRetainEnabled &&
             nodeIdxs.size() > 1) {
         //Merge and sort the segments
