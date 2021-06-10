@@ -24,13 +24,6 @@ const std::vector<Literal> &GBGraph::GBGraph_Node::getQueryBody(GBGraph &g)
 
 const std::vector<size_t> &GBGraph::GBGraph_Node::getIncomingEdges(bool c) const
 {
-#ifdef DEBUG
-    if (c) {
-        for(auto n : incomingEdges)
-            if (n == ~0ul)
-                throw 10;
-    }
-#endif
     return incomingEdges;
 }
 

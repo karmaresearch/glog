@@ -7,7 +7,12 @@ void GBGraph::retainFromDerivationTree_getNodes(size_t nodeId,
         PredId_t predId,
         std::vector<std::pair<size_t,size_t>> currentPath,
         std::vector<std::vector<std::pair<size_t,size_t>>> &out) {
+    assert(nodeId < getNNodes());
     auto r = getNodeRuleIdx(nodeId);
+    if (r == ~0ul) {
+        //Node is a node that has been manually added
+        return;
+    }
     Rule &rule = allRules[r];
     auto &heads = rule.getHeads();
     assert(heads.size() == 1);
@@ -35,13 +40,18 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
     std::chrono::steady_clock::time_point start =
         std::chrono::steady_clock::now();
 
-    assert(derivationNodes.empty() ||
-            derivationNodes.size() == newtuples->getNOffsetColumns() - 1);
+    if (!derivationNodes.empty() &&
+            derivationNodes.size() != newtuples->getNOffsetColumns() - 1) {
+        throw 10;
+    }
 
     size_t offsetColumn = 0;
     std::vector<size_t> duplicateRowIdxs;
     for(size_t i = 0; i < derivationNodes.size(); ++i) {
         size_t node = derivationNodes[i];
+        if (node == ~0ul) {
+            continue;
+        }
         //Search for nodes with predid=p
         std::vector<std::vector<std::pair<size_t,size_t>>> nodesToCheckAgainst;
         retainFromDerivationTree_getNodes(node, i, p,

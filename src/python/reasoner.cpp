@@ -149,6 +149,9 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
         } else {
             return -1;
         }
+    } else if (tChase == "probtgchase") {
+        tc = GBChaseAlgorithm::PROBTGCHASE;
+        tp = "FULLPROV";
     }
 
     if (tp == "FULLPROV") {
@@ -169,11 +172,15 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
     Py_INCREF(program);
     EDBLayer *db = ((glog_EDBLayer*)edbLayer)->e;
     auto p = ((glog_Program*)program)->program;
-    self->sn = Reasoner::getGBChase(*db, p.get(), tc,
-            queryCont,
-            edbCheck,
-            rewriteCliques,
-            std::string(tgpath));
+    if (tc != GBChaseAlgorithm::PROBTGCHASE) {
+        self->sn = Reasoner::getGBChase(*db, p.get(), tc,
+                queryCont,
+                edbCheck,
+                rewriteCliques,
+                std::string(tgpath));
+    } else {
+        self->sn = Reasoner::getProbTGChase(*db, p.get());
+    }
     return 0;
 }
 
