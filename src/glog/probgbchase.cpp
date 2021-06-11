@@ -43,16 +43,21 @@ bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
         nonempty |= !(derivations == NULL || derivations->isEmpty());
 
         if (nonempty) {
-            //Notice that with this type of chase we never postpone the retain
-            //operation to the end
-            //auto retainedTuples = g.retain(currentPredicate, derivations,
-            //        derivationNodes, true);
-            //nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
-            //if (nonempty) {
             nders += derivations->getNRows();
-            g.addNodesProv(currentPredicate, node.ruleIdx,
-                    node.step, derivations, derivationNodes, true);
-            //}
+            assert(heads.size() == 1);
+            bool filterProvenance = !heads.back().isMagic();
+            if (filterProvenance) {
+                g.addNodesProv(currentPredicate, node.ruleIdx,
+                        node.step, derivations, derivationNodes, true);
+            } else {
+                auto retainedTuples = g.retain(currentPredicate, derivations,
+                        derivationNodes);
+                nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());
+                if (nonempty) {
+                    g.addNodesProv(currentPredicate, node.ruleIdx,
+                            node.step, retainedTuples, derivationNodes, false);
+                }
+            }
         }
     }
 

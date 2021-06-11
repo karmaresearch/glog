@@ -460,6 +460,8 @@ class GBGraph {
                 size_t step,
                 std::vector<std::vector<std::string>> &facts);
 
+        void addNode(size_t step, Literal &query);
+
         void replaceEqualTerms(
                 size_t ruleIdx,
                 size_t step,

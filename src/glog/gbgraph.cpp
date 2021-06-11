@@ -120,7 +120,6 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
 void GBGraph::addNode(PredId_t predId,
         size_t step,
         std::vector<std::vector<std::string>> &facts) {
-
     //Convert the facts
     size_t nExtraColumns = 0;
     if (shouldTrackProvenance()) {
@@ -150,6 +149,41 @@ void GBGraph::addNode(PredId_t predId,
     auto data = ins->getSegment(nodeId, false, 0, getSegProvenanceType(false),
             nExtraColumns);
     auto sortedData = data->sort();
+
+    //Add the node
+    if (!shouldTrackProvenance()) {
+        addNodeNoProv(predId, ~0ul, step, sortedData);
+    } else {
+        std::vector<size_t> incomingEdges;
+        addNodeProv(predId, ~0ul, step, sortedData, incomingEdges);
+    }
+}
+
+void GBGraph::addNode(size_t step, Literal &query) {
+    size_t nExtraColumns = 0;
+    if (shouldTrackProvenance()) {
+        nExtraColumns++;
+        if (provenanceType == FULLPROV)
+            nExtraColumns++;
+    }
+    auto predId = query.getPredicate().getId();
+    size_t cardPred = query.getTupleSize();
+    size_t rowSize = cardPred + nExtraColumns;
+    auto ins = GBSegmentInserter::getInserter(rowSize, nExtraColumns, false);
+    std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(
+            new Term_t[rowSize]);
+
+    auto nodeId = getNNodes();
+    row[cardPred] = nodeId;
+    for(size_t i = 0; i < cardPred; ++i) {
+        row[i] = query.getTermAtPos(i).getValue();
+    }
+    for(size_t i = 1; i < nExtraColumns; ++i)
+        row[cardPred + i] = ~0ul;
+    ins->add(row.get());
+    auto data = ins->getSegment(nodeId, false, 0, getSegProvenanceType(false),
+            nExtraColumns);
+    auto sortedData = data; //no need to sort
 
     //Add the node
     if (!shouldTrackProvenance()) {

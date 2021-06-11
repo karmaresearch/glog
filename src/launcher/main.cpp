@@ -274,7 +274,7 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
             "try to split up rules with multiple heads.", false);
     query_options.add<int64_t>("", "reasoningThreshold", 1000000,
             "This parameter sets a threshold to estimate the reasoning cost of a pattern. This cost can be broadly associated to the cardinality of the pattern. It is used to choose either TopDown or Magic evalution. Default is 1000000 (1M).", false);
-    query_options.add<string>("", "reasoningAlgo", "", "Determines the reasoning algo (only for <queryLiteral>). Possible values are \"qsqr\", \"magic\", \"onlyMetrics\", \"auto\".", false);
+    query_options.add<string>("", "reasoningAlgo", "", "Determines the reasoning algo (only for <queryLiteral>). Possible values are \"qsqr\", \"magic\", \"onlyMetrics\", \"auto\", \"probmagic\".", false);
     query_options.add<int>("", "featureDepth", 5, "Recursion level of feature generation procedure", false);
     query_options.add<string>("", "trigger_algo", "",
             "Algorithm to use to create a trigger graph. For now only 'linear' or 'kbound'",
@@ -1264,6 +1264,8 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
         iter = reasoner.getEDBIterator(literal, NULL, NULL, edb, onlyVars, NULL);
     } else if (algo == "magic") {
         iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
+    } else if (algo == "probmagic") {
+        iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
     } else if (algo == "qsqr") {
         iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
     } else if (algo == "mat") {
@@ -1315,6 +1317,8 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
                 iter = reasoner.getEDBIterator(literal, NULL, NULL, edb, onlyVars, NULL);
             } else if (algo == "magic") {
                 iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
+            } else if (algo == "probmagic") {
+                iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
             } else if (algo == "qsqr") {
                 iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
             } else if (algo == "mat") {
@@ -1500,7 +1504,7 @@ int main(int argc, const char** argv) {
         //Execute the query
         if (cmd == "query") {
             execSPARQLQuery(*layer, vm);
-        } else {
+        } else { //queryLiteral
             string queryFile = vm["query"].as<string>();
             if (!Utils::exists(queryFile)) {
                 execLiteralQuery(*layer, vm);
