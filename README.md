@@ -28,3 +28,15 @@ cd build_debug
 cmake -DWEBINTERFACE=1 -DCMAKE_BUILD_TYPE=Debug ..
 make
 ```
+
+## VLDB 2021 experiments
+
+To facilitate the reproduction of the experiments presented in the paper
+
+```
+Tsamoura, Efthymia, David Carral, Enrico Malizia, and Jacopo Urbani. "Materializing knowledge bases via trigger graphs." Proceedings of the VLDB Endowment 14, no. 6 (2021): 943-956
+```
+
+we have copied all the datasets, scripts, and other useful resources in the folder:
+
+https://drive.google.com/drive/folders/14ZIn8fWkZ7oCbdGZXBTUI7kiI-1TD_kM?usp=sharing
