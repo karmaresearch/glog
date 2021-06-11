@@ -34,7 +34,9 @@ make
 To facilitate the reproduction of the experiments presented in the paper
 
 ```
-Tsamoura, Efthymia, David Carral, Enrico Malizia, and Jacopo Urbani. "Materializing knowledge bases via trigger graphs." Proceedings of the VLDB Endowment 14, no. 6 (2021): 943-956
+Tsamoura, Efthymia, David Carral, Enrico Malizia, and Jacopo Urbani.
+"Materializing knowledge bases via trigger graphs."
+Proceedings of the VLDB Endowment 14, no. 6 (2021): 943-956
 ```
 
 we have copied all the datasets, scripts, and other useful resources in the folder:
