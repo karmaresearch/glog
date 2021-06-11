@@ -47,8 +47,6 @@ instructions refer to the version of the code used at the time of the paper. If
 you download the last version of GLog, it might be that the syntax (or the
 performance) has changed.
 
-## Instructions to replicate the experiments
-
 ### Linear scenarios ###
 
 The folder "Linear " includes the scripts and the KBs to reproduce the
@@ -295,14 +293,6 @@ Now we can perform materialization using the command
 ```
 
 using the edb.conf file and the "L" Datalog program, as specified above.
-
-### Contributors 
-
-* Efthymia **Tsamoura** (efi.tsamoura@samsung.com), Samsung Research.
-* David **Carral** (david.carral@tu-dresden.de), TU Dresden.
-* Enrico **Malizia** (enmalizia@gmail.com), University of Bologna.
-* Jacopo **Urbani** (jacopo@cs.vu.nl), Vrije Universiteit Amsterdam.
-
 
 ### References
 
