@@ -1265,9 +1265,11 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
     } else if (algo == "magic") {
         iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
     } else if (algo == "tgmagic") {
-        iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars);
+        iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars,
+                vm["profiler"].as<std::string>());
     } else if (algo == "probmagic") {
-        iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
+        iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars,
+                vm["profiler"].as<std::string>());
     } else if (algo == "qsqr") {
         iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
     } else if (algo == "mat") {
@@ -1276,6 +1278,7 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
         LOG(ERRORL) << "Unrecognized reasoning algorithm: " << algo;
         throw 10;
     }
+
     long count = 0;
     int sz = iter->getTupleSize();
     if (nVars == 0) {

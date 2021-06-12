@@ -379,8 +379,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                 d = retainedTermsIns->getSegment(nodeToReplace, true, 0,
                         newNodeData->getProvenanceType(), 2);
             }
-            auto newNodeId = addTmpNode(
-                    b.getPredicate().getId(), d);
+            auto newNodeId = addTmpNode(b.getPredicate().getId(), d);
 
             //3: Use the temporary node instead
             bodyNodeIdxs[idxBodyAtom] = newNodeId;

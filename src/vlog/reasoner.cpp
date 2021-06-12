@@ -377,7 +377,8 @@ TupleIterator *Reasoner::getIncrReasoningIterator(Literal &query,
 }
 
 TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
-        EDBLayer &edb, Program &program, bool returnOnlyVars) {
+        EDBLayer &edb, Program &program, bool returnOnlyVars,
+        std::string profilerPath) {
 
     //To use if the flag returnOnlyVars is set to false
     uint64_t outputTuple[256];    // Used in trident method, so no Term_t
@@ -422,7 +423,21 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
     }
 #endif
 
+    if (profilerPath != "") {
+        std::string sout = profilerPath + "-rules";
+        std::ofstream out(sout);
+        std::vector<Rule> newRules = magicProgram->getAllRules();
+        for (std::vector<Rule>::iterator itr = newRules.begin(); itr != newRules.end(); ++itr) {
+            out << itr->tostring(magicProgram.get(), &edb) << std::endl;
+        }
+        out.close();
+    }
+
     std::shared_ptr<GBChase> sn = Reasoner::getGBChase(edb, magicProgram.get(), GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV);
+
+    if (profilerPath != "") {
+        sn->setPathStoreStatistics(profilerPath);
+    }
 
     //Add all the input tuples in the input relation
     Predicate pred = magicProgram->getPredicate(inputOutputRelIDs.first);
@@ -486,7 +501,8 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
 }
 
 TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
-        EDBLayer &edb, Program &program, bool returnOnlyVars) {
+        EDBLayer &edb, Program &program, bool returnOnlyVars,
+        std::string profilerPath) {
 
     //To use if the flag returnOnlyVars is set to false
     uint64_t outputTuple[256];    // Used in trident method, so no Term_t
@@ -531,7 +547,21 @@ TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
     }
 #endif
 
+    if (profilerPath != "") {
+        std::string sout = profilerPath + "-rules";
+        std::ofstream out(sout);
+        std::vector<Rule> newRules = magicProgram->getAllRules();
+        for (std::vector<Rule>::iterator itr = newRules.begin(); itr != newRules.end(); ++itr) {
+            out << itr->tostring(magicProgram.get(), &edb) << std::endl;
+        }
+        out.close();
+    }
+
     std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(edb, magicProgram.get());
+
+    if (profilerPath != "") {
+        sn->setPathStoreStatistics(profilerPath);
+    }
 
     //Add all the input tuples in the input relation
     Predicate pred = magicProgram->getPredicate(inputOutputRelIDs.first);
