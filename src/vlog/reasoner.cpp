@@ -376,6 +376,115 @@ TupleIterator *Reasoner::getIncrReasoningIterator(Literal &query,
     }
 }
 
+TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
+        EDBLayer &edb, Program &program, bool returnOnlyVars) {
+
+    //To use if the flag returnOnlyVars is set to false
+    uint64_t outputTuple[256];    // Used in trident method, so no Term_t
+    uint8_t nPosToCopy = 0;
+    uint8_t posToCopy[256];
+    for (int j = 0; j < query.getTupleSize(); ++j) {
+        if (!query.getTermAtPos(j).isVariable()) {
+            outputTuple[j] = query.getTermAtPos(j).getValue();
+        } else {
+            posToCopy[nPosToCopy++] = j;
+        }
+    }
+
+    //Replace variables with constants if posJoins != NULL.
+    VTuple t = query.getTuple();
+    VTuple boundTuple = t;
+    Predicate pred1(query.getPredicate(), Predicate::calculateAdornment(boundTuple));
+    Literal query1(pred1, boundTuple);
+
+    //Get all adorned rules
+    std::unique_ptr<Wizard> wizard = std::unique_ptr<Wizard>(new Wizard());
+    std::shared_ptr<Program> adornedProgram = wizard->getAdornedProgram(query1, program);
+    //Print all rules
+#if DEBUG
+    LOG(DEBUGL) << "Adorned program:";
+    std::vector<Rule> newRules = adornedProgram->getAllRules();
+    for (std::vector<Rule>::iterator itr = newRules.begin(); itr != newRules.end(); ++itr) {
+        LOG(DEBUGL) << itr->tostring(adornedProgram.get(), &edb);
+    }
+#endif
+
+    //Rewrite and add the rules
+    std::pair<PredId_t, PredId_t> inputOutputRelIDs;
+    std::shared_ptr<Program> magicProgram = wizard->doMagic(query1, adornedProgram,
+            inputOutputRelIDs);
+
+#if DEBUG
+    LOG(DEBUGL) << "Magic program:";
+    newRules = magicProgram->getAllRules();
+    for (std::vector<Rule>::iterator itr = newRules.begin(); itr != newRules.end(); ++itr) {
+        LOG(DEBUGL) << itr->tostring(magicProgram.get(), &edb);
+    }
+#endif
+
+    std::shared_ptr<GBChase> sn = Reasoner::getGBChase(edb, magicProgram.get(), GBChaseAlgorithm::TGCHASE_DYNAMIC_FULLPROV);
+
+    //Add all the input tuples in the input relation
+    Predicate pred = magicProgram->getPredicate(inputOutputRelIDs.first);
+    VTuple onlyConstsTuple(pred.getCardinality());
+    int j = 0;
+    for (int i = 0; i < t.getSize(); ++i) {
+        if (!boundTuple.get(i).isVariable()) {
+            onlyConstsTuple.set(VTerm(0, t.get(i).getValue()), j++);
+        }
+    }
+
+    Literal unboundQuery(pred, onlyConstsTuple);
+    sn->getGBGraph().addNode(0, unboundQuery);
+
+    //Exec the materialization
+    sn->prepareRun(0);
+    sn->run();
+
+    //Extract the tuples from the output relation
+    Literal outputLiteral(magicProgram->getPredicate(inputOutputRelIDs.second), t);
+    LOG(DEBUGL) << "outputLiteral = " << outputLiteral.tostring(magicProgram.get(), &edb);
+    LOG(DEBUGL) << "returnOnlyVars = " << returnOnlyVars;
+
+    TupleTable *finalTable;
+    finalTable = new TupleTable(outputLiteral.getNVars());
+
+    auto itr = sn->getTableItr(outputLiteral.getPredicate().getId());
+    std::vector<uint8_t> posVars = outputLiteral.getPosVars();
+    while (!itr.isEmpty()) {
+        std::shared_ptr<const FCInternalTable> table = itr.getCurrentTable();
+        FCInternalTableItr *itrTable = table->getIterator();
+
+        // itrTable contains only variables.
+        if (returnOnlyVars) {
+            while (itrTable->hasNext()) {
+                itrTable->next();
+                if (finalTable->getSizeRow() == 0) {
+                    Term_t row = 0;
+                    finalTable->addRow(&row);
+                } else {
+                    for (uint8_t j = 0; j < posVars.size(); ++j) {
+                        finalTable->addValue(itrTable->getCurrentValue(j));
+                    }
+                }
+            }
+        } else {
+            while (itrTable->hasNext()) {
+                itrTable->next();
+                for (uint8_t j = 0; j < nPosToCopy; ++j) {
+                    outputTuple[posToCopy[j]] = itrTable->getCurrentValue(j);
+                }
+                finalTable->addRow(outputTuple);
+            }
+        }
+
+        table->releaseIterator(itrTable);
+        itr.moveNextCount();
+    }
+    std::shared_ptr<TupleTable> pFinalTable(finalTable);
+    return new TupleTableItr(pFinalTable);
+}
+
 TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
         EDBLayer &edb, Program &program, bool returnOnlyVars) {
 

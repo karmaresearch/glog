@@ -118,6 +118,10 @@ class Reasoner {
                 EDBLayer &layer, Program &program,
                 bool returnOnlyVars);
 
+        VLIBEXP TupleIterator *getTGMagicIterator(Literal &query,
+                EDBLayer &layer, Program &program,
+                bool returnOnlyVars);
+
         VLIBEXP static std::shared_ptr<SemiNaiver> getSemiNaiver(EDBLayer &layer,
                 Program *p, bool opt_intersect, bool opt_filtering, bool opt_threaded,
                 TypeChase typeChase,

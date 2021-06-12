@@ -64,6 +64,7 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
 
     //const Rule &newRule = rule;
     //auto &newBody = rule.getBody();
+    assert(incomingEdges.size() == 0 || incomingEdges.size() == newBody.size());
 
     outputQueryBody.clear();
     int idxIncomingEdge = 0;
@@ -74,6 +75,15 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
         auto &l = newBody[i];
         if (l.getPredicate().getType() == EDB) {
             outputQueryBody.push_back(l);
+            if (idxIncomingEdge < incomingEdges.size() &&
+                incomingEdges[idxIncomingEdge] == ~0ul) {
+                idxIncomingEdge++;
+            }
+        } else if (idxIncomingEdge < incomingEdges.size() &&
+                g.getNodeRuleIdx(incomingEdges[idxIncomingEdge]) == ~0ul) {
+            //Could be a magic predicate or a predicate manually added
+            outputQueryBody.push_back(l);
+            idxIncomingEdge++;
         } else {
             assert(incomingEdges.size() > 0);
             size_t incEdge = incomingEdges[idxIncomingEdge++];

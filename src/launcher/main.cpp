@@ -1264,6 +1264,8 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
         iter = reasoner.getEDBIterator(literal, NULL, NULL, edb, onlyVars, NULL);
     } else if (algo == "magic") {
         iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
+    } else if (algo == "tgmagic") {
+        iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars);
     } else if (algo == "probmagic") {
         iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
     } else if (algo == "qsqr") {
@@ -1317,6 +1319,8 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
                 iter = reasoner.getEDBIterator(literal, NULL, NULL, edb, onlyVars, NULL);
             } else if (algo == "magic") {
                 iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
+            } else if (algo == "tgmagic") {
+                iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars);
             } else if (algo == "probmagic") {
                 iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
             } else if (algo == "qsqr") {
