@@ -302,11 +302,11 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
     //New tuples
     auto newNodeData = getNodeData(bodyNodeIdxs[selectedBodyAtomIdx]);
     bool isExistingColumnEDB = nodeData->hasColumnarBackend() &&
-                               ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB();
+        ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB();
     bool isNewColumnEDB = newNodeData->hasColumnarBackend() &&
-                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPosInLiteral)->isEDB();
+        ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPosInLiteral)->isEDB();
     bool fullProv = provenanceType == FULLPROV;
-    
+
     //Here I check a EDB column (which we should process) against an existing
     //node which is not a EDB predicate
     //I don't need to store the node
@@ -330,9 +330,8 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                     newNodeData, selectedPosInLiteral, nodeData, 0,
                     !suitableForReplacement);
         } else {
-            retainedTermsIns = GBSegmentInserter::getInserter(newNodeData->getNColumns()
-                                                                + newNodeData->getNOffsetColumns(),
-                                                                newNodeData->getNOffsetColumns(), false);
+            retainedTermsIns = GBSegmentInserter::getInserter(
+                    newNodeData->getNColumns() + 2, 2, false);
             isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(retainedTermsIns,
                     newNodeData, selectedPosInLiteral, nodeData, 0,
                     !suitableForReplacement);
@@ -378,10 +377,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_one(
                             retainedTerms, nodeToReplace, true, 0));
             } else {
                 d = retainedTermsIns->getSegment(nodeToReplace, true, 0,
-                                                 newNodeData->getProvenanceType(),
-                                                 newNodeData->getNOffsetColumns());
-                std::shared_ptr<const TGSegment>(new UnaryWithConstProvTGSegment(
-                            retainedTerms, nodeToReplace, true, 0));
+                        newNodeData->getProvenanceType(), 2);
             }
             auto newNodeId = addTmpNode(
                     b.getPredicate().getId(), d);
@@ -545,7 +541,7 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
     auto itrOld = oldSeg->iterator();
     const size_t ncols = newSeg->getNColumns();
     std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(new Term_t[ncols + 2]);
-                                    //Node + offset to original node
+    //Node + offset to original node
     if (posNew != 0) {
         std::vector<uint8_t> pos;
         pos.push_back(posNew);
@@ -558,7 +554,8 @@ void GBGraph::isRedundant_checkEquivalenceEDBAtoms_one_mem_mem(
 
     size_t processedTerms = 0;
     size_t existingTerms = 0;
-    int64_t rowIdNew = -1; //When I store the offset, I store the link to the row in the original node
+    int64_t rowIdNew = -1; //When I store the offset, I store the link to the
+    //row in the original node
 
     while (true) {
         if (vold == ~0ul) {
@@ -884,11 +881,11 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
     //New
     auto newNodeData = getNodeData(bodyNodeIdxs[selectedBodyAtomIdx]);
     bool isExistingColumnEDB = nodeData->hasColumnarBackend() &&
-                               ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB() &&
-                               ((TGSegmentLegacy*)nodeData.get())->getColumn(1)->isEDB();
+        ((TGSegmentLegacy*)nodeData.get())->getColumn(0)->isEDB() &&
+        ((TGSegmentLegacy*)nodeData.get())->getColumn(1)->isEDB();
     bool isNewColumnEDB = newNodeData->hasColumnarBackend() &&
-                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos1)->isEDB() &&
-                               ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos2)->isEDB();
+        ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos1)->isEDB() &&
+        ((TGSegmentLegacy*)newNodeData.get())->getColumn(selectedPos2)->isEDB();
 
     std::vector<std::pair<Term_t, Term_t>> retainedTerms;
     if (isNewColumnEDB && isExistingColumnEDB) {
@@ -901,9 +898,9 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         isRedundant_checkEquivalenceEDBAtoms_two_edb_mem(retainedTerms,
                 newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
     } else {
-            isRedundant_checkEquivalenceEDBAtoms_two_mem_mem(retainedTerms,
-                    newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
-        
+        isRedundant_checkEquivalenceEDBAtoms_two_mem_mem(retainedTerms,
+                newNodeData, selectedPos1, selectedPos2, nodeData, 0, 1);
+
     }
 
     //std::chrono::duration<double, std::milli> dur =
@@ -916,7 +913,7 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms_two(
         retainFree = false;
         return false;
     }
-    
+
     //If I decide to create a temporary node like with unary predicates and fullProv is activated,
     //then I must store also the offsets; hence retainedTerms is not sufficient.
 }
