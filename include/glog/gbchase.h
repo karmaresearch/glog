@@ -35,6 +35,7 @@ class GBChase : public Chase {
         int nStratificationClasses;
         size_t currentIteration;
         size_t startStep;
+        size_t maxStep;
 
         PredId_t currentPredicate;
 #ifdef WEBINTERFACE
@@ -103,7 +104,7 @@ class GBChase : public Chase {
                 bool rewriteCliques = false,
                 bool duplAllowed = false);
 
-        void prepareRun(size_t startStep);
+        void prepareRun(size_t startStep, size_t maxStep);
 
         VLIBEXP virtual void run();
 

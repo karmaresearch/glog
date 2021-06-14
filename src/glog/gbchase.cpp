@@ -20,6 +20,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     durationRuleExec(0),
     currentIteration(0),
     startStep(0),
+    maxStep(~0ul),
     durationPreparation(0)
 {
     LOG(INFOL) << "Query cont=" << filterQueryCont <<
@@ -510,8 +511,9 @@ size_t GBChase::executeRulesInStratum(
     }
 }
 
-void GBChase::prepareRun(size_t startStep) {
+void GBChase::prepareRun(size_t startStep, size_t maxStep) {
     this->startStep = startStep;
+    this->maxStep = maxStep;
 }
 
 void GBChase::run() {
@@ -546,6 +548,8 @@ void GBChase::run() {
 
         do {
             step++;
+            if (step == maxStep)
+                break;
             layer.setContext(&g, step);
             LOG(INFOL) << "Step " << step;
             currentIteration = step;

@@ -455,7 +455,7 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
     sn->getGBGraph().addNode(0, unboundQuery);
 
     //Exec the materialization
-    sn->prepareRun(0);
+    sn->prepareRun(0, ~0ul);
     sn->run();
 
     if (storematPath != "") {
@@ -588,7 +588,7 @@ TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
     sn->getGBGraph().addNode(0, unboundQuery);
 
     //Exec the materialization
-    sn->prepareRun(0);
+    sn->prepareRun(0, ~0ul);
     sn->run();
 
     if (storematPath != "") {

@@ -207,7 +207,7 @@ static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject 
 
     glog_Reasoner *s = (glog_Reasoner*)self;
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
-    s->sn->prepareRun(startStep);
+    s->sn->prepareRun(startStep, maxStep);
     s->sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
     LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
