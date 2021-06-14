@@ -67,7 +67,9 @@ void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
 
-    std::string sRule = p.getRule(ruleIdx).toprettystring(&p, &l);
+    std::string sRule = "";
+    if (ruleIdx != ~0ul)
+        sRule = p.getRule(ruleIdx).toprettystring(&p, &l);
     out.put("rule", sRule);
     out.put("ruleIdx", ruleIdx);
     out.put("step", g.getNodeStep(nodeId));
@@ -81,25 +83,26 @@ void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
 
     //Add the parents
     JSON parents;
-    auto ie = g.getNodeIncomingEdges(nodeId);
-    auto row = data->getRow(factId);
-    size_t begin = data->getNColumns() + 1; //Skip the node
-    size_t end = data->getNColumns() + data->getNOffsetColumns();
-    size_t j = 0;
-    auto bodyLiterals = p.getRule(ruleIdx).getBody();
-    for(size_t i = begin; i < end; ++i) {
-        JSON parentNode;
-        auto bodyLiteral = bodyLiterals[i - begin];
-        auto offset = row[i];
-        if (bodyLiteral.getPredicate().getType() == EDB) {
-            exportEDBNode(parentNode, bodyLiteral, offset);
-        } else {
-            auto nodeId = ie[j];
-            exportNode(parentNode, nodeId, offset);
-            j++;
+    if (ruleIdx != ~0ul) {
+        auto ie = g.getNodeIncomingEdges(nodeId);
+        auto row = data->getRow(factId);
+        size_t begin = data->getNColumns() + 1; //Skip the node
+        size_t end = data->getNColumns() + data->getNOffsetColumns();
+        size_t j = 0;
+        auto bodyLiterals = p.getRule(ruleIdx).getBody();
+        for(size_t i = begin; i < end; ++i) {
+            JSON parentNode;
+            auto bodyLiteral = bodyLiterals[i - begin];
+            auto offset = row[i];
+            if (bodyLiteral.getPredicate().getType() == EDB) {
+                exportEDBNode(parentNode, bodyLiteral, offset);
+            } else {
+                auto nodeId = ie[j];
+                exportNode(parentNode, nodeId, offset);
+                j++;
+            }
+            parents.push_back(parentNode);
         }
-        parents.push_back(parentNode);
-
     }
     out.add_child("parents", parents);
 }
@@ -121,6 +124,9 @@ JSON GBQuerier::getNodeDetailsWithPredicate(std::string predName) const {
     for(auto nodeId : nodeIds) {
         JSON nodeDetails;
         nodeDetails.put("id", nodeId);
+        nodeDetails.put("ruleIdx", g.getNodeRuleIdx(nodeId));
+        nodeDetails.put("n_facts", g.getNodeSize(nodeId));
+        nodeDetails.put("step", g.getNodeStep(nodeId));
         out.push_back(nodeDetails);
     }
     return out;

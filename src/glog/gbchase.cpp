@@ -21,6 +21,7 @@ GBChase::GBChase(EDBLayer &layer, Program *program, bool useCacheRetain,
     currentIteration(0),
     startStep(0),
     maxStep(~0ul),
+    lastStep(0),
     durationPreparation(0)
 {
     LOG(INFOL) << "Query cont=" << filterQueryCont <<
@@ -561,6 +562,8 @@ void GBChase::run() {
         g.cleanTmpNodes();
     }
 
+    lastStep = step;
+
     std::chrono::duration<double, std::milli> dur =
         std::chrono::system_clock::now() - start;
     LOG(INFOL) << "Runtime chase: " << dur.count();
@@ -593,6 +596,10 @@ size_t GBChase::getNedges() {
 
 size_t GBChase::getNTriggers() {
     return triggers;
+}
+
+size_t GBChase::getNSteps() {
+    return lastStep;
 }
 
 bool GBChase::shouldRetainAtEnd(PredId_t pred) {

@@ -222,6 +222,7 @@ static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject 
     out.put("n_edges", s->sn->getNedges());
     out.put("n_triggers", s->sn->getNTriggers());
     out.put("n_derivations", s->sn->getNDerivedFacts());
+    out.put("steps", s->sn->getNSteps());
     out.put("runtime_ms", secMat.count() * 1000);
     JSON::write(ssOut, out);
     std::string sOut = ssOut.str();

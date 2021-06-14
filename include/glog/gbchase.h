@@ -36,6 +36,7 @@ class GBChase : public Chase {
         size_t currentIteration;
         size_t startStep;
         size_t maxStep;
+        size_t lastStep;
 
         PredId_t currentPredicate;
 #ifdef WEBINTERFACE
@@ -129,6 +130,8 @@ class GBChase : public Chase {
         size_t getNedges();
 
         size_t getNTriggers();
+
+        size_t getNSteps();
 
 #ifdef WEBINTERFACE
         std::string getCurrentRule();

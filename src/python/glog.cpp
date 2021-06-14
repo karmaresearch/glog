@@ -3,7 +3,7 @@
 #include <kognac/logs.h>
 
 static PyObject *glob_set_logging_level(PyObject *self, PyObject *args) {
-    int level;
+    int level = 0;
     if (!PyArg_ParseTuple(args, "i", &level))
         return NULL;
     Logger::setMinLevel(level);
@@ -12,7 +12,7 @@ static PyObject *glob_set_logging_level(PyObject *self, PyObject *args) {
 }
 
 static PyMethodDef globalFunctions[] = {
-    {"setLoggingLevel", glob_set_logging_level, METH_VARARGS,
+    {"set_logging_level", glob_set_logging_level, METH_VARARGS,
         "Set the logging level. From 0 (trace) to 5 (error)." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -67,8 +67,8 @@ PyMODINIT_FUNC PyInit_glog(void) {
     PyModule_AddObject(m, "Querier", (PyObject *)&glog_QuerierType);
     PyModule_AddFunctions(m, globalFunctions);
 
-    //Default logging level to warn
-    Logger::setMinLevel(4);
+    //Default logging level to info
+    Logger::setMinLevel(INFOL);
 
     return m;
 }
