@@ -7,6 +7,7 @@
 #include <vlog/edb.h>
 #include <vlog/qsqquery.h>
 #include <vlog/qsqr.h>
+#include <vlog/exporter.h>
 
 #include <trident/kb/consts.h>
 #include <trident/model/table.h>
@@ -378,7 +379,8 @@ TupleIterator *Reasoner::getIncrReasoningIterator(Literal &query,
 
 TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
         EDBLayer &edb, Program &program, bool returnOnlyVars,
-        std::string profilerPath) {
+        std::string profilerPath,
+        std::string storematPath) {
 
     //To use if the flag returnOnlyVars is set to false
     uint64_t outputTuple[256];    // Used in trident method, so no Term_t
@@ -456,6 +458,14 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
     sn->prepareRun(0);
     sn->run();
 
+    if (storematPath != "") {
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+        Exporter exp(sn);
+        exp.storeOnFiles(storematPath, true, 0, false);
+        std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+        LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
+    }
+
     //Extract the tuples from the output relation
     Literal outputLiteral(magicProgram->getPredicate(inputOutputRelIDs.second), t);
     LOG(DEBUGL) << "outputLiteral = " << outputLiteral.tostring(magicProgram.get(), &edb);
@@ -502,7 +512,8 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
 
 TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
         EDBLayer &edb, Program &program, bool returnOnlyVars,
-        std::string profilerPath) {
+        std::string profilerPath,
+        std::string storematPath) {
 
     //To use if the flag returnOnlyVars is set to false
     uint64_t outputTuple[256];    // Used in trident method, so no Term_t
@@ -579,6 +590,14 @@ TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
     //Exec the materialization
     sn->prepareRun(0);
     sn->run();
+
+    if (storematPath != "") {
+        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+        Exporter exp(sn);
+        exp.storeOnFiles(storematPath, true, 0, false);
+        std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
+        LOG(INFOL) << "Time to index and store the materialization on disk = " << sec.count() << " seconds";
+    }
 
     //Extract the tuples from the output relation
     Literal outputLiteral(magicProgram->getPredicate(inputOutputRelIDs.second), t);

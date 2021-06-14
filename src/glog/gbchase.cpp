@@ -503,6 +503,7 @@ size_t GBChase::executeRulesInStratum(
             derivedTuples += nrows;
         }
         LOG(INFOL) << "Derived Tuples: " << derivedTuples;
+        LOG(INFOL) << "#nodes: " << g.getNNodes();
         return derivedTuples;
     } else {
         return 0;

@@ -50,6 +50,8 @@ bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
                 g.addNodesProv(currentPredicate, node.ruleIdx,
                         node.step, derivations, derivationNodes, true);
             } else {
+                derivations = derivations->sort();
+                derivations = derivations->unique();
                 auto retainedTuples = g.retain(currentPredicate, derivations,
                         derivationNodes);
                 nonempty = !(retainedTuples == NULL || retainedTuples->isEmpty());

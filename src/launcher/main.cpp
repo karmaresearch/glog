@@ -1266,10 +1266,12 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
         iter = reasoner.getMagicIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
     } else if (algo == "tgmagic") {
         iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars,
-                vm["profiler"].as<std::string>());
+                vm["profiler"].as<std::string>(),
+                vm["storemat_path"].as<std::string>());
     } else if (algo == "probmagic") {
         iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars,
-                vm["profiler"].as<std::string>());
+                vm["profiler"].as<std::string>(),
+                vm["storemat_path"].as<std::string>());
     } else if (algo == "qsqr") {
         iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
     } else if (algo == "mat") {
