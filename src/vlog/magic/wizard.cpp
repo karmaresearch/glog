@@ -7,51 +7,106 @@
 
 std::shared_ptr<Program> Wizard::getAdornedProgram(Literal &query, Program &program) {
 
-    std::vector<Rule> rules;
-    int idxRules = 0;
 
-    std::unordered_set<Term_t> setQueries;
+    std::map<PredId_t, std::vector<uint64_t>> processedQueries;
     std::vector<Literal> queries;
-    int idxQueries = 0;
+    size_t idxQueries = 0;
     queries.push_back(query);
-    Term_t key = (query.getPredicate().getId() << 16) + query.getPredicate().getAdornment();
-    setQueries.insert(key);
+    std::map<std::pair<uint64_t, uint64_t>, std::vector<Rule>> key2rules;
 
     while (idxQueries < queries.size()) {
         Literal lit = queries[idxQueries];
-
-        //Go through all rules and get the ones which match the query
-        auto rulesIds = program.getRulesIDsByPredicate(lit.getPredicate().getId());
-        for (auto ruleId : rulesIds) {
-            rules.push_back(program.getRule(ruleId).
-                    createAdornment(lit.getPredicate().getAdornment()));
+        auto predId = lit.getPredicate().getId();
+        auto predAdorn = lit.getPredicate().getAdornment();
+        bool ok = true;
+        if (processedQueries.count(predId)) {
+            auto &adornments = processedQueries[predId];
+            std::vector<uint64_t> adornmentsToRemove;
+            for(auto a : adornments) {
+                if (a == predAdorn) {
+                    ok = false;
+                    break;
+                } else {
+                    auto card = lit.getPredicate().getCardinality();
+                    bool isMoreGeneral = true;
+                    bool isMoreSpecific = true;
+                    for(size_t i = 0; i < card; ++i) {
+                        int qnew = (predAdorn >> i) & 1;
+                        int qold = (a >> i) & 1;
+                        if (qnew > qold) {
+                            //cannot be more general because a has 'b' while
+                            //predAdorn has 'f'
+                            isMoreGeneral = false;
+                        } else if (qnew < qold) {
+                            //cannot be more specific because a has 'f' while
+                            //predAdorn has 'b'
+                            isMoreSpecific = false;
+                        } else {
+                            //cannot say anything
+                        }
+                    }
+                    assert(isMoreGeneral == false || isMoreSpecific == false);
+                    if (isMoreGeneral) {
+                        //The new query is more general than an existing one
+                        adornmentsToRemove.push_back(a);
+                    } else {
+                        //There is an adornment that is more general. No need to
+                        //process this query
+                        ok = false;
+                        break;
+                    }
+                }
+            }
+            for(auto a : adornmentsToRemove) {
+                auto k = std::make_pair(predId, a);
+                if (key2rules.count(k))
+                    key2rules.erase(k);
+            }
         }
 
-        //Go through all the new rules and get new queries to process
-        while (idxRules < rules.size()) {
-            Rule *r = &rules[idxRules];
-            for (std::vector<Literal>::const_iterator itr = r->getBody().begin();
-                    itr != r->getBody().end(); ++itr) {
-                Predicate pred = itr->getPredicate();
-                if (pred.getType() == IDB) {
-                    Term_t key = (pred.getId() << 16) + pred.getAdornment();
-                    if (setQueries.find(key) == setQueries.end()) {
-                        setQueries.insert(key);
+        if (ok) {
+            //Add the query to a cache so that we don't process it anymore
+            if (processedQueries.count(predId)) {
+                processedQueries[predId].push_back(predAdorn);
+            } else {
+                std::vector<uint64_t> adornments;
+                adornments.push_back(predAdorn);
+                processedQueries.insert(std::make_pair(predId, adornments));
+            }
+
+            //Go through all rules and get the ones which match the query
+            auto rulesIds = program.getRulesIDsByPredicate(lit.getPredicate().getId());
+            std::vector<Rule> newRules;
+            for (auto ruleId : rulesIds) {
+                newRules.push_back(program.getRule(ruleId).
+                        createAdornment(lit.getPredicate().getAdornment()));
+            }
+            key2rules.insert(std::make_pair(std::make_pair(predId, predAdorn), newRules));
+
+            //Go through all the new rules and get new queries to process
+            for (Rule &r : newRules) {
+                for (std::vector<Literal>::const_iterator itr = r.getBody().begin();
+                        itr != r.getBody().end(); ++itr) {
+                    Predicate pred = itr->getPredicate();
+                    if (pred.getType() == IDB) {
                         queries.push_back(*itr);
                     }
                 }
             }
-            idxRules++;
         }
         idxQueries++;
     }
 
     //Create a new program with the new rules
     std::shared_ptr<Program> newProgram = program.cloneNew();
-
     newProgram->cleanAllRules();
+    std::vector<Rule> rules;
+    for(auto &p : key2rules) {
+        for(auto rule : p.second) {
+            rules.push_back(rule);
+        }
+    }
     newProgram->addAllRules(rules);
-
     return newProgram;
 }
 
