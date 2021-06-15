@@ -50,6 +50,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
     for(size_t i = 0; i < derivationNodes.size(); ++i) {
         size_t node = derivationNodes[i];
         if (node == ~0ul) {
+            offsetColumn++;
             continue;
         }
         //Search for nodes with predid=p
