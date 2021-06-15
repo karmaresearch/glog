@@ -57,6 +57,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
         retainFromDerivationTree_getNodes(node, i, p,
                 std::vector<std::pair<size_t, size_t>>(), nodesToCheckAgainst);
         if (nodesToCheckAgainst.empty()) {
+            offsetColumn++;
             continue;
         }
 
