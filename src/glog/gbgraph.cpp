@@ -2,8 +2,10 @@
 #include <glog/gbquerier.h>
 #include <glog/gbruleexecutor.h>
 #include <glog/gbcompositesegment.h>
+#include <glog/gbquerier.h>
 
 #include <vlog/support.h>
+#include <trident/utils/json.h>
 
 
 const Literal &GBGraph::GBGraph_Node::getQueryHead(GBGraph &g)
@@ -553,6 +555,42 @@ void GBGraph::addNodeProv(PredId_t predid,
     pred2Nodes[predid].push_back(nodeId);
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
+
+#ifdef DEBUG
+    //Check whether the trees do not contain a duplicate fact
+    GBQuerier q(*this, *program, *layer);
+    auto nfacts = getNodeSize(nodeId);
+    for(size_t i = 0; i < nfacts; ++i) {
+        //Check the first 1000
+        if (i == 100)
+            break;
+        auto derTree = q.getDerivationTree(nodeId, i);
+        if (!q.checkSoundnessDerivationTree(derTree)) {
+           throw 10;
+        }
+        auto sFact = derTree.get("fact");
+        std::vector<JSON> parents;
+        auto pc = derTree.getChild("parents");
+        auto &pchildren = pc.getListChildren();
+        for(auto &p : pchildren) {
+            parents.push_back(p);
+        }
+        while(!parents.empty()) {
+            auto p = parents.back();
+            parents.pop_back();
+            auto pf = p.get("fact");
+            if (pf == sFact) {
+                throw 10;
+            }
+            if (p.containsChild("parents")) {
+                auto &pc = p.getChild("parents");
+                for(auto &p : pc.getListChildren()) {
+                    parents.push_back(p);
+                }
+            }
+        }
+    }
+#endif
 }
 
 uint64_t GBGraph::addTmpNode(PredId_t predId,

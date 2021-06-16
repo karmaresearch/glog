@@ -40,7 +40,6 @@ static PyMethodDef Program_methods[] = {
     {"load_from_file", program_load_from_file, METH_VARARGS, "Load rules from file." },
     {"get_n_rules", program_get_n_rules, METH_VARARGS, "Return n rules." },
     {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
-    {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
     {"get_predicate_name", program_get_predicate_name, METH_VARARGS, "Get name predicate." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -135,7 +134,7 @@ static PyObject* program_get_rule(PyObject* self, PyObject *args) {
     if (PyArg_ParseTuple(args, "i", &ruleIdx)) {
         //Get the rule
         auto rule =  ((glog_Program*)self)->program->getRule(ruleIdx);
-        std::string sRule = rule.tostring(((glog_Program*)self)->program.get(),
+        std::string sRule = rule.toprettystring(((glog_Program*)self)->program.get(),
                 ((glog_Program*)self)->e->e);
         return PyUnicode_FromStringAndSize(sRule.c_str(), sRule.size());
     }

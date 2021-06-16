@@ -63,28 +63,142 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId) {
     }
 }
 
+void __convertStringTupleIDsIntoNumbers(
+        std::string &in,
+        std::vector<Term_t> &out) {
+    //String of the form [x1, x2, ...]
+    std::string n = "";
+    for(size_t i = 0; i < in.size(); ++i) {
+        switch (in[i]) {
+            case '[':
+            case ']':
+                if (n.size() > 0) {
+                    out.push_back(stoul(n));
+                }
+                break;
+            case ',':
+                if (n.size() > 0) {
+                    out.push_back(stoul(n));
+                }
+                n = "";
+                break;
+            default:
+                n += in[i];
+        };
+    }
+}
+
+bool GBQuerier::checkSoundnessDerivationTree(JSON &root) {
+    bool response = true;
+    //Check soundness node
+    auto sRuleIdx = root.get("ruleIdx");
+    if (sRuleIdx == "none") {
+        return true;
+    }
+
+    auto ruleIdx = stoul(sRuleIdx);
+    if (ruleIdx == ~0ul) {
+        return true;
+    }
+    auto sTupleIDs = root.get("tupleIds");
+    std::vector<Term_t> tupleIDs;
+    __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+
+    auto &rule = p.getRule(ruleIdx);
+    std::map<size_t, Term_t> mappingVars2Consts;
+    assert(rule.getHeads().size() == 1);
+    auto litHead = rule.getHeads()[0];
+    assert(tupleIDs.size() == litHead.getTupleSize());
+    for(size_t i = 0; i < tupleIDs.size(); ++i) {
+        auto t = litHead.getTermAtPos(i);
+        if (t.isVariable()) {
+            auto varId = t.getId();
+            if (mappingVars2Consts.count(varId)) {
+                if (tupleIDs[i] != mappingVars2Consts[varId]) {
+                    throw 10;
+                }
+            } else {
+                mappingVars2Consts.insert(std::make_pair(varId, tupleIDs[i]));
+            }
+        } else {
+            if (tupleIDs[i] != t.getValue()) {
+                throw 10;
+            }
+        }
+    }
+
+    if (root.containsChild("parents")) {
+        auto bodyAtoms = rule.getBody();
+        auto parents = root.getChild("parents");
+        auto ps = parents.getListChildren();
+        for (size_t i = 0; i < ps.size(); ++i) {
+            auto p = ps[i];
+            auto bodyAtom = bodyAtoms[i];
+            sTupleIDs = p.get("tupleIds");
+            tupleIDs.clear();
+            __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+            assert(tupleIDs.size() == bodyAtom.getTupleSize());
+            for(size_t i = 0; i < tupleIDs.size(); ++i) {
+                auto t = bodyAtom.getTermAtPos(i);
+                if (t.isVariable()) {
+                    auto varId = t.getId();
+                    if (mappingVars2Consts.count(varId)) {
+                        if (tupleIDs[i] != mappingVars2Consts[varId]) {
+                            throw 10;
+                        }
+                    } else {
+                        mappingVars2Consts.insert(std::make_pair(varId, tupleIDs[i]));
+                    }
+                } else {
+                    if (tupleIDs[i] != t.getValue()) {
+                        throw 10;
+                    }
+                }
+            }
+            response = response & checkSoundnessDerivationTree(p);
+        }
+    } else {
+        //Parents should be there, otherwise how did the rule fire?
+        throw 10;
+    }
+    return response;
+}
+
 void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
+    size_t step = g.getNodeStep(nodeId);
+    auto nodePred = g.getNodePredicate(nodeId);
+    auto incomingEdges = g.getNodeIncomingEdges(nodeId);
+    return exportNode(out, nodeId, factId, nodePred, data, ruleIdx, step,
+            incomingEdges);
+}
 
+void GBQuerier::exportNode(JSON &out,
+        size_t nodeId, size_t factId,
+        PredId_t nodePred,
+        std::shared_ptr<const TGSegment> data,
+        size_t ruleIdx,
+        size_t step,
+        const std::vector<size_t> &incomingEdges) {
     std::string sRule = "";
     if (ruleIdx != ~0ul)
         sRule = p.getRule(ruleIdx).toprettystring(&p, &l);
     out.put("rule", sRule);
     out.put("ruleIdx", ruleIdx);
-    out.put("step", g.getNodeStep(nodeId));
+    out.put("step", step);
     out.put("nodeId", nodeId);
     out.put("factId", factId);
 
     //Construct the fact
-    auto f = getFact(g.getNodePredicate(nodeId), data, factId);
+    auto f = getFact(nodePred, data, factId);
     out.put("fact", f.toprettystring(&p, &l));
     out.put("tupleIds", getTupleIDs(f));
 
     //Add the parents
     JSON parents;
     if (ruleIdx != ~0ul) {
-        auto ie = g.getNodeIncomingEdges(nodeId);
+        auto ie = incomingEdges;
         auto row = data->getRow(factId);
         size_t begin = data->getNColumns() + 1; //Skip the node
         size_t end = data->getNColumns() + data->getNOffsetColumns();

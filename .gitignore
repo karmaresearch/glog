@@ -34,3 +34,4 @@ testOutput
 **/*.ipynb
 **/*.stats
 **/*.conf
+testcases/*

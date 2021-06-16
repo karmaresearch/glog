@@ -1,7 +1,6 @@
 #include <glog/gbgraph.h>
 #include <glog/gbsegmentinserter.h>
 
-
 void GBGraph::retainFromDerivationTree_getNodes(size_t nodeId,
         size_t offsetNodeId,
         PredId_t predId,
@@ -112,11 +111,12 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
         offsetColumn++;
     }
 
+    std::shared_ptr<const TGSegment> out;
     if (duplicateRowIdxs.empty()) {
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         auto dur = end - start;
         durationRetain += dur;
-        return newtuples;
+        out = newtuples;
     } else {
         std::sort(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
         auto newend = std::unique(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
@@ -153,15 +153,16 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             auto dur = end - start;
             durationRetain += dur;
-            return std::shared_ptr<const TGSegment>();
+            out = std::shared_ptr<const TGSegment>();
         } else {
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             auto dur = end - start;
             durationRetain += dur;
-            return inserter->getSegment(newtuples->getNodeId(), true, 0,
+            out = inserter->getSegment(newtuples->getNodeId(), true, 0,
                     getSegProvenanceType(), extracols);
         }
     }
+    return out;
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retain(

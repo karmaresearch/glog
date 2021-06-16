@@ -22,6 +22,15 @@ class GBQuerier {
 
         void exportNode(JSON &out, size_t nodeId, size_t factId);
 
+        void exportNode(
+                JSON &out,
+                size_t nodeId, size_t factId,
+                PredId_t nodePred,
+                std::shared_ptr<const TGSegment> data,
+                size_t ruleIdx,
+                size_t step,
+                const std::vector<size_t> &incomingEdges);
+
         void exportEDBNode(JSON &out, Literal &l, size_t factId);
 
     public:
@@ -34,6 +43,8 @@ class GBQuerier {
         JSON getNodeDetailsWithPredicate(std::string predName) const;
 
         JSON getNodeFacts(size_t nodeId) const;
+
+        bool checkSoundnessDerivationTree(JSON &root);
 };
 
 #endif
