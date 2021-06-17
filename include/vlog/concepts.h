@@ -300,6 +300,10 @@ class Literal {
             return pred.isMagic();
         }
 
+        bool isEDB() const {
+            return pred.getType() == EDB;
+        }
+
         VTerm getTermAtPos(const int pos) const {
             return tuple.get(pos);
         }

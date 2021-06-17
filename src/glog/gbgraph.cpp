@@ -5,6 +5,7 @@
 #include <glog/gbquerier.h>
 
 #include <vlog/support.h>
+#include <vlog/concepts.h>
 #include <trident/utils/json.h>
 
 
@@ -39,14 +40,20 @@ const std::vector<PredId_t> GBGraph::getPredicateIDs() const
 
 void GBGraph::GBGraph_Node::createQueryFromNode(GBGraph &g)
 {
-    auto newHead = GBGraph_Node::createQueryFromNode(
-            g.counterFreshVarsQueryCont,
-            queryBody,
-            rangeQueryBody,
-            g.allRules[ruleIdx],
-            incomingEdges,
-            g);
-    this->queryHead = std::move(newHead);
+    if (ruleIdx != ~0ul) {
+        auto newHead = GBGraph_Node::createQueryFromNode(
+                g.counterFreshVarsQueryCont,
+                queryBody,
+                rangeQueryBody,
+                g.allRules[ruleIdx],
+                incomingEdges,
+                g);
+        this->queryHead = std::move(newHead);
+    } else {
+        VTuple t(0);
+        this->queryHead = std::unique_ptr<Literal>(
+                new Literal(Predicate((PredId_t) - 1, 0, EDB, 0), t));
+    }
     queryCreated = true;
 }
 
@@ -78,7 +85,7 @@ std::unique_ptr<Literal> GBGraph::GBGraph_Node::createQueryFromNode(
         if (l.getPredicate().getType() == EDB) {
             outputQueryBody.push_back(l);
             if (idxIncomingEdge < incomingEdges.size() &&
-                incomingEdges[idxIncomingEdge] == ~0ul) {
+                    incomingEdges[idxIncomingEdge] == ~0ul) {
                 idxIncomingEdge++;
             }
         } else if (idxIncomingEdge < incomingEdges.size() &&
@@ -566,7 +573,7 @@ void GBGraph::addNodeProv(PredId_t predid,
             break;
         auto derTree = q.getDerivationTree(nodeId, i);
         if (!q.checkSoundnessDerivationTree(derTree)) {
-           throw 10;
+            throw 10;
         }
         auto sFact = derTree.get("fact");
         std::vector<JSON> parents;

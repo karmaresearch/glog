@@ -950,3 +950,69 @@ bool GBGraph::isRedundant_checkEquivalenceEDBAtoms(
     retainFree = false;
     return false;
 }
+
+bool GBGraph::doesNewNodeAppearsDerivationTree(
+        const Literal &literalToCheck,
+        const Literal &literalHead,
+        size_t ruleIdx,
+        const std::vector<size_t> &incomingEdges) {
+    if (ruleIdx == ~0ul)
+        return false;
+
+    const auto rule = allRules[ruleIdx];
+    if (rule.getHeads().size() != 1) {
+        LOG(WARNL) << "Static analysis on the derivation tree does not work"
+            " with multiple head atoms";
+        return false;
+    }
+    const auto &h = rule.getFirstHead();
+    std::vector<Substitution> subs;
+    auto nsubs = Literal::getSubstitutionsA2B(subs, h, literalHead);
+    if (nsubs != -1) {
+        //Check all variables are propagated
+        auto v = literalToCheck.getAllVars();
+        auto rewrittenHead = h.substitutes(subs);
+        auto sharedVars = rewrittenHead.getSharedVars(v);
+        assert(!literalToCheck.hasRepeatedVars());
+        if (sharedVars.size() != v.size()) {
+            return false;
+        }
+
+        const auto &ruleBody = rule.getBody();
+        size_t bodyAtomIdx = 0;
+        for(size_t i = 0; i < incomingEdges.size(); ++i) {
+            while (bodyAtomIdx < ruleBody.size()) {
+                if (!ruleBody[bodyAtomIdx].isEDB()) {
+                    break;
+                } else {
+                    if (incomingEdges[i] == ~0ul) {
+                        break;
+                    }
+                }
+                bodyAtomIdx++;
+            }
+            assert(bodyAtomIdx < ruleBody.size());
+            auto &potentialNode = incomingEdges[i];
+            if (potentialNode != ~0ul) {
+                auto newBodyLiteral = ruleBody[bodyAtomIdx].substitutes(subs);
+                if (newBodyLiteral == literalToCheck) {
+                    return true;
+                } else {
+                    //all variables in literalToCheck must be propagated
+                    auto sharedv = newBodyLiteral.getSharedVars(v);
+                    if (v.size() == sharedv.size()) {
+                        //recursive call
+                        auto newRuleIdx = getNodeRuleIdx(potentialNode);
+                        auto newIncomingEdges = getNodeIncomingEdges(potentialNode);
+                        if (doesNewNodeAppearsDerivationTree(literalToCheck,
+                                    newBodyLiteral, newRuleIdx, newIncomingEdges)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            bodyAtomIdx++;
+        }
+    }
+    return false;
+}

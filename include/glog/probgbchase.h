@@ -9,6 +9,12 @@
 class ProbGBChase : public GBChase
 {
     protected:
+        void prepareRuleExecutionPlans(
+                const size_t &ruleIdx,
+                const size_t prevstep,
+                const size_t step,
+                std::vector<GBRuleInput> &newnodes);
+
         bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
 
     public:

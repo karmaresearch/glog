@@ -315,7 +315,7 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
 
     query_options.add<bool>("", "shufflerules", false,
             "shuffle rules randomly instead of using heuristics (only for <mat>, and only when running multithreaded).", false);
-    query_options.add<int>("r", "repeatQuery", 1,
+    query_options.add<int>("r", "repeatQuery", 0,
             "Repeat the query <arg> times. If the argument is not specified, then the query will not be repeated.", false);
     query_options.add<string>("","storemat_path", "",
             "Directory where to store all results of the materialization. Default is '' (disable).",false);

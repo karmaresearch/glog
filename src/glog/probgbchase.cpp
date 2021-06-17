@@ -1,4 +1,5 @@
 #include <glog/probgbchase.h>
+#include <iterator>
 
 ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program) :
     GBChase(layer, &program, true, GBGraph::ProvenanceType::FULLPROV, false,
@@ -6,6 +7,73 @@ ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program) :
 {
     executor = std::unique_ptr<GBRuleExecutor>(
             new GBRuleExecutor(g, layer, &program, false, true));
+}
+
+void ProbGBChase::prepareRuleExecutionPlans(
+        const size_t &ruleIdx,
+        const size_t prevstep,
+        const size_t step,
+        std::vector<GBRuleInput> &newnodes)
+{
+    std::vector<GBRuleInput> newNodesPerRule;
+    GBChase::prepareRuleExecutionPlans(ruleIdx, prevstep, step, newNodesPerRule);
+    if (newNodesPerRule.empty())
+        return;
+
+    const Rule &rule = program->getRule(ruleIdx);
+    if (rule.getHeads().size() != 1) {
+        LOG(WARNL) << "Static analysis on the derivation tree does not work"
+            " with multiple head atoms";
+        return;
+    }
+    const auto &h = rule.getFirstHead();
+    const auto &ruleBody = rule.getBody();
+
+    auto allVarsH = h.getAllVars();
+    assert(!h.hasRepeatedVars());
+
+    for(int64_t m = newNodesPerRule.size() - 1; m >= 0; m--) {
+        auto n = newNodesPerRule[m];
+        bool shouldBeRemoved = false;
+        size_t bodyAtomIdx = 0;
+        for(size_t i = 0; i < n.incomingEdges.size(); ++i) {
+            while (bodyAtomIdx < ruleBody.size()) {
+                if (!ruleBody[bodyAtomIdx].isEDB()) {
+                    break;
+                }
+                bodyAtomIdx++;
+            }
+            assert(bodyAtomIdx < ruleBody.size());
+            if (ruleBody[bodyAtomIdx].getSharedVars(allVarsH).size() ==
+                    allVarsH.size()) {
+                auto &potentialNodes = n.incomingEdges[i];
+                for(int64_t j = potentialNodes.size() - 1; j >= 0; j--) {
+                    auto potentialNode = potentialNodes[j];
+                    auto potentialNodeRuleIdx = g.getNodeRuleIdx(potentialNode);
+                    auto potentialNodeIncEdges = g.getNodeIncomingEdges(potentialNode);
+                    if (g.doesNewNodeAppearsDerivationTree(h,
+                                ruleBody[bodyAtomIdx],
+                                potentialNodeRuleIdx,
+                                potentialNodeIncEdges)) {
+                        //Remove the potential node
+                        potentialNodes.erase(potentialNodes.begin() + j);
+                    }
+                }
+                if (potentialNodes.empty()) {
+                    shouldBeRemoved = true;
+                    break;
+                }
+            }
+            bodyAtomIdx++;
+        }
+        if (shouldBeRemoved) {
+            newNodesPerRule.erase(newNodesPerRule.begin() + m);
+        }
+    }
+
+    for (auto &n : newNodesPerRule) {
+        newnodes.push_back(n);
+    }
 }
 
 bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
@@ -21,19 +89,18 @@ bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
 
     std::chrono::system_clock::time_point start =
         std::chrono::system_clock::now();
-
-    size_t nders = 0;
-    size_t nders_un = 0;
-    auto &heads = rule.getHeads();
-    int headIdx = 0;
     auto outputsRule = executor->executeRule(rule, node);
-    bool nonempty = false;
     std::chrono::duration<double, std::milli> execRuntime =
         std::chrono::system_clock::now() - start;
     durationRuleExec += execRuntime;
 
     std::chrono::system_clock::time_point starth =
         std::chrono::system_clock::now();
+    int headIdx = 0;
+    bool nonempty = false;
+    size_t nders = 0;
+    size_t nders_un = 0;
+    auto &heads = rule.getHeads();
     for (GBRuleOutput &outputRule : outputsRule) {
         auto currentPredicate = heads[headIdx++].getPredicate().getId();
         auto derivations = outputRule.segment;

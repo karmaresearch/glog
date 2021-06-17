@@ -265,7 +265,8 @@ void GBChase::prepareRuleExecutionPlans_SNE(
         }
 
         if (filterQueryCont) {
-            //The implementation of query containment does not work if the rule contains constants in the body
+            //The implementation of query containment does not work if the
+            //rule contains constants in the body
             bool canCheck = true;
             for (auto &b : rules[ruleIdx].getBody()) {
                 if (b.getNConstants() > 0) {

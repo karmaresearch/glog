@@ -506,6 +506,13 @@ class GBGraph {
                 bool edbCheck,
                 bool &retainFree);
 
+        bool doesNewNodeAppearsDerivationTree(
+                const Literal &literalToCheck,
+                const Literal &literalHead,
+                size_t ruleIdx,
+                const std::vector<size_t> &incomingEdges);
+
+
         std::shared_ptr<GBQuerier> getQuerier() const;
 
         void printStats() {
