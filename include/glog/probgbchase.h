@@ -8,6 +8,9 @@
 
 class ProbGBChase : public GBChase
 {
+    private:
+        const bool optDelProofsStaticAnalysis;
+
     protected:
         void prepareRuleExecutionPlans(
                 const size_t &ruleIdx,
@@ -18,6 +21,7 @@ class ProbGBChase : public GBChase
         bool executeRule(GBRuleInput &node, bool cleanDuplicates = true);
 
     public:
-        ProbGBChase(EDBLayer &layer, Program &program);
+        ProbGBChase(EDBLayer &layer, Program &program,
+                bool optDelProofsStaticAnalysis);
 };
 #endif

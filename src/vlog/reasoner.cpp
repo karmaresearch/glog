@@ -512,6 +512,7 @@ TupleIterator *Reasoner::getTGMagicIterator(Literal &query,
 
 TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
         EDBLayer &edb, Program &program, bool returnOnlyVars,
+        bool optDelProofsStaticAnalysis,
         std::string profilerPath,
         std::string storematPath) {
 
@@ -568,7 +569,8 @@ TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
         out.close();
     }
 
-    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(edb, magicProgram.get());
+    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(
+            edb, magicProgram.get(), optDelProofsStaticAnalysis);
 
     if (profilerPath != "") {
         sn->setPathStoreStatistics(profilerPath);
@@ -1127,8 +1129,10 @@ std::shared_ptr<TriggerSemiNaiver> Reasoner::getTriggeredSemiNaiver(EDBLayer &la
 
 std::shared_ptr<GBChase> Reasoner::getProbTGChase(
         EDBLayer &layer,
-        Program *p) {
-    std::shared_ptr<GBChase> sn(new ProbGBChase(layer, *p));
+        Program *p,
+        bool optDelProofsStaticAnalysis) {
+    std::shared_ptr<GBChase> sn(new ProbGBChase(layer, *p,
+                optDelProofsStaticAnalysis));
     return sn;
 }
 

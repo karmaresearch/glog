@@ -1,9 +1,11 @@
 #include <glog/probgbchase.h>
 #include <iterator>
 
-ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program) :
+ProbGBChase::ProbGBChase(EDBLayer &layer, Program &program,
+        bool optDelProofsStaticAnalysis) :
     GBChase(layer, &program, true, GBGraph::ProvenanceType::FULLPROV, false,
-            false, false, true)
+            false, false, true),
+    optDelProofsStaticAnalysis(optDelProofsStaticAnalysis)
 {
     executor = std::unique_ptr<GBRuleExecutor>(
             new GBRuleExecutor(g, layer, &program, false, true));
@@ -20,54 +22,56 @@ void ProbGBChase::prepareRuleExecutionPlans(
     if (newNodesPerRule.empty())
         return;
 
-    const Rule &rule = program->getRule(ruleIdx);
-    if (rule.getHeads().size() != 1) {
-        LOG(WARNL) << "Static analysis on the derivation tree does not work"
-            " with multiple head atoms";
-        return;
-    }
-    const auto &h = rule.getFirstHead();
-    const auto &ruleBody = rule.getBody();
+    if (optDelProofsStaticAnalysis) {
+        const Rule &rule = program->getRule(ruleIdx);
+        if (rule.getHeads().size() != 1) {
+            LOG(WARNL) << "Static analysis on the derivation tree does not work"
+                " with multiple head atoms";
+            return;
+        }
+        const auto &h = rule.getFirstHead();
+        const auto &ruleBody = rule.getBody();
 
-    auto allVarsH = h.getAllVars();
-    assert(!h.hasRepeatedVars());
+        auto allVarsH = h.getAllVars();
+        assert(!h.hasRepeatedVars());
 
-    for(int64_t m = newNodesPerRule.size() - 1; m >= 0; m--) {
-        auto n = newNodesPerRule[m];
-        bool shouldBeRemoved = false;
-        size_t bodyAtomIdx = 0;
-        for(size_t i = 0; i < n.incomingEdges.size(); ++i) {
-            while (bodyAtomIdx < ruleBody.size()) {
-                if (!ruleBody[bodyAtomIdx].isEDB()) {
-                    break;
+        for(int64_t m = newNodesPerRule.size() - 1; m >= 0; m--) {
+            auto n = newNodesPerRule[m];
+            bool shouldBeRemoved = false;
+            size_t bodyAtomIdx = 0;
+            for(size_t i = 0; i < n.incomingEdges.size(); ++i) {
+                while (bodyAtomIdx < ruleBody.size()) {
+                    if (!ruleBody[bodyAtomIdx].isEDB()) {
+                        break;
+                    }
+                    bodyAtomIdx++;
+                }
+                assert(bodyAtomIdx < ruleBody.size());
+                if (ruleBody[bodyAtomIdx].getSharedVars(allVarsH).size() ==
+                        allVarsH.size()) {
+                    auto &potentialNodes = n.incomingEdges[i];
+                    for(int64_t j = potentialNodes.size() - 1; j >= 0; j--) {
+                        auto potentialNode = potentialNodes[j];
+                        auto potentialNodeRuleIdx = g.getNodeRuleIdx(potentialNode);
+                        auto potentialNodeIncEdges = g.getNodeIncomingEdges(potentialNode);
+                        if (g.doesNewNodeAppearsDerivationTree(h,
+                                    ruleBody[bodyAtomIdx],
+                                    potentialNodeRuleIdx,
+                                    potentialNodeIncEdges)) {
+                            //Remove the potential node
+                            potentialNodes.erase(potentialNodes.begin() + j);
+                        }
+                    }
+                    if (potentialNodes.empty()) {
+                        shouldBeRemoved = true;
+                        break;
+                    }
                 }
                 bodyAtomIdx++;
             }
-            assert(bodyAtomIdx < ruleBody.size());
-            if (ruleBody[bodyAtomIdx].getSharedVars(allVarsH).size() ==
-                    allVarsH.size()) {
-                auto &potentialNodes = n.incomingEdges[i];
-                for(int64_t j = potentialNodes.size() - 1; j >= 0; j--) {
-                    auto potentialNode = potentialNodes[j];
-                    auto potentialNodeRuleIdx = g.getNodeRuleIdx(potentialNode);
-                    auto potentialNodeIncEdges = g.getNodeIncomingEdges(potentialNode);
-                    if (g.doesNewNodeAppearsDerivationTree(h,
-                                ruleBody[bodyAtomIdx],
-                                potentialNodeRuleIdx,
-                                potentialNodeIncEdges)) {
-                        //Remove the potential node
-                        potentialNodes.erase(potentialNodes.begin() + j);
-                    }
-                }
-                if (potentialNodes.empty()) {
-                    shouldBeRemoved = true;
-                    break;
-                }
+            if (shouldBeRemoved) {
+                newNodesPerRule.erase(newNodesPerRule.begin() + m);
             }
-            bodyAtomIdx++;
-        }
-        if (shouldBeRemoved) {
-            newNodesPerRule.erase(newNodesPerRule.begin() + m);
         }
     }
 

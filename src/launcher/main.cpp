@@ -343,6 +343,7 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
     query_options.add<bool>("","querycont", true, "Enable the optimization that performs query containment to reduce duplicates during the computation of tgchase.", true);
     query_options.add<bool>("","edbcheck", true, "Enable the optimization that check EDB relations to reduce duplicates during the computation of tgchase.", true);
     query_options.add<bool>("","rewritecliques", true, "Enable the optimization that rewrites transitive and reflexity equality rules.", true);
+    query_options.add<bool>("","delProofs", true, "Enable the optimization that remove redundantProofs via static analysis.", true);
 
     query_options.add<string>("","sameasAlgo", "NOTHING", "Enable equality algorithm. Techniques: NOTHING (default), AXIOM (axiomatization), SING (singularisation).",false);
 
@@ -546,7 +547,8 @@ void launchProbTGChase(int argc,
     }
 
     //Obtain the chase procedure
-    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(db, &p);
+    std::shared_ptr<GBChase> sn = Reasoner::getProbTGChase(db, &p,
+            vm["delProofs"].as<bool>());
 
     if (vm["profiler"].as<std::string>() != "") {
         sn->setPathStoreStatistics(vm["profiler"].as<std::string>());
@@ -1222,13 +1224,16 @@ std::string selectStrategy(EDBLayer &edb, Program &p, Literal &literal, Reasoner
     throw 10;
 }
 
-void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reasoner, ProgramArgs &vm) {
+void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal,
+        Reasoner &reasoner, ProgramArgs &vm) {
 
     std::chrono::system_clock::time_point startQ1 = std::chrono::system_clock::now();
 
     std::string algo = vm["reasoningAlgo"].as<string>();
     int times = vm["repeatQuery"].as<int>();
     bool printResults = vm["printResults"].as<bool>();
+
+    bool optDelProofsStaticAnalysis = vm["delProofs"].as<bool>();
 
     int nVars = literal.getNVars();
     bool onlyVars = nVars > 0;
@@ -1270,6 +1275,7 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
                 vm["storemat_path"].as<std::string>());
     } else if (algo == "probmagic") {
         iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars,
+                optDelProofsStaticAnalysis,
                 vm["profiler"].as<std::string>(),
                 vm["storemat_path"].as<std::string>());
     } else if (algo == "qsqr") {
@@ -1327,9 +1333,11 @@ void runLiteralQuery(EDBLayer &edb, Program &p, Literal &literal, Reasoner &reas
             } else if (algo == "tgmagic") {
                 iter = reasoner.getTGMagicIterator(literal, edb, p, onlyVars);
             } else if (algo == "probmagic") {
-                iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars);
+                iter = reasoner.getProbMagicIterator(literal, edb, p, onlyVars,
+                        optDelProofsStaticAnalysis);
             } else if (algo == "qsqr") {
-                iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
+                iter = reasoner.getTopDownIterator(literal, NULL, NULL, edb, p,
+                        onlyVars, NULL);
             } else if (algo == "mat") {
                 iter = reasoner.getMaterializationIterator(literal, NULL, NULL, edb, p, onlyVars, NULL);
             } else {

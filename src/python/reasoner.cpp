@@ -97,6 +97,7 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
     bool queryCont = true;
     bool edbCheck = true;
     bool rewriteCliques = true;
+    bool delProofs = true;
     const char *tgpath = "";
     const char *typeProv = "NOPROV";
     static char *kwlist[] = {
@@ -108,10 +109,11 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
         (char *)"rewriteCliques",
         (char *)"tgpath",
         (char *)"typeProv",
+        (char *)"delProofs",
         NULL
     };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sOO|bbbss",
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "sOO|bbbssb",
                 kwlist,
                 &typeChase,
                 &edbLayer,
@@ -120,7 +122,8 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
                 &edbCheck,
                 &rewriteCliques,
                 &tgpath,
-                &typeProv)) {
+                &typeProv,
+                &delProofs)) {
         return -1;
     }
 
@@ -163,6 +166,7 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
         "queryCont=" << queryCont << " "
         "edbCheck=" << edbCheck << " "
         "rewriteCliques=" << rewriteCliques << " "
+        "optDelProofs=" << delProofs << " "
         "tgpath=" << tgpath << " "
         "typeProv=" << typeProv;
 
@@ -179,7 +183,7 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
                 rewriteCliques,
                 std::string(tgpath));
     } else {
-        self->sn = Reasoner::getProbTGChase(*db, p.get());
+        self->sn = Reasoner::getProbTGChase(*db, p.get(), delProofs);
     }
     return 0;
 }

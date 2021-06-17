@@ -117,6 +117,7 @@ class Reasoner {
         VLIBEXP TupleIterator *getProbMagicIterator(Literal &query,
                 EDBLayer &layer, Program &program,
                 bool returnOnlyVars,
+                bool optDelProofsStaticAnalysis,
                 std::string profilerPath="",
                 std::string storematPath="");
 
@@ -149,7 +150,8 @@ class Reasoner {
 
         VLIBEXP static std::shared_ptr<GBChase> getProbTGChase(
                 EDBLayer &layer,
-                Program *p);
+                Program *p,
+                bool optDelProofsStaticAnalysis);
 
         int getNumberOfIDBPredicates(Literal&, Program&);
 
