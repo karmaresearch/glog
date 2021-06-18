@@ -40,6 +40,7 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId) {
     auto itr = this->l.getIterator(l);
     size_t i = 0;
     while (itr->hasNext()) {
+        itr->next();
         if (i == factId) {
             auto predId = itr->getPredicateID();
             auto tuple = l.getTuple();
@@ -58,7 +59,6 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId) {
 
             break;
         }
-        itr->next();
         i++;
     }
 }
