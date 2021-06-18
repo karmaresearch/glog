@@ -1137,7 +1137,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 intermediateResults = newIntermediateResults->getSegment(
                         ~0ul, false, 0, getSegProvenanceType(), 0);
             }
-            currentBodyNode++;
+            if (!isEDB)
+                currentBodyNode++;
         }
         varsIntermediate = newVarsIntermediateResults;
     }

@@ -1775,7 +1775,7 @@ TridentIterator *TridentTable::getTridentIter() {
 
 EDBIterator *TridentTable::getIterator(const Literal &query) {
     const Literal *literal = &query;
-    LOG(DEBUGL) << "Get iterator for query " << literal->tostring(NULL, layer);
+    LOG(TRACEL) << "Get iterator for query " << literal->tostring(NULL, layer);
     TridentIterator *itr = getTridentIter();
     itr->init(query.getPredicate().getId(), q, *literal, multithreaded ? &mutex : NULL);
     return itr;

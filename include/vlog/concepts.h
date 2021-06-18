@@ -81,8 +81,10 @@ class VTuple {
 
         VTuple(const VTuple &v) : sizetuple(v.sizetuple) {
             terms = new VTerm[sizetuple];
-            for (int i = 0; i < sizetuple; i++) {
-                terms[i] = v.terms[i];
+            if (sizetuple > 0) {
+                for (int i = 0; i < sizetuple; i++) {
+                    terms[i] = v.terms[i];
+                }
             }
         }
 

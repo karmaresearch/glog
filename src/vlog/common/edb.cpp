@@ -457,7 +457,7 @@ void EDBLayer::addEDBimporter(const EDBConf::Table &tableConf) {
 }
 
 bool EDBLayer::doesPredExists(PredId_t id) const {
-    LOG(DEBUGL) << "doesPredExists for: " << id;
+    LOG(TRACEL) << "doesPredExists for: " << id;
     return dbPredicates.count(id);
 }
 

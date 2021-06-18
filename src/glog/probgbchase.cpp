@@ -87,7 +87,7 @@ bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
     if (rule.isEGD()) {
         throw 10; //Not supported here
     }
-    LOG(DEBUGL) << "Executing rule " << node.ruleIdx << " "
+    LOG(INFOL) << "Executing rule " << node.ruleIdx << " "
         << rule.tostring(program, &layer);
 #endif
 
