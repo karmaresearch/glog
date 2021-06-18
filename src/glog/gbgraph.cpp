@@ -246,6 +246,7 @@ void GBGraph::addNodeNoProv(PredId_t predId,
     outputNode.setData(data);
 
     pred2Nodes[predId].push_back(nodeId);
+
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
         data->getNRows();
 }
@@ -568,8 +569,14 @@ void GBGraph::addNodeProv(PredId_t predid,
         }
     outputNode.setIncomingEdges(incomingEdges);
     pred2Nodes[predid].push_back(nodeId);
+#ifdef DEBUG
+    std::string sIe = "";
+    for(auto n : incomingEdges) {
+        sIe += " " + std::to_string(n);
+    }
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
-        data->getNRows();
+       data->getNRows() << " " << sIe;
+#endif
 
 #ifdef DEBUG
     //Check whether the trees do not contain a duplicate fact

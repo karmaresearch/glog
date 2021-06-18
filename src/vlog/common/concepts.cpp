@@ -1447,7 +1447,11 @@ Literal Program::parseLiteral(std::string l, Dictionary &dictVariables) {
             throw ("Wrong arity in predicate \""+ predicate + "\". It should be " + std::to_string((int) cardPredicates.find(predid)->second) +".");
         }
     }
-    Predicate pred(predid, Predicate::calculateAdornment(t1), kb->doesPredExists(predid) ? EDB : IDB, (uint8_t) t.size());
+    uint8_t type = kb->doesPredExists(predid) ? EDB : IDB;
+    if (predicate.find("mgc_") == 0) {
+        type += 2;
+    }
+    Predicate pred(predid, Predicate::calculateAdornment(t1), type, (uint8_t) t.size());
     LOG(DEBUGL) << "Predicate : " << predicate << ", type = " << ((pred.getType() == EDB) ? "EDB" : "IDB");
     if (pred.getType() == EDB) {
         int sz = kb->getPredArity(predid);
