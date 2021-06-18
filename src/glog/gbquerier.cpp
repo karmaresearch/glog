@@ -210,6 +210,9 @@ void GBQuerier::exportNode(JSON &out,
             auto offset = row[i];
             if (bodyLiteral.getPredicate().getType() == EDB) {
                 exportEDBNode(parentNode, bodyLiteral, offset);
+                if (j < ie.size() && ie[j] == ~0ul) {
+                    j++;
+                }
             } else {
                 auto nodeId = ie[j];
                 exportNode(parentNode, nodeId, offset);

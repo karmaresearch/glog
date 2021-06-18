@@ -510,6 +510,14 @@ void GBGraph::addNodeProv(PredId_t predid,
                         assert(off < card);
                     }
                     idxIncomingEdge += 1;
+                } else {
+                    if (idxIncomingEdge < incomingEdges.size()) {
+                        auto node = incomingEdges[idxIncomingEdge];
+                        if (node == ~0ul) {
+                            //Do not check
+                            idxIncomingEdge += 1;
+                        }
+                    }
                 }
             }
         }
