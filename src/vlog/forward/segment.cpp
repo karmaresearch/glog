@@ -15,7 +15,7 @@ Segment::Segment(const uint8_t nfields) : nfields(nfields) {
 }
 
 Segment::Segment(const uint8_t nfields, std::shared_ptr<Column> *c) : Segment(nfields) {
-    for (uint8_t i = 0; i < nfields; ++i)
+    for (int i = 0; i < nfields; ++i)
         this->columns[i] = c[i];
 #if DEBUG
     checkSizes();
@@ -24,7 +24,7 @@ Segment::Segment(const uint8_t nfields, std::shared_ptr<Column> *c) : Segment(nf
 
 Segment::Segment(const uint8_t nfields, std::vector<std::shared_ptr<Column>> &c) : Segment(nfields) {
     assert(c.size() == nfields);
-    for (uint8_t i = 0; i < nfields; ++i)
+    for (int i = 0; i < nfields; ++i)
         this->columns[i] = c[i];
 #if DEBUG
     checkSizes();
@@ -38,7 +38,7 @@ void Segment::checkSizes() const {
         if (columns[0] != NULL) {
             sz = columns[0]->size();
         }
-        for (uint8_t i = 1; i < nfields; ++i) {
+        for (int i = 1; i < nfields; ++i) {
             if (columns[i] == NULL) {
                 assert(sz == 0);
             } else {
@@ -67,7 +67,7 @@ size_t Segment::getRepresentationSize(std::set<uint64_t> &IDs) const {
 }
 
 Segment& Segment::operator =(const std::shared_ptr<Column> *v) {
-    for (uint8_t i = 0; i < nfields; ++i) {
+    for (int i = 0; i < nfields; ++i) {
         columns[i] = v[i];
     }
     return *this;
@@ -102,7 +102,7 @@ size_t Segment::estimate(const uint8_t nconstantsToFilter,
             break;
 
         bool ok = true;
-        for (uint8_t j = 0; j < nconstantsToFilter; ++j) {
+        for (int j = 0; j < nconstantsToFilter; ++j) {
             if (readers[j]->next() != valuesConstantsToFilter[j]) {
                 ok = false;
                 break;
@@ -133,7 +133,7 @@ size_t Segment::estimate(const uint8_t nconstantsToFilter,
     for (int i = 0; i < 1000; ++i) {
     size_t idx = distribution(generator) * nfields;
     bool ok = true;
-    for (uint8_t j = 0; j < nconstantsToFilter; ++j) {
+    for (int j = 0; j < nconstantsToFilter; ++j) {
     if (readers[j]->get(idx) != valuesConstantsToFilter[j]) {
     ok = false;
     break;
@@ -270,7 +270,7 @@ std::shared_ptr<Segment> Segment::intsort(
         std::vector<std::shared_ptr<Column>> varColumns;
         std::vector<std::unique_ptr<ColumnReader>> varColumnsR;
         std::vector<uint8_t> idxVarColumns;
-        for (uint8_t i = 0; i < nfields; ++i) {
+        for (int i = 0; i < nfields; ++i) {
             if (!columns[i]->isConstant()) {
                 varColumns.push_back(columns[i]);
                 varColumnsR.push_back(columns[i]->getReader());
@@ -288,8 +288,8 @@ std::shared_ptr<Segment> Segment::intsort(
                 //Rearrange the fields
                 std::vector<std::shared_ptr<Column>> newVarColumns;
                 std::vector<uint8_t> newIdxVarColumns;
-                for (uint8_t j = 0; j < fields->size(); ++j) {
-                    for (uint8_t m = 0; m < idxVarColumns.size(); ++m) {
+                for (int j = 0; j < fields->size(); ++j) {
+                    for (int m = 0; m < idxVarColumns.size(); ++m) {
                         if (idxVarColumns[m] == fields->at(j)) {
                             newVarColumns.push_back(varColumns[m]);
                             newIdxVarColumns.push_back(idxVarColumns[m]);
@@ -297,9 +297,9 @@ std::shared_ptr<Segment> Segment::intsort(
                     }
                 }
 
-                for (uint8_t m = 0; m < idxVarColumns.size(); ++m) {
+                for (int m = 0; m < idxVarColumns.size(); ++m) {
                     bool found = false;
-                    for (uint8_t n = 0; n < newIdxVarColumns.size() && !found; ++n) {
+                    for (int n = 0; n < newIdxVarColumns.size() && !found; ++n) {
                         if (newIdxVarColumns[n] == idxVarColumns[m]) {
                             found = true;
                         }
@@ -362,7 +362,7 @@ std::shared_ptr<Segment> Segment::intsort(
 
                 for (std::vector<size_t>::iterator itr = rows.begin();
                         itr != rows.end(); ++itr) {
-                    for (uint8_t i = 0; i < nvarColumns; ++i) {
+                    for (int i = 0; i < nvarColumns; ++i) {
                         sortedColumnsInserters[i].add((*vectors[i])[*itr]);
                     }
                 }
@@ -376,9 +376,9 @@ std::shared_ptr<Segment> Segment::intsort(
 
         //Reconstruct all the fields
         std::vector<std::shared_ptr<Column>> allSortedColumns;
-        for (uint8_t i = 0; i < nfields; ++i) {
+        for (int i = 0; i < nfields; ++i) {
             bool isVar = false;
-            for (uint8_t j = 0; j < varColumns.size() && !isVar; ++j) {
+            for (int j = 0; j < varColumns.size() && !isVar; ++j) {
                 if (idxVarColumns[j] == i) {
                     allSortedColumns.push_back(sortedColumns[j]);
                     isVar = true;
@@ -406,7 +406,7 @@ std::shared_ptr<Segment> Segment::intsort(
         std::vector<std::shared_ptr<Column>> varColumns;
         std::vector<std::unique_ptr<ColumnReader>> varColumnsR;
         std::vector<uint8_t> idxVarColumns;
-        for (uint8_t i = 0; i < nfields; ++i) {
+        for (int i = 0; i < nfields; ++i) {
             if (!columns[i]->isConstant()) {
                 varColumns.push_back(columns[i]);
                 varColumnsR.push_back(columns[i]->getReader());
@@ -441,8 +441,8 @@ std::shared_ptr<Segment> Segment::intsort(
                 //Rearrange the fields
                 std::vector<std::shared_ptr<Column>> newVarColumns;
                 std::vector<uint8_t> newIdxVarColumns;
-                for (uint8_t j = 0; j < fields->size(); ++j) {
-                    for (uint8_t m = 0; m < idxVarColumns.size(); ++m) {
+                for (int j = 0; j < fields->size(); ++j) {
+                    for (int m = 0; m < idxVarColumns.size(); ++m) {
                         if (idxVarColumns[m] == fields->at(j)) {
                             newVarColumns.push_back(varColumns[m]);
                             newIdxVarColumns.push_back(idxVarColumns[m]);
@@ -450,9 +450,9 @@ std::shared_ptr<Segment> Segment::intsort(
                     }
                 }
 
-                for (uint8_t m = 0; m < idxVarColumns.size(); ++m) {
+                for (int m = 0; m < idxVarColumns.size(); ++m) {
                     bool found = false;
-                    for (uint8_t n = 0; n < newIdxVarColumns.size() && !found; ++n) {
+                    for (int n = 0; n < newIdxVarColumns.size() && !found; ++n) {
                         if (newIdxVarColumns[n] == idxVarColumns[m]) {
                             found = true;
                         }
@@ -648,9 +648,9 @@ std::shared_ptr<Segment> Segment::intsort(
         assert(varColumns.size() > 0);
         size_t newsize = varColumns[0]->size();
 
-        for (uint8_t i = 0; i < nfields; ++i) {
+        for (int i = 0; i < nfields; ++i) {
             bool isVar = false;
-            for (uint8_t j = 0; j < varColumns.size() && !isVar; ++j) {
+            for (int j = 0; j < varColumns.size() && !isVar; ++j) {
                 if (idxVarColumns[j] == i) {
                     allSortedColumns.push_back(sortedColumns[j]);
                     isVar = true;
@@ -677,7 +677,7 @@ std::shared_ptr<Segment> Segment::intsort(
 void SegmentInserter::checkSizes() const {
     if (nfields > 0) {
         size_t sz = columns[0].size();
-        for (uint8_t i = 1; i < nfields; ++i) {
+        for (int i = 1; i < nfields; ++i) {
             assert(sz == columns[i].size());
         }
     }
@@ -688,7 +688,7 @@ void SegmentInserter::addRow(const Term_t *row, const uint8_t *posToCopy) {
     if (segmentSorted) {
         assert(nfields > 0);
         if (!columns[0].isEmpty()) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 if (row[posToCopy[i]] < columns[posToCopy[i]].lastValue()) {
                     segmentSorted = false;
                     break;
@@ -708,7 +708,7 @@ void SegmentInserter::addRow(SegmentIterator &itr) {
     if (segmentSorted) {
         assert(nfields > 0);
         if (!columns[0].isEmpty()) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 if (itr.get(i) < columns[i].lastValue()) {
                     segmentSorted = false;
                     break;
@@ -719,7 +719,7 @@ void SegmentInserter::addRow(SegmentIterator &itr) {
         }
     }
 
-    for (uint8_t i = 0; i < nfields; ++i) {
+    for (int i = 0; i < nfields; ++i) {
         columns[i].add(itr.get(i));
     }
 }
@@ -728,7 +728,7 @@ void SegmentInserter::addRow(FCInternalTableItr *itr, const uint8_t *posToCopy) 
     if (segmentSorted) {
         assert(nfields > 0);
         if (!columns[0].isEmpty()) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 if (itr->getCurrentValue(posToCopy[i]) < columns[posToCopy[i]].lastValue()) {
                     segmentSorted = false;
                     break;
@@ -748,7 +748,7 @@ void SegmentInserter::addRow(const Term_t *row) {
     if (segmentSorted) {
         assert(nfields > 0);
         if (!columns[0].isEmpty()) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 if (row[i] < columns[i].lastValue()) {
                     segmentSorted = false;
                     break;
@@ -788,7 +788,7 @@ void SegmentInserter::addColumns(std::vector<std::shared_ptr<Column>> &c,
     }
 
     if (/*lastInsert && */isEmpty()) {
-        for (uint8_t i = 0; i < c.size(); ++i) {
+        for (int i = 0; i < c.size(); ++i) {
             copyColumns[i] = c[i];
         }
     } else {
@@ -959,7 +959,7 @@ void SegmentInserter::addRow(FCInternalTableItr *itr) {
     if (segmentSorted) {
         assert(nfields > 0);
         if (!isEmpty()) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 if (itr->getCurrentValue(i) < columns[i].lastValue()) {
                     segmentSorted = false;
                     break;
@@ -970,7 +970,7 @@ void SegmentInserter::addRow(FCInternalTableItr *itr) {
         }
     }
 
-    for (uint8_t i = 0; i < nfields; ++i) {
+    for (int i = 0; i < nfields; ++i) {
         columns[i].add(itr->getCurrentValue(i));
     }
 }
@@ -987,7 +987,7 @@ void SegmentInserter::addAt(const uint8_t p, const Term_t v) {
   }*/
 
 void SegmentInserter::copyArray(SegmentIterator &source) {
-    for (uint8_t i = 0; i < nfields; ++i) {
+    for (int i = 0; i < nfields; ++i) {
         addAt(i, source.get(i));
     }
 }
@@ -1245,7 +1245,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
     uint8_t posConstants[256];
     Term_t valueConstants[256];
     if (!segment->isEmpty()) {
-        for (uint8_t i = 0; i < segment->getNColumns(); ++i) {
+        for (int i = 0; i < segment->getNColumns(); ++i) {
             if (segment->isConstantField(i)) {
                 posConstants[nPosConstants] = i;
                 valueConstants[nPosConstants] = segment->firstInColumn(i);
@@ -1262,7 +1262,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
     if (existingValues != NULL && !existingValues->isEmpty()
             && nPosConstants > 0) {
         //Is existingValues a superset of the current values?
-        for (uint8_t i = 0; i < nPosConstants && match; ++i) {
+        for (int i = 0; i < nPosConstants && match; ++i) {
             if (existingValues->isColumnConstant(posConstants[i])) {
                 if (valueConstants[i] !=
                         existingValues->
@@ -1298,7 +1298,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
     std::shared_ptr<Column> col = segment->getColumn(posToCompare[0])->sort();
     uint32_t newsize = col->size();
     //Update all other columns with the new cardinality
-    for (uint8_t i = 0; i < posConstants.size(); ++i) {
+    for (int i = 0; i < posConstants.size(); ++i) {
     Column *c = segment->getColumn(posConstants[i]).get();
     assert(c->isConstant());
     segment->replaceColumn(posConstants[i],
@@ -1356,7 +1356,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
             if (duplicates) {
                 if (prevrow1valid) {
                     bool same = true;
-                    for (uint8_t i = 0; i < nfields && same; ++i)
+                    for (int i = 0; i < nfields && same; ++i)
                         if (prevrow1[i] != segmentIterator->get(i))
                             same = false;
                     if (same) {
@@ -1366,7 +1366,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
                     }
                 }
 
-                for (uint8_t i = 0; i < nfields; ++i) {
+                for (int i = 0; i < nfields; ++i) {
                     prevrow1[i] = segmentIterator->get(i);
                 }
                 prevrow1valid = true;
@@ -1380,7 +1380,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
         }
 
         int64_t res = 0;
-        for (uint8_t i = 0; i < nPosToCompare; ++i) {
+        for (int i = 0; i < nPosToCompare; ++i) {
             res = segmentIterator->get(posToCompare[i]) - itr2->getCurrentValue(i);
             if (res != 0) {
                 break;
@@ -1414,7 +1414,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
         retainedValues.copyArray(*segmentIterator.get());
         toRead1 = true;
         if (!prevrow1valid) {
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 prevrow1[i] = segmentIterator->get(i);
             }
             prevrow1valid = true;
@@ -1426,7 +1426,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
             segmentIterator->next();
             if (prevrow1valid) {
                 bool same = true;
-                for (uint8_t i = 0; i < nfields && same; ++i)
+                for (int i = 0; i < nfields && same; ++i)
                     if (prevrow1[i] != segmentIterator->get(i))
                         same = false;
                 if (same) {
@@ -1434,7 +1434,7 @@ std::shared_ptr<const Segment> SegmentInserter::retain(
                 }
             }
 
-            for (uint8_t i = 0; i < nfields; ++i) {
+            for (int i = 0; i < nfields; ++i) {
                 prevrow1[i] = segmentIterator->get(i);
             }
             prevrow1valid = true;
@@ -1483,9 +1483,10 @@ std::shared_ptr<const Segment> SegmentInserter::concatenate(
 
     SegmentInserter inserter(nfields);
 
-    for (auto &segment : segments) {
-        for (uint8_t i = 0; i < nfields; ++i) {
-            inserter.addColumn(i, segment->getColumn(i), false);
+        for (auto &segment : segments) {
+            for (int i = 0; i < nfields; ++i) {
+                inserter.addColumn(i, segment->getColumn(i), false);
+            }
         }
     }
     return inserter.getSegment();
@@ -1501,9 +1502,10 @@ std::shared_ptr<const Segment> SegmentInserter::concatenate(
 
     SegmentInserter inserter(nfields);
 
-    for (auto &segment : segments) {
-        for (uint8_t i = 0; i < nfields; ++i) {
-            inserter.addColumn(i, segment->getColumn(i), false);
+        for (auto &segment : segments) {
+            for (int i = 0; i < nfields; ++i) {
+                inserter.addColumn(i, segment->getColumn(i), false);
+            }
         }
     }
     return inserter.getSegment(nthreads);
@@ -1548,10 +1550,11 @@ std::shared_ptr<const Segment> SegmentInserter::unique(
                     break;
                 }
 
-            if (unq) {
-                for (uint8_t i = 0; i < ncolumns; ++i) {
-                    writers[i].add(itr->get(i));
-                    fields[i] = itr->get(i);
+                if (unq) {
+                    for (int i = 0; i < ncolumnsToCheck; ++i) {
+                        writers[i].add(itr->get(i));
+                        fields[i] = itr->get(i);
+                    }
                 }
             }
         }
@@ -1592,17 +1595,17 @@ std::shared_ptr<const Segment> SegmentInserter::merge(
         if (segments[i]->getNColumns() != segments[i - 1]->getNColumns())
             throw 10; //not possible
 
-    //Should I compare all fields or only a few of them?
-    std::vector<uint8_t> fieldsToCompare;
-    for (uint8_t i = 0; i < nfields; ++i) {
-        bool identical = true;
-        for (int j = 1; j < segments.size(); ++j) {
-            if (!segments[j - 1]->getColumn(i)->isConstant() ||
-                    !segments[j]->getColumn(i)->isConstant()) {
-                identical = false;
-            } else {
-                std::unique_ptr<ColumnReader> r1 = segments[j - 1]->getColumn(i)->getReader();
-                std::unique_ptr<ColumnReader> r2 = segments[j]->getColumn(i)->getReader();
+        //Should I compare all fields or only a few of them?
+        std::vector<uint8_t> fieldsToCompare;
+        for (int i = 0; i < nfields; ++i) {
+            bool identical = true;
+            for (int j = 1; j < segments.size(); ++j) {
+                if (!segments[j - 1]->getColumn(i)->isConstant() ||
+                        !segments[j]->getColumn(i)->isConstant()) {
+                    identical = false;
+                } else {
+                    std::unique_ptr<ColumnReader> r1 = segments[j - 1]->getColumn(i)->getReader();
+                    std::unique_ptr<ColumnReader> r2 = segments[j]->getColumn(i)->getReader();
 
                 if (r1->first() != r2->first()) {
                     identical = false;
@@ -1651,25 +1654,50 @@ std::shared_ptr<const Segment> SegmentInserter::merge(
         long count1 = 1;
         long count2 = 1;
 
-        std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
-        if (varsHasNext(&vars1[0], nvars)) {
-            varsNext(lastValues, &vars1[0], nvars);
-            //lastValue = lastSegment->next();
+            std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+            if (varsHasNext(&vars1[0], nvars)) {
+                varsNext(lastValues, &vars1[0], nvars);
+                //lastValue = lastSegment->next();
 
-            if (varsHasNext(&vars2[0], nvars)) {
-                varsNext(curValues, &vars2[0], nvars);
-                //curValue = curSegment->next();
+                if (varsHasNext(&vars2[0], nvars)) {
+                    varsNext(curValues, &vars2[0], nvars);
+                    //curValue = curSegment->next();
 
-                while (!lastValueEOF && !curValueEOF) {
-                    //Compare the columns
-                    int res = 0;
-                    for (uint8_t i = 0; i < nvars && res == 0; ++i) {
-                        Term_t v1 = lastValues[i];
-                        Term_t v2 = curValues[i];
+                    while (!lastValueEOF && !curValueEOF) {
+                        //Compare the columns
+                        int res = 0;
+                        for (int i = 0; i < nvars && res == 0; ++i) {
+                            Term_t v1 = lastValues[i];
+                            Term_t v2 = curValues[i];
 
-                        if (v2 > v1) {
-                            res = -1;
-                            for (uint8_t j = 0; j < nvars; ++j)
+                            if (v2 > v1) {
+                                res = -1;
+                                for (int j = 0; j < nvars; ++j)
+                                    out.addAt(j, lastValues[j]);
+                                if (varsHasNext(&vars1[0], nvars)) {
+                                    varsNext(lastValues, &vars1[0], nvars);
+                                    count1++;
+                                } else {
+                                    lastValueEOF = true;
+                                    break;
+                                }
+                            } else if (v2 < v1) {
+                                res = 1;
+                                for (int j = 0; j < nvars; ++j)
+                                    out.addAt(j, curValues[j]);
+                                if (varsHasNext(&vars2[0], nvars)) {
+                                    varsNext(curValues, &vars2[0], nvars);
+                                    count2++;
+                                } else {
+                                    curValueEOF = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (res == 0) {
+                            //Add only one and increment both
+                            for (int j = 0; j < nvars; ++j)
                                 out.addAt(j, lastValues[j]);
                             if (varsHasNext(&vars1[0], nvars)) {
                                 varsNext(lastValues, &vars1[0], nvars);
@@ -1719,35 +1747,48 @@ std::shared_ptr<const Segment> SegmentInserter::merge(
             lastValueEOF = true;
         }
 
-        //Add remaining
-        while (!lastValueEOF) {
-            for (uint8_t j = 0; j < nvars; ++j)
-                out.addAt(j, lastValues[j]);
-            lastValueEOF = !varsHasNext(&vars1[0], nvars);
-            if (!lastValueEOF) {
-                varsNext(lastValues, &vars1[0], nvars);
-                count1++;
+            //Add remaining
+            while (!lastValueEOF) {
+                for (int j = 0; j < nvars; ++j)
+                    out.addAt(j, lastValues[j]);
+                lastValueEOF = !varsHasNext(&vars1[0], nvars);
+                if (!lastValueEOF) {
+                    varsNext(lastValues, &vars1[0], nvars);
+                    count1++;
+                }
             }
         }
 
-        while (!curValueEOF) {
-            for (uint8_t j = 0; j < nvars; ++j)
-                out.addAt(j, curValues[j]);
-            curValueEOF = !varsHasNext(&vars2[0], nvars);
-            if (!curValueEOF) {
-                varsNext(curValues, &vars2[0], nvars);
-                count2++;
+            while (!curValueEOF) {
+                for (int j = 0; j < nvars; ++j)
+                    out.addAt(j, curValues[j]);
+                curValueEOF = !varsHasNext(&vars2[0], nvars);
+                if (!curValueEOF) {
+                    varsNext(curValues, &vars2[0], nvars);
+                    count2++;
+                }
             }
         }
         std::chrono::duration<double> sec = std::chrono::system_clock::now() - start;
         LOG(TRACEL) << "Time merge = " << sec.count() * 1000 << ", merged segments of " << count1 << " and "
             << count2 << " elements";
 
-        //copy remaining fields
-        uint8_t nv = 0;
-        size_t nsize = out.getNRows();
-        std::vector<std::shared_ptr<Column>> newcolumns;
-        std::shared_ptr<const Segment> outSegment = out.getSegment();
+            newcolumns.resize(nfields);
+            for (int i = 0; i < nfields; ++i) {
+                bool found = false;
+                for (int j = 0; j < nvars && !found; ++j) {
+                    if (fieldsToCompare[j] == i) {
+                        found = true;
+                    }
+                }
+
+                if (found) {
+                    //Replace it with the merged one.
+                    newcolumns[i] = outSegment->getColumn(nv++);
+                } else {
+                    newcolumns[i] = std::shared_ptr<Column>(
+                            new CompressedColumn(
+                                lastSegment->firstInColumn(i), nsize));
 
         newcolumns.resize(nfields);
         for (uint8_t i = 0; i < nfields; ++i) {

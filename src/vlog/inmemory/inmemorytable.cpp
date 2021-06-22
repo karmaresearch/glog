@@ -324,7 +324,7 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
         EDBIterator *iter = getIterator(*lit);
         while (iter->hasNext()) {
             iter->next();
-            for (uint8_t i = 0; i < npos; ++i) {
+            for (int i = 0; i < npos; ++i) {
                 row[i] = iter->getElementAt(pos[i]);
             }
             outputTable->addRow(row);
@@ -365,7 +365,7 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
                 continue;
             }
 
-            for (uint8_t i = 0; i < npos; ++i) {
+            for (int i = 0; i < npos; ++i) {
                 row[i] = iter->getElementAt(pos[i]);
             }
             outputTable->addRow(row);
@@ -591,7 +591,7 @@ std::shared_ptr<const Segment> InmemoryTable::getSortedCachedSegment(
             //If we are adding one in the cache that is say, sorted on fields 1, 2, 3,
             //this one is also sorted on fields 1, 2, and also sorted on field 1.
             //So, we add those to the hashtable as well.
-            for (uint8_t i = 0; i < sb.size(); i++) {
+            for (int i = 0; i < sb.size(); i++) {
                 filterByKey = __getKeyFromFields(sb, i+1);
                 cachedSortedSegments[filterByKey] = sortedSegment;
             }

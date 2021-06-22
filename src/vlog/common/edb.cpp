@@ -510,7 +510,7 @@ void EDBLayer::query(QSQQuery *query, TupleTable *outputTable,
                                 row[0] = itr->first;
                                 row[1] = itr->second;
                                 if (nRepeatedVars > 0) {
-                                    for (uint8_t i = 0; i < nRepeatedVars; ++i) {
+                                    for (int i = 0; i < nRepeatedVars; ++i) {
                                         std::pair<uint8_t, uint8_t> rp = query->getRepeatedVar(i);
                                         if (row[rp.first] != row[rp.second]) {
                                             valid = false;
@@ -566,7 +566,7 @@ void EDBLayer::query(QSQQuery *query, TupleTable *outputTable,
                                             row[0] = itr1->first;
                                             row[1] = itr1->second;
                                             if (nRepeatedVars > 0) {
-                                                for (uint8_t i = 0; i < nRepeatedVars; ++i) {
+                                                for (int i = 0; i < nRepeatedVars; ++i) {
                                                     std::pair<uint8_t, uint8_t> rp = query->getRepeatedVar(i);
                                                     if (row[rp.first] != row[rp.second]) {
                                                         valid = false;
@@ -602,7 +602,7 @@ void EDBLayer::query(QSQQuery *query, TupleTable *outputTable,
                                             row[0] = itr1->first;
                                             row[1] = itr1->second;
                                             if (nRepeatedVars > 0) {
-                                                for (uint8_t i = 0; i < nRepeatedVars; ++i) {
+                                                for (int i = 0; i < nRepeatedVars; ++i) {
                                                     std::pair<uint8_t, uint8_t> rp = query->getRepeatedVar(i);
                                                     if (row[rp.first] != row[rp.second]) {
                                                         valid = false;
@@ -664,7 +664,7 @@ void EDBLayer::query(QSQQuery *query, TupleTable *outputTable,
                                     row[0] = itr->first;
                                     row[1] = itr->second;
                                     if (nRepeatedVars > 0) {
-                                        for (uint8_t i = 0; i < nRepeatedVars; ++i) {
+                                        for (int i = 0; i < nRepeatedVars; ++i) {
                                             std::pair<uint8_t, uint8_t> rp = query->getRepeatedVar(i);
                                             if (row[rp.first] != row[rp.second]) {
                                                 valid = false;
@@ -935,7 +935,7 @@ bool EDBLayer::isEmpty(const Literal &query, std::vector<uint8_t> *posToFilter,
             bool foundConstant = false;
             uint8_t idxVar = 0;
             Term_t valConst = 0;
-            for (uint8_t i = 0; i < literal->getTupleSize(); ++i) {
+            for (int i = 0; i < literal->getTupleSize(); ++i) {
                 if (!literal->getTermAtPos(i).isVariable()) {
                     idxVar = i;
                     valConst = literal->getTermAtPos(i).getValue();

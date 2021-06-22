@@ -110,10 +110,10 @@ class VTuple {
 
         std::vector<std::pair<uint8_t, uint8_t>> getRepeatedVars() const {
             std::vector<std::pair<uint8_t, uint8_t>> output;
-            for (uint8_t i = 0; i < sizetuple; ++i) {
+            for (int i = 0; i < sizetuple; ++i) {
                 VTerm t1 = get(i);
                 if (t1.isVariable()) {
-                    for (uint8_t j = i + 1; j < sizetuple; ++j) {
+                    for (int j = i + 1; j < sizetuple; ++j) {
                         VTerm t2 = get(j);
                         if (t2.getId() == t1.getId()) {
                             output.push_back(std::make_pair(i, j));
@@ -434,7 +434,7 @@ class Rule {
             return heads[0];
         }
 
-        Literal getHead(uint8_t pos) const {
+        Literal getHead(unsigned pos) const {
             return heads[pos];
         }
 
@@ -452,8 +452,8 @@ class Rule {
             return body;
         }
 
-        uint8_t getNIDBPredicates() const {
-            uint8_t i = 0;
+        unsigned getNIDBPredicates() const {
+            unsigned i = 0;
             for (std::vector<Literal>::const_iterator itr = body.begin(); itr != body.end();
                     ++itr) {
                 if (itr->getPredicate().getType() == IDB) {
@@ -463,8 +463,8 @@ class Rule {
             return i;
         }
 
-        uint8_t getNIDBNotMagicPredicates() const {
-            uint8_t i = 0;
+        unsigned getNIDBNotMagicPredicates() const {
+            unsigned i = 0;
             for (std::vector<Literal>::const_iterator itr = body.begin(); itr != body.end();
                     ++itr) {
                 if (itr->getPredicate().getType() == IDB && !itr->getPredicate().isMagic()) {
@@ -474,8 +474,8 @@ class Rule {
             return i;
         }
 
-        uint8_t getNEDBPredicates() const {
-            uint8_t i = 0;
+        unsigned getNEDBPredicates() const {
+            unsigned i = 0;
             for (std::vector<Literal>::const_iterator itr = body.begin(); itr != body.end();
                     ++itr) {
                 if (itr->getPredicate().getType() == EDB) {
@@ -485,8 +485,8 @@ class Rule {
             return i;
         }
 
-        uint8_t numberOfNegatedLiteralsInBody() {
-            uint8_t result = 0;
+        unsigned numberOfNegatedLiteralsInBody() {
+            unsigned result = 0;
             for (std::vector<Literal>::const_iterator itr = getBody().begin();
                     itr != getBody().end(); ++itr) {
                 if (itr->isNegated()){
