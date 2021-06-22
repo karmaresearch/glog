@@ -68,7 +68,7 @@ class SemiNaiver: public Chase {
                 size_t limitView,
                 std::vector<size_t> &cards);
 
-        void processRuleFirstAtom(const uint8_t nBodyLiterals,
+        void processRuleFirstAtom(const int nBodyLiterals,
                 const Literal *bodyLiteral,
                 std::vector<Literal> &heads,
                 const size_t min,
@@ -77,7 +77,7 @@ class SemiNaiver: public Chase {
                 const bool lastLiteral,
                 const size_t iteration,
                 const RuleExecutionDetails &ruleDetails,
-                const uint8_t orderExecution,
+                const int orderExecution,
                 std::vector<std::pair<uint8_t, uint8_t>> *filterValueVars,
                 ResultJoinProcessor *joinOutput);
 
@@ -186,7 +186,7 @@ class SemiNaiver: public Chase {
             return chaseMgmt;
         }
 
-        virtual FCTable *getTable(const PredId_t pred, const uint8_t card);
+        virtual FCTable *getTable(const PredId_t pred, const int card);
 
         VLIBEXP FCTable *getTable(const PredId_t predid);
 
