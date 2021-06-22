@@ -26,6 +26,8 @@
 
 #include <python/glog.h>
 
+#include <vlog/exporter.h>
+
 /*** Methods ***/
 static PyObject * tg_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int tg_init(glog_TG *self, PyObject *args, PyObject *kwds);
@@ -35,12 +37,14 @@ static PyObject* tg_get_n_nodes(PyObject* self, PyObject *args);
 static PyObject* tg_get_n_edges(PyObject* self, PyObject *args);
 static PyObject* tg_get_n_facts(PyObject* self, PyObject *args);
 static PyObject* tg_get_node_size(PyObject* self, PyObject *args);
+static PyObject* tg_dump_files(PyObject* self, PyObject *args);
 
 static PyMethodDef TG_methods[] = {
     {"get_n_nodes", tg_get_n_nodes, METH_VARARGS, "Get n. nodes in the TG." },
     {"get_n_edges", tg_get_n_edges, METH_VARARGS, "Get n. edges in the TG." },
     {"get_n_facts", tg_get_n_facts, METH_VARARGS, "Get n. facts in the TG." },
     {"get_node_size", tg_get_node_size, METH_VARARGS, "Get number of facts stored in a node." },
+    {"dump_files", tg_dump_files, METH_VARARGS, "Store the content of the TG into files." },
     {"add_node", tg_add_node, METH_VARARGS, "Add a node with some provided facts." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -173,4 +177,17 @@ static PyObject* tg_get_node_size(PyObject* self, PyObject *args) {
         return Py_None;
     }
     return PyLong_FromLong(s->g->getNodeSize(nodeId));
+}
+
+static PyObject* tg_dump_files(PyObject* self, PyObject *args) {
+    const char *path = NULL;
+    if (PyArg_ParseTuple(args, "|s", &path)) {
+        glog_TG *s = (glog_TG*)self;
+        auto r = s->reasoner;
+        Exporter exp(r->sn);
+        exp.storeOnFiles(path, 1, 0, false);
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+
 }

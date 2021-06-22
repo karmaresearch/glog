@@ -591,7 +591,14 @@ TupleIterator *Reasoner::getProbMagicIterator(Literal &query,
 
     //Exec the materialization
     sn->prepareRun(0, ~0ul);
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     sn->run();
+    std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;
+    LOG(INFOL) << "Runtime materialization = " << secMat.count() * 1000 << " milliseconds";
+    LOG(INFOL) << "Derived tuples = " << sn->getNDerivedFacts();
+    LOG(INFOL) << "N. nodes = " << sn->getNnodes();
+    LOG(INFOL) << "N. edges = " << sn->getNedges();
+    LOG(INFOL) << "Triggers = " << sn->getNTriggers();
 
     if (storematPath != "") {
         std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
