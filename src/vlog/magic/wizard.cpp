@@ -27,7 +27,9 @@ std::shared_ptr<Program> Wizard::getAdornedProgram(Literal &query, Program &prog
                     ok = false;
                     break;
                 } else {
-                    auto card = lit.getPredicate().getCardinality();
+                    //The following optimation must be double-checked.
+                    //I think it's correct, but more testing is needed
+                    /*auto card = lit.getPredicate().getCardinality();
                     bool isMoreGeneral = true;
                     bool isMoreSpecific = true;
                     for(size_t i = 0; i < card; ++i) {
@@ -54,7 +56,7 @@ std::shared_ptr<Program> Wizard::getAdornedProgram(Literal &query, Program &prog
                         //process this query
                         ok = false;
                         break;
-                    }
+                    }*/
                 }
             }
             for(auto a : adornmentsToRemove) {
