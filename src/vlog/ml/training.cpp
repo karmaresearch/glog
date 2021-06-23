@@ -1056,6 +1056,7 @@ void Training::runQueries(vector<string>& trainingQueriesVector,
                     decisionVector,
                     featuresTimesVector);
             strResults.push_back(results);
+            features += ",0";
             strFeatures.push_back(features);
             strQsqrTime.push_back(qsqrTime);
             logTraining << q <<" " << features << " " << qsqrTime << " " << magicTime << " " << decisionVector.back() << endl;
@@ -1275,6 +1276,7 @@ void Training::execLiteralQueries(vector<string>& queryVector,
                     decisionVector,
                     featuresTimesVector);
             strResults.push_back(results);
+            features += ",0";
             strFeatures.push_back(features);
             strQsqrTime.push_back(qsqrTime);
             strMagicTime.push_back(magicTime);
@@ -1319,9 +1321,10 @@ void Training::execLiteralQuery(string& literalquery,
     Reasoner reasoner(1000000);
 
     Metrics metrics;
+    string idbFeatures;
     std::chrono::duration<double> durationMetrics;
     std::chrono::system_clock::time_point startMetrics = std::chrono::system_clock::now();
-    reasoner.getMetrics(literal, NULL, NULL, edb, p, metrics, featureDepth);
+    reasoner.getMetrics(literal, NULL, NULL, edb, p, metrics, featureDepth, idbFeatures);
     std::chrono::system_clock::time_point endMetrics = std::chrono::system_clock::now();
 
     durationMetrics = endMetrics - startMetrics;

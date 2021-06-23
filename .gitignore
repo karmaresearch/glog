@@ -35,3 +35,4 @@ testOutput
 **/*.stats
 **/*.conf
 testcases/*
+experiments/*
