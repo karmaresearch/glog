@@ -575,7 +575,7 @@ void GBGraph::addNodeProv(PredId_t predid,
         sIe += " " + std::to_string(n);
     }
     LOG(DEBUGL) << "Added node ID " << nodeId << " with # facts=" <<
-       data->getNRows() << " " << sIe;
+        data->getNRows() << " " << sIe;
 #endif
 
 #ifdef DEBUG

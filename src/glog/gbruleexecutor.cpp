@@ -96,7 +96,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
     } else { //0 or more than 2
         std::vector<std::shared_ptr<Column>> columns;
         tuples->projectTo(posKnownVariables, columns);
-        bool remainSorted = true;
+        bool remainSorted = tuples->isSorted();
         for(int i = 0; i < posKnownVariables.size(); ++i) {
             if (posKnownVariables[i] != i) {
                 remainSorted = false;
