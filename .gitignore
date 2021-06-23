@@ -31,3 +31,4 @@ testOutput
 **/*.ipynb
 **/*.stats
 **/*.conf
+experiments/*
