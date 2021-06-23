@@ -517,7 +517,8 @@ void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
             copyNProvColumns = 0;
             assert(out.size() == posFields.size());
         } else {
-            assert(out.size() >= posFields.size() + copyNProvColumns);
+            assert(out.size() >= posFields.size());
+            copyNProvColumns = out.size() - posFields.size();
         }
         assert(posFields.size() > 0 || copyNProvColumns > 0); //Otherwise, we won't be able to copy anything
         size_t i = 0;
