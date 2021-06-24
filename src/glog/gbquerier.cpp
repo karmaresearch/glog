@@ -10,6 +10,20 @@ JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId) {
     return out;
 }
 
+JSON GBQuerier::getDerivationTree(
+                std::shared_ptr<const TGSegment> data,
+                size_t nodeId,
+                size_t factId,
+                PredId_t predId,
+                size_t ruleIdx,
+                size_t step,
+                const std::vector<size_t> &incomingEdges)
+{
+    JSON out;
+    exportNode(out, nodeId, factId, predId, data, ruleIdx, step, incomingEdges);
+    return out;
+}
+
 Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
         TGSegment> data, size_t factId) {
     auto pred = p.getPredicate(predId);

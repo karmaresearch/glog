@@ -133,6 +133,8 @@ class GBChase : public Chase {
 
         size_t getNSteps();
 
+        std::shared_ptr<const TGSegment> executeRule(size_t ruleIdx);
+
 #ifdef WEBINTERFACE
         std::string getCurrentRule();
 

@@ -38,6 +38,15 @@ class GBQuerier {
 
         JSON getDerivationTree(size_t nodeId, size_t factId);
 
+        JSON getDerivationTree(
+                std::shared_ptr<const TGSegment> data,
+                size_t nodeId,
+                size_t factId,
+                PredId_t predId,
+                size_t ruleIdx,
+                size_t step,
+                const std::vector<size_t> &incomingEdges);
+
         std::vector<std::string> getListPredicates() const;
 
         JSON getNodeDetailsWithPredicate(std::string predName) const;

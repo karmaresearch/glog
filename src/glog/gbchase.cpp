@@ -757,6 +757,12 @@ size_t GBChase::getCurrentIteration() {
     return currentIteration;
 }
 
+
+std::shared_ptr<const TGSegment> GBChase::executeRule(size_t ruleIdx)
+{
+    //TODO
+}
+
 #ifdef WEBINTERFACE
 std::string GBChase::getCurrentRule() {
     return currentRule;
