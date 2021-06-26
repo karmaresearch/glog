@@ -11,13 +11,13 @@ JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId) {
 }
 
 JSON GBQuerier::getDerivationTree(
-                std::shared_ptr<const TGSegment> data,
-                size_t nodeId,
-                size_t factId,
-                PredId_t predId,
-                size_t ruleIdx,
-                size_t step,
-                const std::vector<size_t> &incomingEdges)
+        std::shared_ptr<const TGSegment> data,
+        size_t nodeId,
+        size_t factId,
+        PredId_t predId,
+        size_t ruleIdx,
+        size_t step,
+        const std::vector<size_t> &incomingEdges)
 {
     JSON out;
     exportNode(out, nodeId, factId, predId, data, ruleIdx, step, incomingEdges);
@@ -25,7 +25,8 @@ JSON GBQuerier::getDerivationTree(
 }
 
 Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
-        TGSegment> data, size_t factId) {
+        TGSegment> data, size_t factId)
+{
     auto pred = p.getPredicate(predId);
     auto card = pred.getCardinality();
     assert(data->getNColumns() == card);
@@ -38,7 +39,8 @@ Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
     return l;
 }
 
-std::string GBQuerier::getTupleIDs(Literal &l) {
+std::string GBQuerier::getTupleIDs(Literal &l)
+{
     std::string out = "[";
     for(size_t i = 0; i < l.getTupleSize(); ++i) {
         auto t = l.getTermAtPos(i);
@@ -50,7 +52,8 @@ std::string GBQuerier::getTupleIDs(Literal &l) {
     return out;
 }
 
-void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId) {
+void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
+{
     auto itr = this->l.getIterator(l);
     size_t i = 0;
     while (itr->hasNext()) {
@@ -102,7 +105,8 @@ void __convertStringTupleIDsIntoNumbers(
     }
 }
 
-bool GBQuerier::checkSoundnessDerivationTree(JSON &root) {
+bool GBQuerier::checkSoundnessDerivationTree(JSON &root)
+{
     bool response = true;
     //Check soundness node
     auto sRuleIdx = root.get("ruleIdx");
@@ -178,7 +182,8 @@ bool GBQuerier::checkSoundnessDerivationTree(JSON &root) {
     return response;
 }
 
-void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId) {
+void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId)
+{
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
     size_t step = g.getNodeStep(nodeId);
@@ -194,7 +199,8 @@ void GBQuerier::exportNode(JSON &out,
         std::shared_ptr<const TGSegment> data,
         size_t ruleIdx,
         size_t step,
-        const std::vector<size_t> &incomingEdges) {
+        const std::vector<size_t> &incomingEdges)
+{
     std::string sRule = "";
     if (ruleIdx != ~0ul)
         sRule = p.getRule(ruleIdx).toprettystring(&p, &l);
@@ -248,7 +254,8 @@ std::vector<std::string> GBQuerier::getListPredicates() const {
     return out;
 }
 
-JSON GBQuerier::getNodeDetailsWithPredicate(std::string predName) const {
+JSON GBQuerier::getNodeDetailsWithPredicate(std::string predName) const
+{
     JSON out;
     auto pred = p.getPredicate(predName);
     auto nodeIds = g.getNodeIDsWithPredicate(pred.getId());
@@ -263,7 +270,8 @@ JSON GBQuerier::getNodeDetailsWithPredicate(std::string predName) const {
     return out;
 }
 
-JSON GBQuerier::getNodeFacts(size_t nodeId) const {
+JSON GBQuerier::getNodeFacts(size_t nodeId) const
+{
     JSON out;
     auto data = g.getNodeData(nodeId);
     auto card = data->getNColumns();
@@ -279,4 +287,10 @@ JSON GBQuerier::getNodeFacts(size_t nodeId) const {
         out.push_back(row);
     }
     return out;
+}
+
+
+std::string GBQuerier::getTermText(Term_t t) const
+{
+    return l.getDictText(t);
 }

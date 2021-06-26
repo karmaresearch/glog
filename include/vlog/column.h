@@ -290,7 +290,7 @@ class ColumnWriter {
         Term_t lastValue() const {
             return lastv;
         }
-    
+
         Term_t getValue(size_t idx) const;
 
         void concatenate(Column *c);

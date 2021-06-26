@@ -758,9 +758,27 @@ size_t GBChase::getCurrentIteration() {
 }
 
 
-std::shared_ptr<const TGSegment> GBChase::executeRule(size_t ruleIdx)
+std::vector<GBRuleOutput> GBChase::executeRule(size_t ruleIdx)
 {
-    //TODO
+    Rule rule = program->getRule(ruleIdx);
+    GBRuleInput in;
+    in.ruleIdx = ruleIdx;
+    in.step = ~0ul;
+    in.retainFree = true;
+    //Get all the nodes
+    auto &ruleBody = rule.getBody();
+    for(auto literalBody : ruleBody) {
+        if (literalBody.getPredicate().getType() != EDB) {
+            auto predId = literalBody.getPredicate().getId();
+            auto nnodes = g.getNodeIDsWithPredicate(predId);
+            if (nnodes.empty()) {
+                return std::vector<GBRuleOutput>();
+            }
+            in.incomingEdges.push_back(nnodes);
+        }
+    }
+    auto output = executor->executeRule(rule, in);
+    return output;
 }
 
 #ifdef WEBINTERFACE

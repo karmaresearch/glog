@@ -49,6 +49,8 @@ class GBQuerier {
 
         std::vector<std::string> getListPredicates() const;
 
+        std::string getTermText(Term_t t) const;
+
         JSON getNodeDetailsWithPredicate(std::string predName) const;
 
         JSON getNodeFacts(size_t nodeId) const;
