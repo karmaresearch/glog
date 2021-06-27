@@ -370,7 +370,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
                 if (replaceOffsets) {
                     assert(data->getProvenanceType() == SEG_FULLPROV);
                     //Otherwise, the last column contains something else
-                    for(size_t i = start; i < tuples.size(); ++i) {
+                    for(size_t i = start; i < tuples.back().size(); ++i) {
                         tuples.back()[i] = i - start;
                     }
                 }
