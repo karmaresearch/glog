@@ -2,6 +2,8 @@
 #include <glog/gbsegmentcache.h>
 
 void GBRuleExecutor::join(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
         std::vector<size_t> &nodesRight,
@@ -51,7 +53,10 @@ void GBRuleExecutor::join(
 
         // Negated atoms should not introduce new variables.
         assert(copyVarPosRight.size() == 0);
-        leftjoin(inputLeft,
+        leftjoin(
+                enableCacheLeft,
+                enableCacheRight,
+                inputLeft,
                 nodesLeft,
                 inputRight,
                 joinVarPos,
@@ -59,7 +64,10 @@ void GBRuleExecutor::join(
                 output);
     } else {
         if (mergeJoinPossible) {
-            mergejoin(inputLeft,
+            mergejoin(
+                    enableCacheLeft,
+                    enableCacheRight,
+                    inputLeft,
                     nodesLeft,
                     inputRight,
                     nodesRight,
@@ -72,7 +80,10 @@ void GBRuleExecutor::join(
                 LOG(ERRORL) << "Nested joins not supported in FULLPROV mode";
                 throw 10;
             }
-            nestedloopjoin(inputLeft,
+            nestedloopjoin(
+                    enableCacheLeft,
+                    enableCacheRight,
+                    inputLeft,
                     nodesLeft,
                     inputRight,
                     nodesRight,
@@ -86,6 +97,8 @@ void GBRuleExecutor::join(
 }
 
 void GBRuleExecutor::mergejoin(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
         std::shared_ptr<const TGSegment> inputRight,
@@ -108,11 +121,10 @@ void GBRuleExecutor::mergejoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        LOG(WARNL) << "Fix the caching to improve the performance";
-        /*if (fields1.size() > 1)
+        if (enableCacheLeft && fields1.size() > 1)
             LOG(WARNL) << "I cannot use the cache because it works only if "
                 "the join is over 1 variable";
-        if (nodesLeft.size() > 0 && fields1.size() == 1) {
+        if (enableCacheLeft && nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
                 inputLeft = inputLeft->sortBy(fields1);
@@ -120,18 +132,17 @@ void GBRuleExecutor::mergejoin(
             } else {
                 inputLeft = c.get(nodesLeft, fields1);
             }
-        } else {*/
+        } else {
             inputLeft = inputLeft->sortBy(fields1);
-        /*}*/
+        }
     }
     std::unique_ptr<TGSegmentItr> itrLeft = inputLeft->iterator();
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
-        LOG(WARNL) << "Fix the caching to improve the performance";
-        /*if (fields2.size() > 1)
+        if (enableCacheRight && fields2.size() > 1)
             LOG(WARNL) << "I cannot use the cache because it works only if "
                 "the join is over 1 variable";
-        if (nodesRight.size() > 0 && fields2.size() == 1) {
+        if (enableCacheRight && nodesRight.size() > 0 && fields2.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (fields2.size() == 1) {
                 if (!c.contains(nodesRight, fields2)) {
@@ -146,9 +157,9 @@ void GBRuleExecutor::mergejoin(
                 assert(fields2.size() > 1);
                 inputRight = inputRight->sortBy(fields2);
             }
-        } else {*/
+        } else {
             inputRight = inputRight->sortBy(fields2);
-        /*}*/
+        }
     }
     std::unique_ptr<TGSegmentItr> itrRight = inputRight->iterator();
     lastDurationMergeSort += std::chrono::system_clock::now() - startS;
@@ -383,6 +394,8 @@ void GBRuleExecutor::mergejoin(
 }
 
 void GBRuleExecutor::leftjoin(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
         std::shared_ptr<const TGSegment> inputRight,
@@ -484,6 +497,8 @@ void GBRuleExecutor::leftjoin(
 }
 
 void GBRuleExecutor::nestedloopjoin(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         const std::vector<size_t> &nodesLeft,
         std::shared_ptr<const TGSegment> inputRight,
@@ -581,6 +596,8 @@ void GBRuleExecutor::nestedloopjoin(
 }
 
 void GBRuleExecutor::joinTwoOne_EDB(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         std::shared_ptr<const TGSegment> inputRight,
         int joinLeftVarPos,
@@ -649,6 +666,8 @@ void GBRuleExecutor::joinTwoOne_EDB(
 }
 
 void GBRuleExecutor::joinTwoOne(
+        const bool enableCacheLeft,
+        const bool enableCacheRight,
         std::shared_ptr<const TGSegment> inputLeft,
         std::shared_ptr<const TGSegment> inputRight,
         int joinLeftVarPos,

@@ -876,7 +876,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                 //Create an empty set of tuples
             } else {
                 //Perform a left join
-                leftjoin(tuples,
+                leftjoin(false,
+                        false,
+                        tuples,
                         nodes,
                         inputRight,
                         joinVarPos,
@@ -987,8 +989,11 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         }
     }
 
+
+    bool enableCacheLeft = true;
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
         if (skippedBodyAtoms.count(i)) {
+            enableCacheLeft = false;
             continue; //This atom is handled differently
         }
         const Literal &currentBodyAtom = bodyAtoms[i];
@@ -1082,9 +1087,17 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
 
+            bool enableCacheRight = true;
+            if (currentBodyAtom.getNConstants() > 0 ||
+                    !currentBodyAtom.getRepeatedVars().empty()) {
+                enableCacheRight = false;
+            }
+
             //Perform a join (or a left join) between the intermediate results
             //and the new collection
-            join(intermediateResults,
+            join(enableCacheLeft,
+                    enableCacheRight,
+                    intermediateResults,
                     i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
                     nodesRight,
                     currentBodyAtom,
@@ -1092,6 +1105,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     copyVarPosLeft,
                     copyVarPosRight,
                     newIntermediateResults);
+            enableCacheLeft = enableCacheLeft & enableCacheRight;
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();

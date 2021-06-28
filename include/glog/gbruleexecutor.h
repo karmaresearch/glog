@@ -118,6 +118,8 @@ class GBRuleExecutor {
                 bool replaceOffsets);
 
         void joinTwoOne_EDB(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 std::shared_ptr<const TGSegment> inputRight,
                 int joinLeftVarPos,
@@ -125,6 +127,8 @@ class GBRuleExecutor {
                 std::unique_ptr<GBSegmentInserter> &output);
 
         void joinTwoOne(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 std::shared_ptr<const TGSegment> inputRight,
                 int joinLeftVarPos,
@@ -133,6 +137,8 @@ class GBRuleExecutor {
                 std::unique_ptr<GBSegmentInserter> &output);
 
         void mergejoin(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,
                 std::shared_ptr<const TGSegment> inputRight,
@@ -143,6 +149,8 @@ class GBRuleExecutor {
                 std::unique_ptr<GBSegmentInserter> &output);
 
         void nestedloopjoin(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,
                 std::shared_ptr<const TGSegment> inputRight,
@@ -154,6 +162,8 @@ class GBRuleExecutor {
                 std::unique_ptr<GBSegmentInserter> &output);
 
         void leftjoin(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,
                 std::shared_ptr<const TGSegment> inputRight,
@@ -163,6 +173,8 @@ class GBRuleExecutor {
                 const bool copyOnlyLeftNode = false);
 
         void join(
+                const bool enableCacheLeft,
+                const bool enableCacheRight,
                 std::shared_ptr<const TGSegment> inputLeft,
                 const std::vector<size_t> &nodesLeft,
                 std::vector<size_t> &nodesRight,
