@@ -1165,7 +1165,11 @@ std::vector<PredId_t> Program::getAllPredicateIDs() const {
 }
 
 size_t Program::getNRulesByPredicate(PredId_t predid) const {
-    return rules[predid].size();
+    if (predid < rules.size()) {
+        return rules[predid].size();
+    } else {
+        return 0;
+    }
 }
 
 const std::vector<uint32_t> &Program::getRulesIDsByPredicate(PredId_t predid) const {
