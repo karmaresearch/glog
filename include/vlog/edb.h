@@ -265,6 +265,8 @@ class EDBLayer {
                 std::vector<std::string> args,
                 PredId_t id);
 
+        PredId_t addEDBPredicate(std::string predName);
+
         bool isTmpRelationEmpty(Predicate &pred) {
             if (pred.getId() >= tmpRelations.size()) {
                 return false;
@@ -460,6 +462,10 @@ class EDBLayer {
         VLIBEXP void addInmemoryTable(PredId_t predicate,
                 uint8_t arity,
                 std::vector<uint64_t> &rows);
+
+        VLIBEXP void addEDBTable(PredId_t predId,
+                std::string tableType,
+                std::shared_ptr<EDBTable> table);
 
         const EDBConf &getConf() const {
             return conf;

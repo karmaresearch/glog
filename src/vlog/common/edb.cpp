@@ -262,6 +262,27 @@ void EDBLayer::addEDBPredicate(std::string name,
     addTable(table, multithreaded, edbconfpath, id, true);
 }
 
+PredId_t EDBLayer::addEDBPredicate(std::string predName)
+{
+    return (PredId_t) predDictionary->getOrAdd(predName);
+}
+
+void EDBLayer::addEDBTable(PredId_t predId, std::string tableType,
+                std::shared_ptr<EDBTable> table)
+{
+    EDBInfoTable infot;
+    infot.id = predId;
+    if (doesPredExists(infot.id)) {
+        LOG(INFOL) << "Rewriting table for predicate id " << predId;
+        dbPredicates.erase(infot.id);
+    }
+    infot.type = tableType;
+    infot.arity = table->getArity();
+    infot.manager = table;
+    dbPredicates.insert(make_pair(infot.id, infot));
+
+}
+
 void EDBLayer::addCliqueTable(const EDBConf::Table &tableConf, PredId_t pid,
         bool usePredId) {
     EDBInfoTable infot;
@@ -308,7 +329,8 @@ void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {
     dbPredicates.insert(make_pair(infot.id, infot));
 }
 
-void EDBLayer::addInmemoryTable(std::string predicate, PredId_t id, std::vector<std::vector<std::string>> &rows) {
+void EDBLayer::addInmemoryTable(std::string predicate,
+        PredId_t id, std::vector<std::vector<std::string>> &rows) {
     EDBInfoTable infot;
     infot.id = id;
     if (doesPredExists(infot.id)) {
