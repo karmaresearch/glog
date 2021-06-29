@@ -78,6 +78,7 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
         }
         i++;
     }
+    this->l.releaseIterator(itr);
 }
 
 void __convertStringTupleIDsIntoNumbers(
