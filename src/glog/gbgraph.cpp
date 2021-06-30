@@ -268,6 +268,7 @@ void GBGraph::addNodesProv(PredId_t predId,
     if (provenance.size() == 0) {
         //Single IDB atom or one or more EDB atoms
         if (!seg->isNodeConstant()) {
+            //If I'm here, then it can only be a single IDB atom.
             //Must split the nodes
             auto resortedSeg = seg->sortByProv();
 
@@ -299,16 +300,22 @@ void GBGraph::addNodesProv(PredId_t predId,
         } else {
             std::vector<size_t> provnodes;
             if (seg->getNodeId() == ~0ul) {
-                //EDB body atom
-#if DEBUG
+                //only EDB body atoms
                 for(auto &b : allRules[ruleIdx].getBody()) {
                     if (b.getPredicate().getType() != EDB) {
-                        assert(false);
+                        throw 10;
+                    }
+                    provnodes.push_back(~0ul);
+                }
+            } else {
+                //zero or more EDB body atoms and one IDB atom
+                for(auto &b : allRules[ruleIdx].getBody()) {
+                    if (b.getPredicate().getType() != EDB) {
+                        provnodes.push_back(seg->getNodeId());
+                    } else {
+                        provnodes.push_back(~0ul);
                     }
                 }
-#endif
-            } else {
-                provnodes.push_back(seg->getNodeId());
             }
             auto nodeId = getNNodes();
             auto dataToAdd = seg->slice(nodeId, 0, seg->getNRows());
@@ -860,7 +867,13 @@ void GBGraph::replaceEqualTerms(
 size_t GBGraph::getNEdges() const {
     size_t out = 0;
     for (const auto &n : nodes) {
-        out += n.getIncomingEdges(false).size();
+        size_t nEdges = 0;
+        for(auto e : n.getIncomingEdges(false)) {
+            if (e != ~0ul) {
+                nEdges++;
+            }
+        }
+        out += nEdges;
     }
     return out;
 }
