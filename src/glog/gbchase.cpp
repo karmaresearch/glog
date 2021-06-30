@@ -616,11 +616,11 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
 #endif
 
 #ifdef DEBUG
-    if (rule.getBody().size() > 1 &&
+    /*if (rule.getBody().size() > 1 &&
             rule.getBody()[0].getPredicate().getType() == EDB) {
         LOG(ERRORL) << "The system does not yet support joins between multiple EDB atoms";
         throw 10;
-    }
+    }*/
     LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " << rule.tostring(program, &layer);
 #endif
 

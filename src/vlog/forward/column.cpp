@@ -633,16 +633,6 @@ Term_t EDBColumnReader::first() {
 }
 
 bool EDBColumnReader::hasNext() {
-    /*    if (itr == NULL) {
-          setupItr();
-          }
-          bool resp = itr->hasNext();
-          if (!resp) {
-    //release the itr
-    layer.releaseIterator(itr);
-    itr = NULL;
-    }
-    return resp;*/
     return itr->hasNext();
 }
 

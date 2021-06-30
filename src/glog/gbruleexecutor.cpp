@@ -971,8 +971,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
     std::shared_ptr<const TGSegment> intermediateResults;
     //The following data structure is used only if trackProvenance=true
     std::vector<std::shared_ptr<Column>> intermediateResultsNodes;
-    size_t currentBodyNode = 0;
-    bool firstBodyAtomIsIDB = false;
+    int64_t currentBodyNode = -1;
+    int64_t prevBodyNode = -1;
 
     //Discover if some body atoms refer to built-in predicates that should not
     //be joined, but rather used as filtering functioning
@@ -988,7 +988,6 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             }
         }
     }
-
 
     bool enableCacheLeft = true;
     for(size_t i = 0; i < bodyAtoms.size(); ++i) {
@@ -1029,40 +1028,43 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 filteringBodyAtoms, newVarsIntermediateResults);
 
         //Get the node of the current bodyAtom (if it's IDB)
-        bool isEDB = currentBodyAtom.getPredicate().getType() == EDB;
-
+        bool isCurrentBodyAtomEDB = currentBodyAtom.getPredicate().getType()
+            == EDB;
+        if (!isCurrentBodyAtomEDB) {
+            currentBodyNode++;
+        }
         if (i == 0) {
             //Process first body atom, no join
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
-            if (isEDB) {
+            if (isCurrentBodyAtomEDB) {
+                enableCacheLeft = false;
                 intermediateResults = processAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
-                firstBodyAtomIsIDB = true;
                 intermediateResults = processAtom_IDB(currentBodyAtom,
                         bodyNodes[currentBodyNode], copyVarPosRight, true, true);
-                currentBodyNode++;
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             lastDurationFirst += end - start;
             durationFirst += lastDurationFirst;
-
             if (!builtinFunctions.empty()) {
                 LOG(ERRORL) << "Builtin functions are not supported if they"
                     " use variables in one body atom";
                 throw 10;
             }
-
             //If empty then stop
             if (intermediateResults->isEmpty()) {
                 intermediateResults = std::shared_ptr<const TGSegment>();
                 break;
             }
         } else {
+            std::vector<size_t> &nodesLeft = i == 1 && prevBodyNode >= 0 ?
+                bodyNodes[prevBodyNode] : noBodyNodes;
             std::vector<size_t> &nodesRight =
-                !isEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
+                !isCurrentBodyAtomEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
+
             uint8_t extraColumns = 0;
             bool multipleComb =
                 intermediateResults->getProvenanceType() == SEG_FULLPROV ||
@@ -1089,7 +1091,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
 
             bool enableCacheRight = true;
             if (currentBodyAtom.getNConstants() > 0 ||
-                    !currentBodyAtom.getRepeatedVars().empty()) {
+                    !currentBodyAtom.getRepeatedVars().empty() ||
+                    isCurrentBodyAtomEDB) {
                 enableCacheRight = false;
             }
 
@@ -1098,7 +1101,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             join(enableCacheLeft,
                     enableCacheRight,
                     intermediateResults,
-                    i == 1 && firstBodyAtomIsIDB ? bodyNodes[0] : noBodyNodes,
+                    nodesLeft,
                     nodesRight,
                     currentBodyAtom,
                     joinVarPos,
@@ -1151,8 +1154,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 intermediateResults = newIntermediateResults->getSegment(
                         ~0ul, false, 0, getSegProvenanceType(), 0);
             }
-            if (!isEDB)
-                currentBodyNode++;
+        }
+        if (!isCurrentBodyAtomEDB) {
+            prevBodyNode++;
         }
         varsIntermediate = newVarsIntermediateResults;
     }
