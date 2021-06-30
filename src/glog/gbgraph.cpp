@@ -266,7 +266,7 @@ void GBGraph::addNodesProv(PredId_t predId,
 #endif
 
     if (provenance.size() == 0) {
-        //Single EDB or IDB atom
+        //Single IDB atom or one or more EDB atoms
         if (!seg->isNodeConstant()) {
             //Must split the nodes
             auto resortedSeg = seg->sortByProv();
@@ -301,9 +301,11 @@ void GBGraph::addNodesProv(PredId_t predId,
             if (seg->getNodeId() == ~0ul) {
                 //EDB body atom
 #if DEBUG
-                assert(allRules[ruleIdx].getBody().size() == 1 &&
-                        allRules[ruleIdx].getBody()[0].getPredicate().getType() ==
-                        EDB);
+                for(auto &b : allRules[ruleIdx].getBody()) {
+                    if (b.getPredicate().getType() != EDB) {
+                        assert(false);
+                    }
+                }
 #endif
             } else {
                 provnodes.push_back(seg->getNodeId());
@@ -579,35 +581,37 @@ void GBGraph::addNodeProv(PredId_t predid,
 #endif
 
 #ifdef DEBUG
-    //Check whether the trees do not contain a duplicate fact
-    GBQuerier q(*this, *program, *layer);
-    auto nfacts = getNodeSize(nodeId);
-    for(size_t i = 0; i < nfacts; ++i) {
-        //Check the first 1000
-        if (i == 100)
-            break;
-        auto derTree = q.getDerivationTree(nodeId, i);
-        if (!q.checkSoundnessDerivationTree(derTree)) {
-            throw 10;
-        }
-        auto sFact = derTree.get("fact");
-        std::vector<JSON> parents;
-        auto pc = derTree.getChild("parents");
-        auto &pchildren = pc.getListChildren();
-        for(auto &p : pchildren) {
-            parents.push_back(p);
-        }
-        while(!parents.empty()) {
-            auto p = parents.back();
-            parents.pop_back();
-            auto pf = p.get("fact");
-            if (pf == sFact) {
+    if (provenanceType == FULLPROV) {
+        //Check whether the trees do not contain a duplicate fact
+        GBQuerier q(*this, *program, *layer);
+        auto nfacts = getNodeSize(nodeId);
+        for(size_t i = 0; i < nfacts; ++i) {
+            //Check the first 1000
+            if (i == 100)
+                break;
+            auto derTree = q.getDerivationTree(nodeId, i);
+            if (!q.checkSoundnessDerivationTree(derTree)) {
                 throw 10;
             }
-            if (p.containsChild("parents")) {
-                auto &pc = p.getChild("parents");
-                for(auto &p : pc.getListChildren()) {
-                    parents.push_back(p);
+            auto sFact = derTree.get("fact");
+            std::vector<JSON> parents;
+            auto pc = derTree.getChild("parents");
+            auto &pchildren = pc.getListChildren();
+            for(auto &p : pchildren) {
+                parents.push_back(p);
+            }
+            while(!parents.empty()) {
+                auto p = parents.back();
+                parents.pop_back();
+                auto pf = p.get("fact");
+                if (pf == sFact) {
+                    throw 10;
+                }
+                if (p.containsChild("parents")) {
+                    auto &pc = p.getChild("parents");
+                    for(auto &p : pc.getListChildren()) {
+                        parents.push_back(p);
+                    }
                 }
             }
         }

@@ -1131,24 +1131,19 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     intermediateResults = newIntermediateResults->getSegment(
                             ~0ul, false, 0, getSegProvenanceType(), extraColumns - 1);
                 } else {
-                    //Add two columns in intermediateResultsNodes
-                    intermediateResultsNodes.push_back(std::shared_ptr<Column>(
-                                new CompressedColumn(
-                                    intermediateResults->getNodeId(),
-                                    newIntermediateResults->getNRows())));
-                    size_t secondNodeId = ~0ul;
-                    if (nodesRight.size() == 1) {
-                        secondNodeId = nodesRight[0];
+                    //This mode is activated only if there is at most one IDB
+                    //atom in the body
+                    size_t nodeId = ~0ul;
+                    if (intermediateResults->getNodeId() != ~0ul) {
+                        nodeId = intermediateResults->getNodeId();
                     }
-                    assert(!g.isTmpNode(secondNodeId));
-                    intermediateResultsNodes.push_back(std::shared_ptr<Column>(
-                                new CompressedColumn(
-                                    secondNodeId,
-                                    newIntermediateResults->getNRows())));
-                    //As node, I use 0 because it indicates the first row
-                    //for retrieving the provenance
+                    if (!isCurrentBodyAtomEDB) {
+                        assert(nodesRight.size() > 0);
+                        nodeId = nodesRight[0];
+                        assert(!g.isTmpNode(nodeId));
+                    }
                     intermediateResults = newIntermediateResults->getSegment(
-                            0, false, 0, getSegProvenanceType(), 0);
+                            nodeId, false, 0, getSegProvenanceType(), 0);
                 }
             } else {
                 intermediateResults = newIntermediateResults->getSegment(
