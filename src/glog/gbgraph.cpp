@@ -289,6 +289,10 @@ void GBGraph::addNodesProv(PredId_t predId,
                         auto retainedData = retainFromDerivationTree(predId,
                                 ruleIdx, c, currentNodeList);
                         if (retainedData && retainedData->getNRows() > 0) {
+                            if (retainedData->getNodeId() != getNNodes()) {
+                                retainedData = retainedData->slice(getNNodes(),
+                                        0, retainedData->getNRows());
+                            }
                             addNodeProv(predId, ruleIdx, step, retainedData,
                                     currentNodeList);
                         }
@@ -323,6 +327,10 @@ void GBGraph::addNodesProv(PredId_t predId,
                 auto retainedData = retainFromDerivationTree(predId, ruleIdx,
                         dataToAdd, provnodes);
                 if (retainedData && retainedData->getNRows() > 0) {
+                    if (retainedData->getNodeId() != getNNodes()) {
+                        retainedData = retainedData->slice(getNNodes(),
+                                0, retainedData->getNRows());
+                    }
                     addNodeProv(predId, ruleIdx, step, retainedData, provnodes);
                 }
             } else {
@@ -382,6 +390,10 @@ void GBGraph::addNodesProv(PredId_t predId,
                         auto retainedData = retainFromDerivationTree(predId,
                                 ruleIdx, dataToAdd, currentNodeList);
                         if (retainedData && retainedData->getNRows() > 0) {
+                            if (retainedData->getNodeId() != getNNodes()) {
+                                retainedData = retainedData->slice(getNNodes(),
+                                        0, retainedData->getNRows());
+                            }
                             addNodeProv(predId, ruleIdx, step, retainedData,
                                     currentNodeList);
                         }
@@ -405,6 +417,10 @@ void GBGraph::addNodesProv(PredId_t predId,
                 auto retainedData = retainFromDerivationTree(predId, ruleIdx,
                         dataToAdd, currentNodeList);
                 if (retainedData && retainedData->getNRows() > 0) {
+                    if (retainedData->getNodeId() != getNNodes()) {
+                        retainedData = retainedData->slice(getNNodes(),
+                                0, retainedData->getNRows());
+                    }
                     addNodeProv(predId, ruleIdx, step, retainedData,
                             currentNodeList);
                 }
