@@ -1629,7 +1629,7 @@ std::string Program::parseRule(std::string rule, bool rewriteMultihead) {
                 bodyLiteral = trim(body.substr(0, posEndLiteral + 1));
                 body = trim(body.substr(posEndLiteral + 2, std::string::npos));
             } else {
-                bodyLiteral = body;
+                bodyLiteral = trim(body);
                 body = "";
             }
             LOG(DEBUGL) << "bodyliteral = \"" << bodyLiteral << "\"";
