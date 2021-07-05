@@ -528,6 +528,12 @@ class GBGraph {
                 durationEDBCheck.count();
             //LOG(INFOL) << "(GBGraph) Time debug (ms): " << durationDebug.count();
         }
+
+        static std::vector<size_t> postprocessProvenance(
+                std::shared_ptr<const TGSegment> seg,
+                const std::vector<std::shared_ptr<Column>> &provenance,
+                const size_t nrows);
+
 };
 
 #endif

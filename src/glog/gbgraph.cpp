@@ -338,34 +338,10 @@ void GBGraph::addNodesProv(PredId_t predId,
             }
         }
     } else {
-        const auto nnodes = (provenance.size() + 2) / 2;
         const auto nrows = seg->getNRows();
-        std::vector<size_t> provnodes(nrows * nnodes);
-
-        auto itr = seg->iterator();
-        size_t i = 0;
-        while (itr->hasNext()) {
-            itr->next();
-            size_t provRowIdx = itr->getNodeId();
-            for(int j = nnodes - 1; j >= 0; j--) {
-                if (j == 0) {
-                    provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
-                } else {
-                    provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
-                        getValue(provRowIdx);
-                    if (j > 1) {
-                        auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
-                        if (tmp == ~0ul) {
-                            provRowIdx = 0;
-                        } else {
-                            provRowIdx = tmp;
-                        }
-                    }
-                }
-            }
-            i++;
-        }
-        assert(nrows == i);
+        const auto nnodes = (provenance.size() + 2) / 2;
+        std::vector<size_t> provnodes = postprocessProvenance(
+                seg, provenance, nrows);
 
         //For each tuple, now I know the sequence of nodes that derived them.
         //I re-sort the nodes depending on the sequence of nodes
@@ -430,6 +406,41 @@ void GBGraph::addNodesProv(PredId_t predId,
             }
         }
     }
+}
+
+std::vector<size_t> GBGraph::postprocessProvenance(
+        std::shared_ptr<const TGSegment> seg,
+        const std::vector<std::shared_ptr<Column>> &provenance,
+        const size_t nrows)
+{
+    const auto nnodes = (provenance.size() + 2) / 2;
+    std::vector<size_t> provnodes(nrows * nnodes);
+
+    auto itr = seg->iterator();
+    size_t i = 0;
+    while (itr->hasNext()) {
+        itr->next();
+        size_t provRowIdx = itr->getNodeId();
+        for(int j = nnodes - 1; j >= 0; j--) {
+            if (j == 0) {
+                provnodes[i * nnodes] = provenance[0]->getValue(provRowIdx);
+            } else {
+                provnodes[i * nnodes + j] = provenance[(j - 1)*2 + 1]->
+                    getValue(provRowIdx);
+                if (j > 1) {
+                    auto tmp = provenance[(j - 1) * 2]->getValue(provRowIdx);
+                    if (tmp == ~0ul) {
+                        provRowIdx = 0;
+                    } else {
+                        provRowIdx = tmp;
+                    }
+                }
+            }
+        }
+        i++;
+    }
+    assert(nrows == i);
+    return provnodes;
 }
 
 void GBGraph::addNodeProv(PredId_t predid,
