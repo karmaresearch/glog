@@ -1188,15 +1188,19 @@ Program::Program(Program *p, EDBLayer *kb) : kb(kb),
     cardPredicates(p->cardPredicates) {
     }
 
-std::string trim(const std::string& str, const std::string& whitespace = "\r \t") {
+std::string trim(const std::string& str,
+        const std::string& whitespace = "\r \t\xc2\xa0") {
     const auto strBegin = str.find_first_not_of(whitespace);
     if (strBegin == std::string::npos)
         return ""; // no content
-
     const auto strEnd = str.find_last_not_of(whitespace);
     const auto strRange = strEnd - strBegin + 1;
-
-    return str.substr(strBegin, strRange);
+    std::string out = str.substr(strBegin, strRange);
+    /*const auto strBegin2 = out.find_first_not_of(wide_whitespace);
+    const auto strEnd2 = out.find_last_not_of(wide_whitespace);
+    const auto strRange2 = strEnd2 - strBegin2 + 1;
+    out = out.substr(strBegin2, strRange2);*/
+    return out;
 }
 
 std::string Program::readFromFile(std::string pathFile, bool rewriteMultihead) {
