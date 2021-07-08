@@ -268,7 +268,7 @@ PredId_t EDBLayer::addEDBPredicate(std::string predName)
 }
 
 void EDBLayer::addEDBTable(PredId_t predId, std::string tableType,
-                std::shared_ptr<EDBTable> table)
+        std::shared_ptr<EDBTable> table)
 {
     EDBInfoTable infot;
     infot.id = predId;
@@ -1333,8 +1333,13 @@ std::shared_ptr<Column> EDBLayer::checkIn(
 bool EDBLayer::getDictNumber(const char *text, const size_t sizeText, uint64_t &id) const {
     bool resp = false;
     if (dbPredicates.size() > 0) {
-        resp = dbPredicates.begin()->second.manager->
-            getDictNumber(text, sizeText, id);
+        for(auto p : dbPredicates) {
+            resp = p.second.manager->
+                getDictNumber(text, sizeText, id);
+            if (resp) {
+                break;
+            }
+        }
     }
     if (!resp && termsDictionary.get()) {
         std::string t(text, sizeText);
