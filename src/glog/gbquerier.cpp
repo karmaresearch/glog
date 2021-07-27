@@ -24,6 +24,56 @@ JSON GBQuerier::getDerivationTree(
     return out;
 }
 
+void GBQuerier::getLeavesInDerivationTree(
+        size_t nodeId,
+        size_t factId,
+        std::vector<Literal> &out)
+{
+    auto data = g.getNodeData(nodeId);
+    size_t ruleIdx = g.getNodeRuleIdx(nodeId);
+    size_t step = g.getNodeStep(nodeId);
+    auto nodePred = g.getNodePredicate(nodeId);
+    auto &incomingEdges = g.getNodeIncomingEdges(nodeId);
+    getLeaves(nodeId, factId, nodePred, data, ruleIdx, step, incomingEdges, out);
+}
+
+void GBQuerier::getLeaves(
+        size_t nodeId, size_t factId,
+        PredId_t nodePred,
+        std::shared_ptr<const TGSegment> data,
+        size_t ruleIdx,
+        size_t step,
+        const std::vector<size_t> &incomingEdges,
+        std::vector<Literal> &out)
+{
+    if (ruleIdx != ~0ul) {
+        auto ie = incomingEdges;
+        auto row = data->getRow(factId);
+        size_t begin = data->getNColumns() + 1; //Skip the node
+        size_t end = data->getNColumns() + data->getNOffsetColumns();
+        size_t j = 0;
+        auto bodyLiterals = p.getRule(ruleIdx).getBody();
+        for(size_t i = begin; i < end; ++i) {
+            auto bodyLiteral = bodyLiterals[i - begin];
+            auto offset = row[i];
+            if (bodyLiteral.getPredicate().getType() == EDB) {
+                exportEDBNode(bodyLiteral, offset, out);
+                if (j < ie.size() && ie[j] == ~0ul) {
+                    j++;
+                }
+            } else {
+                auto nodeId = ie[j];
+                assert(nodeId != ~0ul);
+                getLeavesInDerivationTree(nodeId, offset, out);
+                j++;
+            }
+        }
+    } else {
+        //TODO: I'm not sure what to do here, this happens with magic atoms
+        throw 10;
+    }
+}
+
 Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
         TGSegment> data, size_t factId)
 {
@@ -73,7 +123,28 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
             out.put("step", "none");
             out.put("factId", factId);
             out.put("tupleIds", getTupleIDs(fl));
+            break;
+        }
+        i++;
+    }
+    this->l.releaseIterator(itr);
+}
 
+void GBQuerier::exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out)
+{
+    LOG(WARNL) << "Slow method, must be fixed!";
+    auto itr = this->l.getIterator(l);
+    size_t i = 0;
+    while (itr->hasNext()) {
+        itr->next();
+        if (i == factId) {
+            auto predId = itr->getPredicateID();
+            auto tuple = l.getTuple();
+            for(size_t j = 0; j < tuple.getSize(); ++j) {
+                tuple.set(VTerm(0, itr->getElementAt(j)), j);
+            }
+            auto fl = Literal(l.getPredicate(), tuple);
+            out.push_back(fl);
             break;
         }
         i++;
@@ -225,12 +296,26 @@ void GBQuerier::exportNode(JSON &out,
         size_t end = data->getNColumns() + data->getNOffsetColumns();
         size_t j = 0;
         auto bodyLiterals = p.getRule(ruleIdx).getBody();
+        std::map<Var_t, Term_t> mappings;
         for(size_t i = begin; i < end; ++i) {
             JSON parentNode;
             auto bodyLiteral = bodyLiterals[i - begin];
             auto offset = row[i];
             if (bodyLiteral.getPredicate().getType() == EDB) {
-                exportEDBNode(parentNode, bodyLiteral, offset);
+                if (!l.isQueryAllowed(bodyLiteral)) {
+                    //Copy all the existing variables into the literal
+                    auto tuple = bodyLiteral.getTuple();
+                    for(size_t j = 0; j < tuple.getSize(); ++j) {
+                        auto t = tuple.get(j);
+                        if (t.isVariable() && mappings.count(t.getId())) {
+                            tuple.set(VTerm(0, mappings[t.getId()]), j);
+                        }
+                    }
+                    Literal newLit = Literal(bodyLiteral.getPredicate(), tuple);
+                    exportEDBNode(parentNode, newLit, offset);
+                } else {
+                    exportEDBNode(parentNode, bodyLiteral, offset);
+                }
                 if (j < ie.size() && ie[j] == ~0ul) {
                     j++;
                 }
@@ -239,6 +324,18 @@ void GBQuerier::exportNode(JSON &out,
                 exportNode(parentNode, nodeId, offset);
                 j++;
             }
+
+            //Code to copy the current mappings from variables to ground terms
+            auto sTupleIDs = parentNode.get("tupleIds");
+            std::vector<Term_t> tupleIDs;
+            __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+            for(size_t i = 0; i < bodyLiteral.getTupleSize(); ++i) {
+                auto t = bodyLiteral.getTermAtPos(i);
+                if (t.isVariable()) {
+                    mappings[t.getId()] = tupleIDs[i];
+                }
+            }
+
             parents.push_back(parentNode);
         }
     }

@@ -42,8 +42,10 @@ void GBRuleExecutor::join(
             inputRight = processAtom_EDB(literalRight, allVars);
         }
     }
-    if (inputRight->getNRows() == 0)
+    if (inputRight != NULL && inputRight->getNRows() == 0)
+    {
         return;
+    }
 
     if (literalRight.isNegated()) {
         if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
@@ -76,10 +78,6 @@ void GBRuleExecutor::join(
                     copyVarPosRight,
                     output);
         } else {
-            if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-                LOG(ERRORL) << "Nested joins not supported in FULLPROV mode";
-                throw 10;
-            }
             nestedloopjoin(
                     enableCacheLeft,
                     enableCacheRight,
@@ -529,8 +527,19 @@ void GBRuleExecutor::nestedloopjoin(
     for(int i = 0; i < t.getSize(); ++i) {
         positions.push_back(i);
     }
-    auto sizerow = copyVarPosLeft.size() + copyVarPosRight.size();
-    Term_t currentrow[sizerow + 2];
+
+    auto extraLeft = 0;
+    if (inputLeft->getNOffsetColumns() > 0)
+        extraLeft = inputLeft->getNOffsetColumns() - 1;
+    auto sizeLeftSide = copyVarPosLeft.size() + extraLeft;
+    auto extraRight = 0;
+    if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+        extraRight = 1;
+    }
+    auto sizeRightSide = copyVarPosRight.size() + extraRight;
+    auto sizeRow = sizeLeftSide + sizeRightSide;
+    Term_t currentrow[sizeRow + 2];
+    for(size_t i = 0; i < sizeRow + 2; ++i) currentrow[i] = 0;
 
     while (itrLeft->hasNext()) {
         itrLeft->next();
@@ -575,14 +584,22 @@ void GBRuleExecutor::nestedloopjoin(
                         auto el = itrLeft->get(leftPos);
                         currentrow[idx] = el;
                     }
+                    for(int idx = 0; idx < extraLeft; ++idx) {
+                        currentrow[copyVarPosLeft.size() + copyVarPosRight.size() + idx] =
+                            itrLeft->getProvenanceOffset(idx);
+                    }
                     for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                         auto rightPos = copyVarPosRight[idx];
                         auto value = itrRight->get(rightPos);
                         currentrow[copyVarPosLeft.size() + idx] = value;
                     }
+                    for(int idx = 0; idx < extraRight; ++idx) {
+                        currentrow[copyVarPosLeft.size() + copyVarPosRight.size()
+                            + extraLeft + idx] = itrRight->getProvenanceOffset(idx);
+                    }
                     if (shouldTrackProvenance()) {
-                        currentrow[sizerow] = itrLeft->getNodeId();
-                        currentrow[sizerow + 1] = itrRight->getNodeId();
+                        currentrow[sizeRow] = itrLeft->getNodeId();
+                        currentrow[sizeRow + 1] = itrRight->getNodeId();
                     }
                     output->add(currentrow);
                     if (i < (countLeft - 1))
@@ -590,7 +607,6 @@ void GBRuleExecutor::nestedloopjoin(
                     i++;
                 }
             }
-
         }
     }
 }

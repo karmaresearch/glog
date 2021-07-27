@@ -31,7 +31,18 @@ class GBQuerier {
                 size_t step,
                 const std::vector<size_t> &incomingEdges);
 
+        void getLeaves(
+                size_t nodeId, size_t factId,
+                PredId_t nodePred,
+                std::shared_ptr<const TGSegment> data,
+                size_t ruleIdx,
+                size_t step,
+                const std::vector<size_t> &incomingEdges,
+                std::vector<Literal> &out);
+
         void exportEDBNode(JSON &out, Literal &l, size_t factId);
+
+        void exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out);
 
     public:
         GBQuerier(const GBGraph &g, Program &p, EDBLayer &l) : g(g), p(p), l(l) {}
@@ -47,6 +58,11 @@ class GBQuerier {
                 size_t step,
                 const std::vector<size_t> &incomingEdges);
 
+        void getLeavesInDerivationTree(
+                size_t nodeId,
+                size_t factId,
+                std::vector<Literal> &out);
+
         std::vector<std::string> getListPredicates() const;
 
         std::string getTermText(Term_t t) const;
@@ -56,6 +72,7 @@ class GBQuerier {
         JSON getNodeFacts(size_t nodeId) const;
 
         bool checkSoundnessDerivationTree(JSON &root);
+
 };
 
 #endif
