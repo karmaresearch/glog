@@ -1384,25 +1384,25 @@ bool EDBLayer::getDictText(const uint64_t id, char *text) const {
             uint64_t value = GET_UINT(id);
             sprintf(text,"%" PRIu64,value);
             return true;
-        } else if (IS_FLOAT32(idterm)) {
-            float value = GET_FLOAT32(idterm);
+        } else if (IS_FLOAT32(id)) {
+            float value = GET_FLOAT32(id);
             sprintf(text,"%f",value);
             return true;
         } else {
-            LOG(ERRORL) << "Datatype for " << idterm << " was not found";
+            LOG(ERRORL) << "Datatype for " << id << " was not found";
             return false;
         }
     }
     bool resp = false;
     if (dbPredicates.size() > 0) {
         for (auto &table : dbPredicates) {
-            resp = table.second.manager->getDictText(idterm, text);
+            resp = table.second.manager->getDictText(id, text);
             if (resp)
                 break;
         }
     }
     if (!resp && termsDictionary.get()) {
-        std::string t = termsDictionary->getRawValue(idterm);
+        std::string t = termsDictionary->getRawValue(id);
         if (t != "") {
             memcpy(text, t.c_str(), t.size());
             text[t.size()] = '\0';
