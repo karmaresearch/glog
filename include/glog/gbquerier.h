@@ -44,6 +44,14 @@ class GBQuerier {
 
         void exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out);
 
+        void getMappings(const Literal &l,
+                const std::vector<uint64_t> &row,
+                std::vector<std::pair<Term_t, Term_t>> &mappings);
+
+        Literal ground(const Literal &l, const std::vector<
+                std::pair<Term_t, Term_t>> &mappings,
+                bool &ok);
+
     public:
         GBQuerier(const GBGraph &g, Program &p, EDBLayer &l) : g(g), p(p), l(l) {}
 
@@ -58,7 +66,7 @@ class GBQuerier {
                 size_t step,
                 const std::vector<size_t> &incomingEdges);
 
-        void getLeavesInDerivationTree(
+        std::vector<Term_t> getLeavesInDerivationTree(
                 size_t nodeId,
                 size_t factId,
                 std::vector<Literal> &out);

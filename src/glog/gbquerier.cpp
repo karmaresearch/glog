@@ -24,7 +24,7 @@ JSON GBQuerier::getDerivationTree(
     return out;
 }
 
-void GBQuerier::getLeavesInDerivationTree(
+std::vector<Term_t> GBQuerier::getLeavesInDerivationTree(
         size_t nodeId,
         size_t factId,
         std::vector<Literal> &out)
@@ -35,6 +35,67 @@ void GBQuerier::getLeavesInDerivationTree(
     auto nodePred = g.getNodePredicate(nodeId);
     auto &incomingEdges = g.getNodeIncomingEdges(nodeId);
     getLeaves(nodeId, factId, nodePred, data, ruleIdx, step, incomingEdges, out);
+    return data->getRow(factId);
+}
+
+void GBQuerier::getMappings(const Literal &l,
+        const std::vector<uint64_t> &row,
+        std::vector<std::pair<Term_t, Term_t>> &mappings)
+{
+    for(size_t i = 0; i < l.getTupleSize(); ++i)
+    {
+        auto t = l.getTermAtPos(i);
+        if (t.isVariable())
+        {
+            auto varId = t.getId();
+            bool exists = false;
+            for (size_t j = 0; j < mappings.size(); ++j)
+            {
+                if (mappings[j].first == varId)
+                {
+                    assert(row.size() > i);
+                    assert(row[i] == mappings[j].second);
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists)
+            {
+                assert(row.size() > i);
+                mappings.push_back(std::make_pair(varId, row[i]));
+            }
+        }
+    }
+}
+
+Literal GBQuerier::ground(const Literal &l, const std::vector<
+        std::pair<Term_t, Term_t>> &mappings,
+        bool &ok)
+{
+    ok = true;
+    auto tuple = l.getTuple();
+    for(size_t j = 0; j < tuple.getSize(); ++j)
+    {
+        auto term = tuple.get(j);
+        if (term.isVariable())
+        {
+            bool found = false;
+            for(size_t i = 0; i < mappings.size(); ++i)
+            {
+                if (mappings[i].first == term.getId())
+                {
+                    found = true;
+                    tuple.set(VTerm(0, mappings[i].second), j);
+                    break;
+                }
+            }
+            if (!found)
+            {
+                ok = false;
+            }
+        }
+    }
+    return Literal(l.getPredicate(), tuple);
 }
 
 void GBQuerier::getLeaves(
@@ -53,18 +114,31 @@ void GBQuerier::getLeaves(
         size_t end = data->getNColumns() + data->getNOffsetColumns();
         size_t j = 0;
         auto bodyLiterals = p.getRule(ruleIdx).getBody();
+
+        std::vector<std::pair<Term_t, Term_t>> mappings;
+        getMappings(p.getRule(ruleIdx).getHeads()[0], row, mappings);
+
         for(size_t i = begin; i < end; ++i) {
             auto bodyLiteral = bodyLiterals[i - begin];
             auto offset = row[i];
             if (bodyLiteral.getPredicate().getType() == EDB) {
-                exportEDBNode(bodyLiteral, offset, out);
+                bool isFullyGrounded = true;
+                auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
+                if (isFullyGrounded)
+                {
+                    out.push_back(groundedAtom);
+                } else {
+                    exportEDBNode(groundedAtom, offset, out);
+                }
                 if (j < ie.size() && ie[j] == ~0ul) {
                     j++;
                 }
             } else {
                 auto nodeId = ie[j];
                 assert(nodeId != ~0ul);
-                getLeavesInDerivationTree(nodeId, offset, out);
+                std::vector<Term_t> row =
+                    getLeavesInDerivationTree(nodeId, offset, out);
+                getMappings(bodyLiteral, row, mappings);
                 j++;
             }
         }
