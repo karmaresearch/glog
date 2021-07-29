@@ -206,7 +206,7 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
 
 void GBQuerier::exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out)
 {
-    LOG(WARNL) << "Slow method, must be fixed!";
+    LOG(ERRORL) << "Slow method, must be fixed!";
     auto itr = this->l.getIterator(l);
     size_t i = 0;
     while (itr->hasNext()) {
