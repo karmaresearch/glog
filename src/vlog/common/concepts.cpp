@@ -1497,11 +1497,12 @@ Program Program::clone() const {
 }
 
 int Program::getNRules() const {
-    int size = 0;
+    /*int size = 0;
     for (int j = 0; j < rules.size(); ++j) {
         size += rules[j].size();
     }
-    return size;
+    return size;*/
+    return allrules.size();
 }
 
 std::shared_ptr<Program> Program::cloneNew() const {
