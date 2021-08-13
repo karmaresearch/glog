@@ -66,6 +66,9 @@ void EDBLayer::addTridentTable(const EDBConf::Table &tableConf, bool multithread
     infot.manager = std::shared_ptr<EDBTable>(new TridentTable(kbpath, multithreaded, this));
     infot.arity = infot.manager->getArity();
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
     LOG(INFOL) << "Inserted " << pn << " with number " << infot.id;
     LOG(DEBUGL) << "Inserted " << pn << " with number " << infot.id;
 }
@@ -81,6 +84,9 @@ void EDBLayer::addMySQLTable(const EDBConf::Table &tableConf) {
                 tableConf.params[1], tableConf.params[2], tableConf.params[3],
                 tableConf.params[4], tableConf.params[5], this));
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 #endif
 
@@ -95,6 +101,9 @@ void EDBLayer::addODBCTable(const EDBConf::Table &tableConf) {
                 tableConf.params[1], tableConf.params[2], tableConf.params[3],
                 tableConf.params[4], this));
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 #endif
 
@@ -109,6 +118,9 @@ void EDBLayer::addMAPITable(const EDBConf::Table &tableConf) {
                 (int) strtol(tableConf.params[1].c_str(), NULL, 10), tableConf.params[2], tableConf.params[3],
                 tableConf.params[4], tableConf.params[5], tableConf.params[6], this));
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 #endif
 
@@ -122,6 +134,9 @@ void EDBLayer::addMDLiteTable(const EDBConf::Table &tableConf) {
     infot.manager = std::shared_ptr<EDBTable>(table);
     infot.arity = table->getArity();
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 #endif
 
@@ -155,7 +170,9 @@ void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf,
     infot.manager = std::shared_ptr<EDBTable>(table);
     infot.arity = table->getArity();
     dbPredicates.insert(make_pair(infot.id, infot));
-
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
     LOG(DEBUGL) << "Imported InmemoryTable " << pn << " id " << infot.id << " size " << table->getSize();
     // table->dump(std::cerr);
 }
@@ -281,7 +298,9 @@ void EDBLayer::addEDBTable(PredId_t predId, std::string tableType,
     infot.arity = table->getArity();
     infot.manager = table;
     dbPredicates.insert(make_pair(infot.id, infot));
-
+    if (table->areTermsEncoded()) {
+        edbTablesWithDict.push_back(table);
+    }
 }
 
 void EDBLayer::addCliqueTable(const EDBConf::Table &tableConf, PredId_t pid,
@@ -328,6 +347,9 @@ void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 
 void EDBLayer::addInmemoryTable(std::string predicate,
@@ -346,6 +368,9 @@ void EDBLayer::addInmemoryTable(std::string predicate,
     LOG(DEBUGL) << "Added table for " << predicate << ":" << infot.id << ", arity = " << (int) table->getArity() << ", size = " << table->getSize();
     //LOG(INFOL) << "Imported InmemoryTable id " << infot.id << " predicate " << predicate;
     // table->dump(std::cerr);
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
 }
 
 void EDBLayer::addInmemoryTable(PredId_t id,
@@ -1334,16 +1359,14 @@ std::shared_ptr<Column> EDBLayer::checkIn(
 bool EDBLayer::getDictNumber(const char *text, const size_t sizeText, uint64_t &id) const {
     bool resp = false;
     size_t sz = sizeText;
-    if (sz > 43 && text[0] == '"' && ! strcmp(text + sz - 43, "^^<http://www.w3.org/2001/XMLSchema#string>")) {
+    if (sz > 43 && text[0] == '"' && !strcmp(text + sz - 43, "^^<http://www.w3.org/2001/XMLSchema#string>")) {
         sz -= 43;
     }
-    if (dbPredicates.size() > 0) {
-        for(auto p : dbPredicates) {
-            resp = p.second.manager->
-                getDictNumber(text, sizeText, id);
-            if (resp) {
-                break;
-            }
+
+    for (auto &table : edbTablesWithDict) {
+        resp = table->getDictNumber(text, sizeText, id);
+        if (resp) {
+            break;
         }
     }
     if (!resp && termsDictionary.get()) {
@@ -1356,15 +1379,12 @@ bool EDBLayer::getDictNumber(const char *text, const size_t sizeText, uint64_t &
 bool EDBLayer::getOrAddDictNumber(const char *text, const size_t sizeText,
         uint64_t &id) {
     bool resp = false;
-    size_t sz = sizeText;
-    if (sz > 43 && text[0] == '"' && ! strcmp(text + sz - 43, "^^<http://www.w3.org/2001/XMLSchema#string>")) {
-        sz -= 43;
-    }
-    if (dbPredicates.size() > 0) {
-        resp = dbPredicates.begin()->second.manager->
-            getDictNumber(text, sz, id);
-    }
+    resp = getDictNumber(text, sizeText, id);
     if (!resp) {
+        size_t sz = sizeText;
+        if (sz > 43 && text[0] == '"' && ! strcmp(text + sz - 43, "^^<http://www.w3.org/2001/XMLSchema#string>")) {
+            sz -= 43;
+        }
         if (!termsDictionary.get()) {
             LOG(DEBUGL) << "The additional terms will start from " << getNTerms();
             termsDictionary = std::shared_ptr<Dictionary>(
@@ -1394,12 +1414,10 @@ bool EDBLayer::getDictText(const uint64_t id, char *text) const {
         }
     }
     bool resp = false;
-    if (dbPredicates.size() > 0) {
-        for (auto &table : dbPredicates) {
-            resp = table.second.manager->getDictText(id, text);
-            if (resp)
-                break;
-        }
+    for (auto &table : edbTablesWithDict) {
+        resp = table->getDictText(id, text);
+        if (resp)
+            break;
     }
     if (!resp && termsDictionary.get()) {
         std::string t = termsDictionary->getRawValue(id);
@@ -1428,12 +1446,10 @@ std::string EDBLayer::getDictText(const uint64_t id) const {
 
     std::string t = "";
     bool resp = false;
-    if (dbPredicates.size() > 0) {
-        for (auto &table : dbPredicates) {
-            resp = table.second.manager->getDictText(id, t);
-            if (resp)
-                break;
-        }
+    for (auto &table : edbTablesWithDict) {
+        resp = table->getDictText(id, t);
+        if (resp)
+            break;
     }
     if (!resp && termsDictionary.get()) {
         t = termsDictionary->getRawValue(id);
@@ -1443,8 +1459,8 @@ std::string EDBLayer::getDictText(const uint64_t id) const {
 
 uint64_t EDBLayer::getNTerms() const {
     uint64_t size = 0;
-    if (dbPredicates.size() > 0) {
-        size = dbPredicates.begin()->second.manager->getNTerms();
+    for (auto &table : edbTablesWithDict) {
+        size += table->getNTerms();
     }
     if (termsDictionary.get()) {
         size += termsDictionary->size();

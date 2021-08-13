@@ -156,6 +156,7 @@ class EDBLayer {
         Factory<EDBMemIterator> memItrFactory;
         std::vector<IndexedTupleTable *>tmpRelations;
 
+        std::vector<std::shared_ptr<EDBTable>> edbTablesWithDict;
         std::shared_ptr<Dictionary> termsDictionary;//std::string, Term_t
         std::string rootPath;
 
@@ -479,10 +480,17 @@ class EDBLayer {
             return name;
         }
 
+        //This method specifies whether the EDB source can change *during* reasoning
+        //Most sources cannot, thus this method normally returns false
         bool canChange(PredId_t predId);
 
+        //Some EDB sources do not allow variables (or constants) in some positions.
+        //In this case, we cannot do a merge join but must apply sideway information
+        //passing and other types of joins.
         bool isQueryAllowed(const Literal &query);
 
+        //Some EDB sources require that the literal has no variable. For instance,
+        //some string functions. In this case, we do not do any join
         bool acceptQueriesWithFreeVariables(const Literal &query);
 
         BuiltinFunction getBuiltinFunction(const Literal &query);

@@ -139,6 +139,11 @@ class InmemoryTable : public EDBTable {
 
         uint64_t getSize();
 
+        bool areTermsEncoded()
+        {
+            return false;
+        }
+
         std::ostream &dump(std::ostream &os) {
             std::string name = layer->getPredName(predid);
             os << "Table " << name << std::endl;
