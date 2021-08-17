@@ -452,6 +452,9 @@ class EDBLayer {
             return true;
         }
 
+        VLIBEXP void replaceFactsInmemoryTable(std::string predicate,
+                std::vector<std::vector<std::string>> &rows);
+
         // For JNI interface ...
         VLIBEXP void addInmemoryTable(std::string predicate,
                 std::vector<std::vector<std::string>> &rows);

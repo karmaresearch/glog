@@ -183,6 +183,21 @@ void EDBLayer::addInmemoryTable(std::string predicate,
     addInmemoryTable(predicate, id, rows);
 }
 
+void EDBLayer::replaceFactsInmemoryTable(std::string predicate,
+        std::vector<std::vector<std::string>> &rows)
+{
+    PredId_t id = (PredId_t) predDictionary->getOrAdd(predicate);
+    if (dbPredicates.count(id))
+    {
+        auto &info = dbPredicates[id];
+        std::shared_ptr<InmemoryTable> t = std::shared_ptr<InmemoryTable>(new
+                InmemoryTable(id, rows, this));
+        info.manager = t;
+    } else {
+        throw 10;
+    }
+}
+
 void EDBLayer::addTable(const EDBConf::Table &table, bool multithreaded,
         std::string edbconfpath, PredId_t predId, bool usePredId) {
 
