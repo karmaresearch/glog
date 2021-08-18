@@ -412,15 +412,38 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
     bool shouldSort = true;
     bool shouldRetainUnique = true;
     std::vector<std::shared_ptr<Column>> columns;
-    auto nrows = table->getCardinality(atom);
+    size_t nrows = ~0ul;
     if (table->useSegments()) {
-        auto seg = table->getSegment();
-        for(int i = 0; i < atom.getTupleSize(); ++i) {
-            auto col = seg->getColumn(i);
-            columns.push_back(col);
+        if (atom.getNConstants() == 0)
+        {
+            auto seg = table->getSegment();
+            nrows = seg->getNRows();
+            for(int i = 0; i < atom.getTupleSize(); ++i) {
+                auto col = seg->getColumn(i);
+                columns.push_back(col);
+            }
+        } else {
+            std::vector<Term_t> constants;
+            std::vector<size_t> posConstants;
+            for(size_t i = 0; i < atom.getTupleSize(); ++i)
+            {
+                auto t = atom.getTermAtPos(i);
+                if (!t.isVariable())
+                {
+                    constants.push_back(t.getValue());
+                    posConstants.push_back(i);
+                }
+            }
+            auto seg = table->getSegment()->filter(constants, posConstants);
+            nrows = seg->getNRows();
+            for(int i = 0; i < atom.getTupleSize(); ++i) {
+                auto col = seg->getColumn(i);
+                columns.push_back(col);
+            }
         }
     } else {
         //e.g., Trident database
+        nrows = table->getCardinality(atom);
         std::vector<uint8_t> presortPos;
         int varIdx = 0;
         for(size_t i = 0; i < atom.getTupleSize(); ++i) {

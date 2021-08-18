@@ -295,6 +295,9 @@ class Segment {
                 const int nthreads,
                 const bool filterDupl) const;
 
+        std::shared_ptr<Segment> filter(const std::vector<Term_t> constants,
+                const std::vector<size_t> posConstants) const;
+
         uint8_t getNConstantFields() const {
             uint8_t n = 0;
             for (int i = 0; i < nfields; ++i) {
