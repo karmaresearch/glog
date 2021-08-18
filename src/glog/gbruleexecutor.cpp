@@ -41,6 +41,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples_structuresharing(
 std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
         std::shared_ptr<const TGSegment> tuples,
         const std::vector<int> &posKnownVariables) {
+    auto pc = tuples->getProvenanceType();
+    assert(provenanceType != GBGraph::ProvenanceType::FULLPROV || pc == SEG_FULLPROV);
+
     if (posKnownVariables.size() == 1) {
         if (shouldTrackProvenance()) {
             assert(tuples->getProvenanceType() != SEG_NOPROV);
@@ -103,9 +106,11 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::projectTuples(
                 break;
             }
         }
+        //auto npc = getSegProvenanceType();
+        //assert(npc == pc);
         return std::shared_ptr<const TGSegment>(new TGSegmentLegacy(columns,
                     tuples->getNRows(), remainSorted, 0,
-                    getSegProvenanceType(), tuples->getNOffsetColumns()));
+                    pc, tuples->getNOffsetColumns()));
     }
 }
 
@@ -632,6 +637,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         std::shared_ptr<const TGSegment> tuples,
         std::vector<size_t> &vars) {
     assert(tuples->getNRows() > 0);
+    assert(provenanceType != GBGraph::ProvenanceType::FULLPROV); // Not supported
 
     //Get list existential variables
     std::set<size_t> extvars;
@@ -826,13 +832,14 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
             case 7:
                 auto seg = terms4->getSegment();
                 std::vector<std::shared_ptr<Column>> columns;
-                auto nfieldsToCopy = (shouldTrackProvenance()) ? nfields + 1 : nfields;
+                size_t offsetColumns = (shouldTrackProvenance()) ? 1 : 0;
+                auto nfieldsToCopy = nfields + offsetColumns;
                 for(int i = 0; i < nfieldsToCopy; ++i) {
                     columns.push_back(seg->getColumn(i));
                 }
                 tuples = std::shared_ptr<const TGSegment>(
                         new TGSegmentLegacy(columns, seg->getNRows(), false,
-                            0, getSegProvenanceType()));
+                            0, getSegProvenanceType(), offsetColumns));
                 break;
         }
     }

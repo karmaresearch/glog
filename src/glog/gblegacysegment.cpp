@@ -553,7 +553,7 @@ void TGSegmentLegacy::appendTo(const std::vector<int> &posFields,
             }
             i++;
         }
-        if (shouldTrackProvenance()) { //Add the nodeID
+        if (shouldTrackProvenance() && withProv) { //Add the nodeID
             auto &o = out.back();
             auto itr = columns.back()->getReader();
             if (posFields.size() > 0) {

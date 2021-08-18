@@ -8,9 +8,9 @@ class TGSegmentLegacy : public TGSegment {
         const size_t nrows;
         const bool f_isSorted;
         const uint8_t sortedField;
-        std::vector<std::shared_ptr<Column>> columns;
+        const std::vector<std::shared_ptr<Column>> columns;
         const SegProvenanceType provenanceType;
-        size_t nprovcolumns;
+        const size_t nprovcolumns;
 
         bool shouldTrackProvenance() const {
             return provenanceType != SegProvenanceType::SEG_NOPROV;
@@ -35,13 +35,13 @@ class TGSegmentLegacy : public TGSegment {
     {
         for(auto c : columns)
             assert(c->size() == nrows);
-        if (provenanceType == SEG_SAMENODE && nprovcolumns == 0)
+        /*if (provenanceType == SEG_SAMENODE && nprovcolumns == 0)
         {
             //Add a column with a fix value
             auto newCol = std::shared_ptr<Column>(new CompressedColumn(0, nrows));
             this->columns.push_back(newCol);
             this->nprovcolumns = 1;
-        }
+        }*/
         assert(!shouldTrackProvenance() ||  this->nprovcolumns > 0);
 
     }

@@ -209,8 +209,7 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
     }
     auto &nodeIdxs = getNodeIDsWithPredicate(p);
     assert(nodeIdxs.size() > 0);
-    if (cacheRetainEnabled &&
-            nodeIdxs.size() > 1) {
+    if (cacheRetainEnabled && nodeIdxs.size() > 1) {
         //Merge and sort the segments
         if (!cacheRetain.count(p) || cacheRetain[p].nnodes < nodeIdxs.size()) {
             //Get the arity
@@ -306,8 +305,7 @@ std::shared_ptr<const TGSegment> GBGraph::retain(
     } else {
         for(auto &nodeIdx : nodeIdxs) {
             auto nodeData = getNodeData(nodeIdx);
-            newtuples = retainVsNodeFast(nodeData, newtuples,
-                    derivationNodes);
+            newtuples = retainVsNodeFast(nodeData, newtuples, derivationNodes);
             if (newtuples == NULL || newtuples->isEmpty()) {
                 std::chrono::steady_clock::time_point end =
                     std::chrono::steady_clock::now();
@@ -468,7 +466,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
     if (!constantNode) {
         currentNode = ~0ul;
     }
-    return inserter->getSegment(currentNode, true, 0, node.data->getProvenanceType(), n_offsetcolumns);
+    return inserter->getSegment(currentNode, true, 0,
+            node.data->getProvenanceType(), n_offsetcolumns);
 }
 
 std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast(
@@ -572,8 +571,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_two(
         std::shared_ptr<const TGSegment> existuples,
         std::shared_ptr<const TGSegment> newtuples,
         std::vector<std::shared_ptr<Column>> &derivationNodes) {
-
-
     if (newtuples->hasColumnarBackend() && derivationNodes.size() == 0) {
         auto newColumn1 = ((TGSegmentLegacy*)newtuples.get())->getColumn(0);
         auto newColumn2 = ((TGSegmentLegacy*)newtuples.get())->getColumn(1);
@@ -812,7 +809,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
         }
 
         return inserter->getSegment(newtuples->getNodeId(), true, 0,
-                getSegProvenanceType(), extracols);
+                newtuples->getProvenanceType(), extracols);
     } else {
         if (countNew > 0 || activeRightValue) {
             if (startCopyingIdx == 0) {
@@ -843,7 +840,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 }
 
                 return inserter->getSegment(newtuples->getNodeId(),
-                        true, 0, getSegProvenanceType(), extracols);
+                        true, 0, newtuples->getProvenanceType(), extracols);
             }
         } else {
             //They are all duplicates. Leave the derivationNodes unchanged, anyway
