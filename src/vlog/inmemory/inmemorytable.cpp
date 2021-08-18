@@ -682,7 +682,7 @@ EDBIterator *InmemoryTable::getSortedIterator2(const Literal &query,
                 }
             }
         }
-        if (! cacheHashes.count(keySortFields)) {
+        if (!cacheHashes.count(keySortFields)) {
             // Not available yet. Get the corresponding sorted segment.
             std::shared_ptr<const Segment> sortedSegment =
                 getSortedCachedSegment(segment, filterBy);

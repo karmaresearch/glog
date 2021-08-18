@@ -368,10 +368,17 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
                 auto start = tuples.back().size();
                 data->appendTo(copyVarPos, tuples, true);
                 if (replaceOffsets) {
-                    assert(data->getProvenanceType() == SEG_FULLPROV);
-                    //Otherwise, the last column contains something else
-                    for(size_t i = start; i < tuples.back().size(); ++i) {
-                        tuples.back()[i] = i - start;
+                    if (data->getProvenanceType() == SEG_FULLPROV)
+                    {
+                        //Otherwise, the last column contains something else
+                        for(size_t i = start; i < tuples.back().size(); ++i) {
+                            tuples.back()[i] = i - start;
+                        }
+                    } else if (data->getProvenanceType() == SEG_SAMENODE) {
+                        //Do nothing, I don't have to record the offset
+                    } else {
+                        //I suspect it's the same as for SEG_SAMENODE, but I'm not sure
+                        throw 10; //not implemented
                     }
                 }
             } else {
