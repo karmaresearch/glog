@@ -849,8 +849,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
         Rule &rule,
-        std::shared_ptr<const TGSegment> tuples,
+        const std::shared_ptr<const TGSegment> tuples,
         const std::vector<size_t> &varTuples) {
+    assert(provenanceType != GBGraph::ProvenanceType::FULLPROV); //not supported yet
+    std::shared_ptr<const TGSegment> newtuples = tuples;
     for(auto &headAtom : rule.getHeads()) {
         if (tuples->isEmpty())
             break;
@@ -892,10 +894,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
-            const int extraColumns = shouldTrackProvenance() &&
-                tuples->getProvenanceType() == SEG_DIFFNODES ? 1 : 0;
+            const int extraColumns = shouldTrackProvenance() ? 1 : 0;
             int nfields = tuples->getNColumns() + extraColumns;
-            const bool copyNode = tuples->getProvenanceType() == SEG_DIFFNODES;
             std::unique_ptr<GBSegmentInserter> outputJoin = GBSegmentInserter::
                 getInserter(nfields, extraColumns, false);
 
@@ -923,15 +923,15 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
             const auto nodeId = (!shouldTrackProvenance() ||
                     tuples->getProvenanceType() == SEG_DIFFNODES) ? ~0ul :
                 tuples->getNodeId();
-            tuples = outputJoin->getSegment(
+            newtuples = outputJoin->getSegment(
                     nodeId,
                     false,
                     0,
-                    getSegProvenanceType(),
-                    copyNode);
+                    tuples->getProvenanceType(),
+                    extraColumns);
         }
     }
-    return tuples;
+    return newtuples;
 }
 
 SegProvenanceType GBRuleExecutor::getSegProvenanceType() const {
@@ -1085,7 +1085,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 throw 10;
             }
             //If empty then stop
-            if (intermediateResults->isEmpty()) {
+            if (intermediateResults == NULL || intermediateResults->isEmpty()) {
                 intermediateResults = std::shared_ptr<const TGSegment>();
                 break;
             }
@@ -1096,10 +1096,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 !isCurrentBodyAtomEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
 
             uint8_t extraColumns = 0;
-            bool multipleComb =
-                intermediateResults->getProvenanceType() == SEG_FULLPROV ||
-                intermediateResults->getProvenanceType() == SEG_DIFFNODES ||
-                nodesRight.size() > 1;
+            bool multipleComb = provenanceType != GBGraph::ProvenanceType::NOPROV;
             if (multipleComb) {
                 if (intermediateResults->getProvenanceType() == SEG_FULLPROV) {
                     size_t maxRightOffsetColumns = 1; //only offset, no node

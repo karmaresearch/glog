@@ -306,7 +306,7 @@ void EDBLayer::addEDBTable(PredId_t predId, std::string tableType,
     EDBInfoTable infot;
     infot.id = predId;
     if (doesPredExists(infot.id)) {
-        LOG(INFOL) << "Rewriting table for predicate id " << predId;
+        LOG(TRACEL) << "Rewriting table for predicate id " << predId;
         dbPredicates.erase(infot.id);
     }
     infot.type = tableType;
@@ -372,7 +372,7 @@ void EDBLayer::addInmemoryTable(std::string predicate,
     EDBInfoTable infot;
     infot.id = id;
     if (doesPredExists(infot.id)) {
-        LOG(INFOL) << "Rewriting table for predicate " << predicate;
+        LOG(TRACEL) << "Rewriting table for predicate " << predicate;
         dbPredicates.erase(infot.id);
     }
     infot.type = "INMEMORY";
@@ -380,7 +380,7 @@ void EDBLayer::addInmemoryTable(std::string predicate,
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));
-    LOG(DEBUGL) << "Added table for " << predicate << ":" << infot.id << ", arity = " << (int) table->getArity() << ", size = " << table->getSize();
+    LOG(TRACEL) << "Added table for " << predicate << ":" << infot.id << ", arity = " << (int) table->getArity() << ", size = " << table->getSize();
     //LOG(INFOL) << "Imported InmemoryTable id " << infot.id << " predicate " << predicate;
     // table->dump(std::cerr);
     if (infot.manager->areTermsEncoded()) {
@@ -394,7 +394,7 @@ void EDBLayer::addInmemoryTable(PredId_t id,
     EDBInfoTable infot;
     infot.id = id;
     if (doesPredExists(infot.id)) {
-        LOG(INFOL) << "Rewriting table for predicate " << id;
+        LOG(TRACEL) << "Rewriting table for predicate " << id;
         dbPredicates.erase(infot.id);
     }
     infot.type = "INMEMORY";

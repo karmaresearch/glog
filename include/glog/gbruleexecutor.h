@@ -191,7 +191,7 @@ class GBRuleExecutor {
                 bool &shouldDelDupl);
 
         std::shared_ptr<const TGSegment> performRestrictedCheck(Rule &rule,
-                std::shared_ptr<const TGSegment> tuples,
+                const std::shared_ptr<const TGSegment> tuples,
                 const std::vector<size_t> &varTuples);
 
         std::shared_ptr<const TGSegment> addExistentialVariables(

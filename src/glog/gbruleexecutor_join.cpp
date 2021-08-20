@@ -120,7 +120,7 @@ void GBRuleExecutor::mergejoin(
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
         if (enableCacheLeft && fields1.size() > 1)
-            LOG(WARNL) << "I cannot use the cache because it works only if "
+            LOG(DEBUGL) << "I cannot use the cache because it works only if "
                 "the join is over 1 variable";
         if (enableCacheLeft && nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
@@ -138,7 +138,7 @@ void GBRuleExecutor::mergejoin(
     //Sort the right segment by the join variable
     if (!fields2.empty() && !inputRight->isSortedBy(fields2)) {
         if (enableCacheRight && fields2.size() > 1)
-            LOG(WARNL) << "I cannot use the cache because it works only if "
+            LOG(DEBUGL) << "I cannot use the cache because it works only if "
                 "the join is over 1 variable";
         if (enableCacheRight && nodesRight.size() > 0 && fields2.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();

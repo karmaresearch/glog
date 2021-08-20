@@ -71,8 +71,7 @@ std::vector<std::shared_ptr<const TGSegment>> TGSegmentLegacy::sliceByNodes(
             if (startidx < i) {
                 //Create a new node
                 provNodes.push_back(currentNode);
-                auto dataToAdd = slice(
-                        startNodeIdx++, startidx, i);
+                auto dataToAdd = slice(startNodeIdx++, startidx, i);
                 out.push_back(dataToAdd);
             }
             startidx = i;
@@ -365,8 +364,11 @@ std::shared_ptr<TGSegment> TGSegmentLegacy::slice(const size_t nodeId,
             newcols.push_back(c);
         }
     }
+    auto p = provenanceType;
+    if (p == SEG_DIFFNODES)
+        p = SEG_SAMENODE;
     return std::shared_ptr<TGSegment>(new TGSegmentLegacy(newcols, length,
-                f_isSorted, sortedField, provenanceType, nprovcolumns));
+                f_isSorted, sortedField, p, nprovcolumns));
 }
 
 std::shared_ptr<const TGSegment> TGSegmentLegacy::slice(
@@ -604,7 +606,7 @@ void TGSegmentLegacy::projectTo(const std::vector<int> &fields,
 }
 
 SegProvenanceType TGSegmentLegacy::getProvenanceType() const {
-    assert(provenanceType != SEG_SAMENODE || columns[columns.size() - nprovcolumns]->isConstant());
+    //assert(provenanceType != SEG_SAMENODE || columns[columns.size() - nprovcolumns]->isConstant());
     assert(provenanceType != SEG_DIFFNODES || !columns[columns.size() - nprovcolumns]->isConstant());
     return provenanceType;
 }

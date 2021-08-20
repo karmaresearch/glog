@@ -458,6 +458,9 @@ void GBGraph::addNodeProv(PredId_t predid,
         LOG(ERRORL) << "The node does not have a good provenance type";
         throw 10;
     }
+    if (provenanceType == NODEPROV && data->getProvenanceType() != SEG_SAMENODE) {
+        throw 10;
+    }
 #endif
 
     //Check that the segment is sorted

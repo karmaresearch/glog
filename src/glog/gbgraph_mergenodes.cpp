@@ -427,38 +427,43 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
         }
     }
     size_t nrows = tuples[0].size();
-    //Create columns from the content of tuples
-    std::vector<std::shared_ptr<Column>> columns;
-    for(int i = 0; i < copyVarPos.size(); ++i) {
-        columns.push_back(std::shared_ptr<Column>(
-                    new InmemoryColumn(tuples[i], true)));
-    }
-    std::shared_ptr<const TGSegment> seg;
-    if (shouldTrackProvenance()) {
-        //Add the column with the node IDs
-        columns.push_back(std::shared_ptr<Column>(
-                    new InmemoryColumn(tuples[copyVarPos.size()], true)));
-        if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-            if (replaceOffsets) {
-                columns.push_back(std::shared_ptr<Column>(
-                            new InmemoryColumn(tuples.back(), true)));
-            } else {
-                throw 10; //Not implemented. Here we should copy all the offset columns
+    if (nrows == 0)
+    {
+        return std::shared_ptr<const TGSegment>();
+    } else {
+        //Create columns from the content of tuples
+        std::vector<std::shared_ptr<Column>> columns;
+        for(int i = 0; i < copyVarPos.size(); ++i) {
+            columns.push_back(std::shared_ptr<Column>(
+                        new InmemoryColumn(tuples[i], true)));
+        }
+        std::shared_ptr<const TGSegment> seg;
+        if (shouldTrackProvenance()) {
+            //Add the column with the node IDs
+            columns.push_back(std::shared_ptr<Column>(
+                        new InmemoryColumn(tuples[copyVarPos.size()], true)));
+            if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
+                if (replaceOffsets) {
+                    columns.push_back(std::shared_ptr<Column>(
+                                new InmemoryColumn(tuples.back(), true)));
+                } else {
+                    throw 10; //Not implemented. Here we should copy all the offset columns
+                }
             }
         }
-    }
-    seg = std::shared_ptr<const TGSegment>(
-            new TGSegmentLegacy(columns, nrows, false,
-                0, getSegProvenanceType(nodeIdxs.size() > 1),
-                columns.size() - copyVarPos.size()));
-    if (shouldSort) {
-        auto sortedSeg = seg->sort();
-        if (shouldRemoveDuplicates)
-            return sortedSeg->unique();
-        else
-            return sortedSeg;
-    } else {
-        return seg;
+        seg = std::shared_ptr<const TGSegment>(
+                new TGSegmentLegacy(columns, nrows, false,
+                    0, getSegProvenanceType(nodeIdxs.size() > 1),
+                    columns.size() - copyVarPos.size()));
+        if (shouldSort) {
+            auto sortedSeg = seg->sort();
+            if (shouldRemoveDuplicates)
+                return sortedSeg->unique();
+            else
+                return sortedSeg;
+        } else {
+            return seg;
+        }
     }
 }
 
