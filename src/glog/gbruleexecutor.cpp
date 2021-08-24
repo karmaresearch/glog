@@ -703,7 +703,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
         std::vector<std::pair<Term_t, Term_t>> terms2;
         std::vector<BinWithProv> terms3;
         std::unique_ptr<SegmentInserter> terms4;
-        std::unique_ptr<Term_t> terms4_row;
+        std::unique_ptr<Term_t[]> terms4_row;
         const int nfields = tuples->getNColumns() + 1;
         int mode;
         if (nfields == 1) {
@@ -717,12 +717,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addExistentialVariables(
                 mode = 6;
                 terms4 = std::unique_ptr<SegmentInserter>(new
                         SegmentInserter(nfields));
-                terms4_row = std::unique_ptr<Term_t>(new Term_t[nfields]);
+                terms4_row = std::unique_ptr<Term_t[]>(new Term_t[nfields]);
             } else {
                 mode = 7;
                 terms4 = std::unique_ptr<SegmentInserter>(new
                         SegmentInserter(nfields + 1));
-                terms4_row = std::unique_ptr<Term_t>(new Term_t[nfields + 1]);
+                terms4_row = std::unique_ptr<Term_t[]>(new Term_t[nfields + 1]);
             }
         }
 
