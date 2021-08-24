@@ -861,6 +861,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
         //Find join variables
         std::vector<std::pair<int, int>> joinVarPos;
         std::vector<int> varsToCopyRight;
+        std::vector<Term_t> filterConstants;
         for(int  i = 0; i < headAtom.getTupleSize(); ++i) {
             auto t = headAtom.getTermAtPos(i);
             if (t.isVariable()) {
@@ -872,11 +873,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                         break;
                     }
                 }
+                filterConstants.push_back(~0ul);
             } else {
-                LOG(ERRORL) << "Not sure what will happen if there are"
-                    " constants in the head during the restriction check"
-                    ". Throw an exception ...";
-                throw 10;
+                filterConstants.push_back(t.getValue());
             }
         }
 
@@ -891,6 +890,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                     headAtom.getPredicate().getId());
             std::shared_ptr<const TGSegment> inputRight = g.mergeNodes(
                     nodesRight,
+                    filterConstants,
                     varsToCopyRight);
 
             //Prepare the container that will store the retained tuples
