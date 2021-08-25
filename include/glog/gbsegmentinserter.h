@@ -431,7 +431,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
         size_t addedRows;
         bool isFinal;
 
-        HashSet s; //For general case
+        //std::unique_ptr<HashSet> s; //For general case
         google::dense_hash_set<std::pair<Term_t,Term_t>, std::hash<std::pair<Term_t,Term_t>>> s_binary;
 
         bool isInMap(Term_t *row);
@@ -453,9 +453,12 @@ class GBSegmentInserterNAry : public GBSegmentInserter
             writers(card),
             card(card),
             cardCheckDuplicates(cardCheckDuplicates),
-            addedRows(0), isFinal(false), s(cardCheckDuplicates,
-                    THRESHOLD_CHECK_DUPLICATES / 10) {
+            addedRows(0), isFinal(false) {
                 s_binary.set_empty_key(std::make_pair(~0ul, ~0ul));
+
+                //s(cardCheckDuplicates,
+                //    THRESHOLD_CHECK_DUPLICATES / 10)
+                LOG(INFOL) << "HashSet " << THRESHOLD_CHECK_DUPLICATES / 10;
             }
 
         bool isEmpty() const  {
