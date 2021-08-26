@@ -458,7 +458,7 @@ class GBSegmentInserterNAry : public GBSegmentInserter
 
                 //s(cardCheckDuplicates,
                 //    THRESHOLD_CHECK_DUPLICATES / 10)
-                LOG(INFOL) << "HashSet " << THRESHOLD_CHECK_DUPLICATES / 10;
+                //LOG(INFOL) << "HashSet " << THRESHOLD_CHECK_DUPLICATES / 10;
             }
 
         bool isEmpty() const  {

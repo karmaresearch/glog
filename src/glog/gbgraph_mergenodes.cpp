@@ -173,7 +173,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes(
         bool replaceOffsets, bool removeDuplicates) const {
 
     if (lazyMode && provenanceType == NOPROV) {
-        LOG(WARNL) << "Lazymode is deactivated with NOPROV";
+        LOG(DEBUGL) << "Lazymode is deactivated with NOPROV";
         lazyMode = false;
     }
 
