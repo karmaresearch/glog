@@ -42,7 +42,7 @@ void GBRuleExecutor::join(
             inputRight = processAtom_EDB(literalRight, allVars);
         }
     }
-    if (inputRight == NULL || inputRight->getNRows() == 0)
+    if (mergeJoinPossible && (inputRight == NULL || inputRight->getNRows() == 0))
     {
         return;
     }
