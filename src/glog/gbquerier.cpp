@@ -461,6 +461,38 @@ JSON GBQuerier::getNodeFacts(size_t nodeId) const
     return out;
 }
 
+std::map<std::string, std::vector<std::vector<std::string>>>
+GBQuerier::getAllFacts() const
+{
+    std::map<std::string, std::vector<std::vector<std::string>>> out;
+    for(size_t nodeId = 0; nodeId < g.getNNodes(); ++nodeId)
+    {
+        auto data = g.getNodeData(nodeId);
+        auto card = data->getNColumns();
+        auto itr = data->iterator();
+        std::vector<std::vector<std::string>> tuples;
+        while (itr->hasNext()) {
+            itr->next();
+            std::vector<std::string> tuple;
+            for(size_t i = 0; i < card; ++i) {
+                auto t = itr->get(i);
+                auto str = l.getDictText(t);
+                tuple.push_back(str);
+            }
+            tuples.push_back(tuple);
+        }
+
+        auto predId = g.getNodePredicate(nodeId);
+        std::string predName = p.getPredicateName(predId);
+        if (out.count(predName))
+        {
+            std::copy(tuples.begin(), tuples.end(), std::back_inserter(out[predName]));
+        } else {
+            out.insert(std::make_pair(predName, tuples));
+        }
+    }
+    return out;
+}
 
 std::string GBQuerier::getTermText(Term_t t) const
 {

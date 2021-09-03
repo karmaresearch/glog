@@ -79,6 +79,8 @@ class GBQuerier {
 
         JSON getNodeFacts(size_t nodeId) const;
 
+        std::map<std::string, std::vector<std::vector<std::string>>> getAllFacts() const;
+
         bool checkSoundnessDerivationTree(JSON &root);
 
 };

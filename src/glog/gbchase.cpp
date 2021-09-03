@@ -615,10 +615,10 @@ bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
     currentRule = rule.tostring();
 #endif
 
-#ifdef DEBUG
+//#ifdef DEBUG
     LOG(DEBUGL) << "Execute rule " << node.ruleIdx << " " <<
         rule.tostring(program, &layer);
-#endif
+//#endif
 
     std::chrono::system_clock::time_point start =
         std::chrono::system_clock::now();

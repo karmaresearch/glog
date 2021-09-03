@@ -83,13 +83,13 @@ void ProbGBChase::prepareRuleExecutionPlans(
 bool ProbGBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
 {
     Rule &rule = rules[node.ruleIdx];
-#ifdef DEBUG
+//#ifdef DEBUG
     if (rule.isEGD()) {
         throw 10; //Not supported here
     }
-    LOG(INFOL) << "Executing rule " << node.ruleIdx << " "
+    LOG(DEBUGL) << "Executing rule " << node.ruleIdx << " "
         << rule.tostring(program, &layer);
-#endif
+//#endif
 
     std::chrono::system_clock::time_point start =
         std::chrono::system_clock::now();

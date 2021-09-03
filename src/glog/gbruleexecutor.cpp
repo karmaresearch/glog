@@ -1028,6 +1028,8 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         const Literal &currentBodyAtom = bodyAtoms[i];
         VTuple currentVars = currentBodyAtom.getTuple();
 
+        LOG(DEBUGL) << "Process atom " << i;
+
         //Which are the positions (left,right) of the variable to join?
         std::vector<std::pair<int, int>> joinVarPos;
         //Which variables should be copied from the existing collection?
