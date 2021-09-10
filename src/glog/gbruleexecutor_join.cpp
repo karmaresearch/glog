@@ -282,7 +282,7 @@ void GBRuleExecutor::mergejoin(
 #if DEBUG
             total += countLeft;
             while (total >= max) {
-                LOG(TRACEL) << "Count = " << countLeft << ", total = " << total;
+                LOG(TRACEL) << "Count = " << countLeft << ", total = " << total << ", key=" << currentKey[0] << " " << layer.getDictText(currentKey[0]);
                 max = max + max;
             }
 #endif
@@ -411,7 +411,7 @@ void GBRuleExecutor::leftjoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        if (nodesLeft.size() > 0) {
+        if (nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
                 inputLeft = inputLeft->sortBy(fields1);
