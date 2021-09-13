@@ -42,7 +42,8 @@ void GBRuleExecutor::join(
             inputRight = processAtom_EDB(literalRight, allVars);
         }
     }
-    if (mergeJoinPossible && (inputRight == NULL || inputRight->getNRows() == 0))
+    if (mergeJoinPossible && (!literalRight.isNegated()
+                && (inputRight == NULL || inputRight->getNRows() == 0)))
     {
         return;
     }
@@ -411,7 +412,7 @@ void GBRuleExecutor::leftjoin(
 
     //Sort the left segment by the join variable
     if (!fields1.empty() && !inputLeft->isSortedBy(fields1)) {
-        if (nodesLeft.size() > 0 && fields1.size() == 1) {
+        if (enableCacheLeft && nodesLeft.size() > 0 && fields1.size() == 1) {
             SegmentCache &c = SegmentCache::getInstance();
             if (!c.contains(nodesLeft, fields1)) {
                 inputLeft = inputLeft->sortBy(fields1);
@@ -442,9 +443,13 @@ void GBRuleExecutor::leftjoin(
         rightActive = true;
     }
 
-    auto sizerow = copyVarPosLeft.size();
-    Term_t currentrow[sizerow + 2];
-
+    auto extraLeft = 0;
+    if (inputLeft->getNOffsetColumns() > 0)
+        extraLeft = inputLeft->getNOffsetColumns() - 1;
+    auto sizeLeftSide = copyVarPosLeft.size() + extraLeft;
+    auto sizeRow = sizeLeftSide;
+    Term_t currentRow[sizeRow + 2];
+    for(size_t i = 0; i < sizeRow + 2; ++i) currentRow[i] = 0;
     while (leftActive && rightActive) {
         int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarPos);
         if (res <= 0) {
@@ -452,14 +457,18 @@ void GBRuleExecutor::leftjoin(
                 for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
                     auto leftPos = copyVarPosLeft[idx];
                     auto el = itrLeft->get(leftPos);
-                    currentrow[idx] = el;
+                    currentRow[idx] = el;
+                }
+                for(int idx = 0; idx < extraLeft; ++idx) {
+                    currentRow[copyVarPosLeft.size() + idx] =
+                        itrLeft->getProvenanceOffset(idx);
                 }
                 if (shouldTrackProvenance()) {
-                    currentrow[sizerow] = itrLeft->getNodeId();
+                    currentRow[sizeRow] = itrLeft->getNodeId();
                     if (!copyOnlyLeftNode)
-                        currentrow[sizerow + 1] = 0;
+                        currentRow[sizeRow + 1] = 0;
                 }
-                output->add(currentrow);
+                output->add(currentRow);
             }
             if (itrLeft->hasNext()) {
                 itrLeft->next();
@@ -478,14 +487,18 @@ void GBRuleExecutor::leftjoin(
         for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
             auto leftPos = copyVarPosLeft[idx];
             auto el = itrLeft->get(leftPos);
-            currentrow[idx] = el;
+            currentRow[idx] = el;
+        }
+        for(int idx = 0; idx < extraLeft; ++idx) {
+            currentRow[copyVarPosLeft.size() + idx] =
+                itrLeft->getProvenanceOffset(idx);
         }
         if (shouldTrackProvenance()) {
-            currentrow[sizerow] = itrLeft->getNodeId();
+            currentRow[sizeRow] = itrLeft->getNodeId();
             if (!copyOnlyLeftNode)
-                currentrow[sizerow + 1] = 0;
+                currentRow[sizeRow + 1] = 0;
         }
-        output->add(currentrow);
+        output->add(currentRow);
         if (itrLeft->hasNext()) {
             itrLeft->next();
         } else {

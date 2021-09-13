@@ -1065,18 +1065,34 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
         if (!isCurrentBodyAtomEDB) {
             currentBodyNode++;
         }
+
         if (i == 0) {
+            //Verify that I can later cache the results
+            if (isCurrentBodyAtomEDB || currentBodyAtom.getNConstants() > 0 ||
+                    !currentBodyAtom.getRepeatedVars().empty() ||
+                    copyVarPosRight.size() != currentBodyAtom.getTupleSize())  {
+                enableCacheLeft = false;
+            } else {
+                for(size_t i = 0; i < currentBodyAtom.getTupleSize(); ++i) {
+                    if (copyVarPosRight[i] != i) {
+                        enableCacheLeft = false;
+                        break;
+                    }
+                }
+            }
+
             //Process first body atom, no join
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
             if (isCurrentBodyAtomEDB) {
-                enableCacheLeft = false;
                 intermediateResults = processAtom_EDB(currentBodyAtom,
                         copyVarPosRight);
             } else {
                 intermediateResults = processAtom_IDB(currentBodyAtom,
-                        bodyNodes[currentBodyNode], copyVarPosRight, true, true);
+                        bodyNodes[currentBodyNode], copyVarPosRight,
+                        true, true);
             }
+
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             lastDurationFirst += end - start;
@@ -1095,10 +1111,12 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             std::vector<size_t> &nodesLeft = i == 1 && prevBodyNode >= 0 ?
                 bodyNodes[prevBodyNode] : noBodyNodes;
             std::vector<size_t> &nodesRight =
-                !isCurrentBodyAtomEDB ? bodyNodes[currentBodyNode] : noBodyNodes;
+                !isCurrentBodyAtomEDB ? bodyNodes[currentBodyNode] :
+                noBodyNodes;
 
             uint8_t extraColumns = 0;
-            bool multipleComb = provenanceType != GBGraph::ProvenanceType::NOPROV;
+            bool multipleComb = provenanceType !=
+                GBGraph::ProvenanceType::NOPROV;
             if (multipleComb) {
                 if (intermediateResults->getProvenanceType() == SEG_FULLPROV) {
                     size_t maxRightOffsetColumns = 1; //only offset, no node
@@ -1118,6 +1136,7 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
             std::chrono::steady_clock::time_point start =
                 std::chrono::steady_clock::now();
 
+            //Verify that I can cache the results
             bool enableCacheRight = true;
             if (currentBodyAtom.getNConstants() > 0 ||
                     !currentBodyAtom.getRepeatedVars().empty() ||
@@ -1137,7 +1156,9 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                     copyVarPosLeft,
                     copyVarPosRight,
                     newIntermediateResults);
-            enableCacheLeft = enableCacheLeft & enableCacheRight;
+            //After the first join, it makes little sense to further cache
+            //the left side of joins
+            enableCacheLeft = false; //enableCacheLeft & enableCacheRight;
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
