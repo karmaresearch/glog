@@ -913,8 +913,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
                         inputRight,
                         joinVarPos,
                         copyVarPosLeft,
-                        outputJoin,
-                        true);
+                        outputJoin);
             }
 
             //Create a TGSegment from SegmentInserter

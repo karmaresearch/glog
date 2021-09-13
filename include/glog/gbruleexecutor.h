@@ -169,8 +169,7 @@ class GBRuleExecutor {
                 std::shared_ptr<const TGSegment> inputRight,
                 std::vector<std::pair<int, int>> &joinVarPos,
                 std::vector<int> &copyVarPosLeft,
-                std::unique_ptr<GBSegmentInserter> &output,
-                const bool copyOnlyLeftNode = false);
+                std::unique_ptr<GBSegmentInserter> &output);
 
         void join(
                 const bool enableCacheLeft,

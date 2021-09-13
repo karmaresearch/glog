@@ -121,7 +121,12 @@ void GBQuerier::getLeaves(
         for(size_t i = begin; i < end; ++i) {
             auto bodyLiteral = bodyLiterals[i - begin];
             auto offset = row[i];
-            if (bodyLiteral.getPredicate().getType() == EDB) {
+            if (bodyLiteral.isNegated()) {
+                //There is no provenance of such atoms
+                if (j < ie.size() && ie[j] == ~0ul) {
+                    j++;
+                }
+            } else if (bodyLiteral.getPredicate().getType() == EDB) {
                 bool isFullyGrounded = true;
                 auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
                 if (isFullyGrounded)
@@ -298,24 +303,26 @@ bool GBQuerier::checkSoundnessDerivationTree(JSON &root)
         for (size_t i = 0; i < ps.size(); ++i) {
             auto p = ps[i];
             auto bodyAtom = bodyAtoms[i];
-            sTupleIDs = p.get("tupleIds");
-            tupleIDs.clear();
-            __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
-            assert(tupleIDs.size() == bodyAtom.getTupleSize());
-            for(size_t i = 0; i < tupleIDs.size(); ++i) {
-                auto t = bodyAtom.getTermAtPos(i);
-                if (t.isVariable()) {
-                    auto varId = t.getId();
-                    if (mappingVars2Consts.count(varId)) {
-                        if (tupleIDs[i] != mappingVars2Consts[varId]) {
-                            throw 10;
+            if (!bodyAtom.isNegated()) {
+                sTupleIDs = p.get("tupleIds");
+                tupleIDs.clear();
+                __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+                assert(tupleIDs.size() == bodyAtom.getTupleSize());
+                for(size_t i = 0; i < tupleIDs.size(); ++i) {
+                    auto t = bodyAtom.getTermAtPos(i);
+                    if (t.isVariable()) {
+                        auto varId = t.getId();
+                        if (mappingVars2Consts.count(varId)) {
+                            if (tupleIDs[i] != mappingVars2Consts[varId]) {
+                                throw 10;
+                            }
+                        } else {
+                            mappingVars2Consts.insert(std::make_pair(varId, tupleIDs[i]));
                         }
                     } else {
-                        mappingVars2Consts.insert(std::make_pair(varId, tupleIDs[i]));
-                    }
-                } else {
-                    if (tupleIDs[i] != t.getValue()) {
-                        throw 10;
+                        if (tupleIDs[i] != t.getValue()) {
+                            throw 10;
+                        }
                     }
                 }
             }
@@ -375,7 +382,13 @@ void GBQuerier::exportNode(JSON &out,
             JSON parentNode;
             auto bodyLiteral = bodyLiterals[i - begin];
             auto offset = row[i];
-            if (bodyLiteral.getPredicate().getType() == EDB) {
+            bool skipAtom = false;
+            if (bodyLiteral.isNegated()) {
+                skipAtom = true;
+                parentNode.put("negated_atom", "true");
+                parentNode.put("ruleIdx", "none");
+                parentNode.put("nodeId", "none");
+            } else if (bodyLiteral.getPredicate().getType() == EDB) {
                 if (!l.isQueryAllowed(bodyLiteral)) {
                     //Copy all the existing variables into the literal
                     auto tuple = bodyLiteral.getTuple();
@@ -400,13 +413,15 @@ void GBQuerier::exportNode(JSON &out,
             }
 
             //Code to copy the current mappings from variables to ground terms
-            auto sTupleIDs = parentNode.get("tupleIds");
-            std::vector<Term_t> tupleIDs;
-            __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
-            for(size_t i = 0; i < bodyLiteral.getTupleSize(); ++i) {
-                auto t = bodyLiteral.getTermAtPos(i);
-                if (t.isVariable()) {
-                    mappings[t.getId()] = tupleIDs[i];
+            if (!skipAtom) {
+                auto sTupleIDs = parentNode.get("tupleIds");
+                std::vector<Term_t> tupleIDs;
+                __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+                for(size_t i = 0; i < bodyLiteral.getTupleSize(); ++i) {
+                    auto t = bodyLiteral.getTermAtPos(i);
+                    if (t.isVariable()) {
+                        mappings[t.getId()] = tupleIDs[i];
+                    }
                 }
             }
 

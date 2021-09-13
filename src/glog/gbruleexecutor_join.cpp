@@ -49,11 +49,6 @@ void GBRuleExecutor::join(
     }
 
     if (literalRight.isNegated()) {
-        if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-            LOG(ERRORL) << "Left joins not supported in FULLPROV mode";
-            throw 10;
-        }
-
         // Negated atoms should not introduce new variables.
         assert(copyVarPosRight.size() == 0);
         leftjoin(
@@ -400,8 +395,7 @@ void GBRuleExecutor::leftjoin(
         std::shared_ptr<const TGSegment> inputRight,
         std::vector<std::pair<int, int>> &joinVarPos,
         std::vector<int> &copyVarPosLeft,
-        std::unique_ptr<GBSegmentInserter> &output,
-        const bool copyOnlyLeftNode) {
+        std::unique_ptr<GBSegmentInserter> &output) {
 
     std::vector<uint8_t> fields1;
     std::vector<uint8_t> fields2;
@@ -447,9 +441,11 @@ void GBRuleExecutor::leftjoin(
     if (inputLeft->getNOffsetColumns() > 0)
         extraLeft = inputLeft->getNOffsetColumns() - 1;
     auto sizeLeftSide = copyVarPosLeft.size() + extraLeft;
-    auto sizeRow = sizeLeftSide;
+    auto sizeRightSide = 0 + 1; //0 because the right side does not contribute with new variable, 1 because the offset will be set to ~0ul
+    auto sizeRow = sizeLeftSide + sizeRightSide;
     Term_t currentRow[sizeRow + 2];
     for(size_t i = 0; i < sizeRow + 2; ++i) currentRow[i] = 0;
+    currentRow[sizeLeftSide] = ~0ul;
     while (leftActive && rightActive) {
         int res = TGSegmentItr::cmp(itrLeft.get(), itrRight.get(), joinVarPos);
         if (res <= 0) {
@@ -465,8 +461,7 @@ void GBRuleExecutor::leftjoin(
                 }
                 if (shouldTrackProvenance()) {
                     currentRow[sizeRow] = itrLeft->getNodeId();
-                    if (!copyOnlyLeftNode)
-                        currentRow[sizeRow + 1] = 0;
+                    currentRow[sizeRow + 1] = ~0ul;
                 }
                 output->add(currentRow);
             }
@@ -495,8 +490,7 @@ void GBRuleExecutor::leftjoin(
         }
         if (shouldTrackProvenance()) {
             currentRow[sizeRow] = itrLeft->getNodeId();
-            if (!copyOnlyLeftNode)
-                currentRow[sizeRow + 1] = 0;
+            currentRow[sizeRow + 1] = ~0ul;
         }
         output->add(currentRow);
         if (itrLeft->hasNext()) {
