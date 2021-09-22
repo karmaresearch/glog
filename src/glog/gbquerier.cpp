@@ -133,7 +133,7 @@ void GBQuerier::getLeaves(
                 {
                     out.push_back(groundedAtom);
                 } else {
-                    exportEDBNode(groundedAtom, offset, out);
+                    exportEDBNode(bodyLiteral, offset, out);
                 }
                 if (j < ie.size() && ie[j] == ~0ul) {
                     j++;
@@ -211,12 +211,31 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
 
 void GBQuerier::exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out)
 {
+    if (l.getNConstants() == 0 && !l.hasRepeatedVars())
+    {
+        auto table = this->l.getEDBTable(l.getPredicate().getId());
+        if (table->useSegments())
+        {
+            auto segment = table->getSegment();
+            auto tuple = l.getTuple();
+            for(size_t j = 0; j < tuple.getSize(); ++j) {
+                auto value = segment->get(factId, j);
+                tuple.set(VTerm(0, value), j);
+            }
+            auto fl = Literal(l.getPredicate(), tuple);
+            out.push_back(fl);
+            return;
+        }
+    }
+    //Fallback to the slow method
     LOG(ERRORL) << "Slow method, must be fixed!";
     auto itr = this->l.getIterator(l);
     size_t i = 0;
+    bool found = false;
     while (itr->hasNext()) {
         itr->next();
         if (i == factId) {
+            found = true;
             auto predId = itr->getPredicateID();
             auto tuple = l.getTuple();
             for(size_t j = 0; j < tuple.getSize(); ++j) {
@@ -228,6 +247,8 @@ void GBQuerier::exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &o
         }
         i++;
     }
+    if (!found)
+        throw 10;
     this->l.releaseIterator(itr);
 }
 
