@@ -530,6 +530,170 @@ GBQuerier::getAllFacts() const
     return out;
 }
 
+struct __facts_coord1 {
+    size_t nodeId;
+    size_t offset;
+    size_t term1;
+};
+
+struct __facts_coord2 {
+    size_t nodeId;
+    size_t offset;
+    size_t term1, term2;
+};
+
+struct __facts_coord3 {
+    size_t nodeId;
+    size_t offset;
+    size_t term1, term2, term3;
+};
+
+struct __facts_coord4 {
+    size_t nodeId;
+    size_t offset;
+    size_t term1, term2, term3, term4;
+};
+
+bool __facts_coord1_cmp(const __facts_coord1 &a, const __facts_coord1 &b) {
+    return a.term1 < b.term1;
+}
+
+bool __facts_coord2_cmp(const __facts_coord2 &a, const __facts_coord2 &b) {
+    return a.term1 < b.term1 || (a.term1 == b.term1 && a.term2 < b.term2);
+}
+
+bool __facts_coord3_cmp(const __facts_coord3 &a, const __facts_coord3 &b) {
+    return a.term1 < b.term1 || (a.term1 == b.term1 && a.term2 < b.term2) ||
+        (a.term1 == b.term1 && a.term2 == b.term2 && a.term3 < b.term3);
+}
+
+bool __facts_coord4_cmp(const __facts_coord4 &a, const __facts_coord4 &b) {
+    return a.term1 < b.term1 || (a.term1 == b.term1 && a.term2 < b.term2) ||
+        (a.term1 == b.term1 && a.term2 == b.term2 && a.term3 < b.term3) ||
+        (a.term1 == b.term1 && a.term2 == b.term2 && a.term3 == b.term3 && a.term4 < b.term4);
+}
+
+std::pair<std::vector<std::pair<size_t, size_t>>, std::vector<Term_t>>
+GBQuerier::getAllFactsPredicate(std::string predName) const
+{
+    auto pred = p.getPredicate(predName);
+    auto card = p.getPredicateCard(pred.getId());
+    std::pair<std::vector<std::pair<size_t, size_t>>, std::vector<Term_t>> out;
+    //Get all nodes for a given predicate
+    auto nodeIds = g.getNodeIDsWithPredicate(pred.getId());
+
+    if (card == 1)
+    {
+        std::vector<__facts_coord1> facts;
+        for(auto nodeId : nodeIds) {
+            auto data = g.getNodeData(nodeId);
+            auto itr = data->iterator();
+            size_t idx = 0;
+            while (itr->hasNext()) {
+                itr->next();
+                __facts_coord1 f;
+                f.nodeId = nodeId;
+                f.offset = idx;
+                f.term1 = itr->get(0);
+                facts.push_back(f);
+                idx++;
+            }
+        }
+        std::sort(facts.begin(), facts.end(), __facts_coord1_cmp);
+        for (auto &f : facts)
+        {
+            out.second.push_back(f.term1);
+            out.first.push_back(std::make_pair(f.nodeId, f.offset));
+        }
+    } else if (card == 2)
+    {
+        std::vector<__facts_coord2> facts;
+        for(auto nodeId : nodeIds) {
+            auto data = g.getNodeData(nodeId);
+            auto itr = data->iterator();
+            size_t idx = 0;
+            while (itr->hasNext()) {
+                itr->next();
+                __facts_coord2 f;
+                f.nodeId = nodeId;
+                f.offset = idx;
+                f.term1 = itr->get(0);
+                f.term2 = itr->get(1);
+                facts.push_back(f);
+                idx++;
+            }
+        }
+        std::sort(facts.begin(), facts.end(), __facts_coord2_cmp);
+        for (auto &f : facts)
+        {
+            out.second.push_back(f.term1);
+            out.second.push_back(f.term2);
+            out.first.push_back(std::make_pair(f.nodeId, f.offset));
+        }
+    } else if (card == 3)
+    {
+        std::vector<__facts_coord3> facts;
+        for(auto nodeId : nodeIds) {
+            auto data = g.getNodeData(nodeId);
+            auto itr = data->iterator();
+            size_t idx = 0;
+            while (itr->hasNext()) {
+                itr->next();
+                __facts_coord3 f;
+                f.nodeId = nodeId;
+                f.offset = idx;
+                f.term1 = itr->get(0);
+                f.term2 = itr->get(1);
+                f.term3 = itr->get(2);
+                facts.push_back(f);
+                idx++;
+            }
+        }
+        std::sort(facts.begin(), facts.end(), __facts_coord3_cmp);
+        for (auto &f : facts)
+        {
+            out.second.push_back(f.term1);
+            out.second.push_back(f.term2);
+            out.second.push_back(f.term3);
+            out.first.push_back(std::make_pair(f.nodeId, f.offset));
+        }
+    } else if (card == 4)
+    {
+        std::vector<__facts_coord4> facts;
+        for(auto nodeId : nodeIds) {
+            auto data = g.getNodeData(nodeId);
+            auto itr = data->iterator();
+            size_t idx = 0;
+            while (itr->hasNext()) {
+                itr->next();
+                __facts_coord4 f;
+                f.nodeId = nodeId;
+                f.offset = idx;
+                f.term1 = itr->get(0);
+                f.term2 = itr->get(1);
+                f.term3 = itr->get(2);
+                f.term4 = itr->get(3);
+                facts.push_back(f);
+                idx++;
+            }
+        }
+        std::sort(facts.begin(), facts.end(), __facts_coord4_cmp);
+        for (auto &f : facts)
+        {
+            out.second.push_back(f.term1);
+            out.second.push_back(f.term2);
+            out.second.push_back(f.term3);
+            out.second.push_back(f.term4);
+            out.first.push_back(std::make_pair(f.nodeId, f.offset));
+        }
+    } else {
+        LOG(ERRORL) << "Not yet supported";
+        throw 10;
+    }
+
+    return out;
+}
+
 std::string GBQuerier::getTermText(Term_t t) const
 {
     return l.getDictText(t);

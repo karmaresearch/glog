@@ -81,6 +81,9 @@ class GBQuerier {
 
         std::map<std::string, std::vector<std::vector<std::string>>> getAllFacts() const;
 
+        std::pair<std::vector<std::pair<size_t, size_t>>, std::vector<Term_t>>
+            getAllFactsPredicate(std::string predName) const;
+
         bool checkSoundnessDerivationTree(JSON &root);
 
 };
