@@ -29,10 +29,10 @@ std::vector<Term_t> GBQuerier::getLeavesInDerivationTree(
         size_t factId,
         std::vector<Literal> &out)
 {
+    auto nodePred = g.getNodePredicate(nodeId);
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
     size_t step = g.getNodeStep(nodeId);
-    auto nodePred = g.getNodePredicate(nodeId);
     auto &incomingEdges = g.getNodeIncomingEdges(nodeId);
     getLeaves(nodeId, factId, nodePred, data, ruleIdx, step, incomingEdges, out);
     return data->getRow(factId);
@@ -126,6 +126,8 @@ void GBQuerier::getLeaves(
                 if (j < ie.size() && ie[j] == ~0ul) {
                     j++;
                 }
+            } else if (bodyLiteral.getPredicate().isMagic()) {
+                j++;
             } else if (bodyLiteral.getPredicate().getType() == EDB) {
                 bool isFullyGrounded = true;
                 auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);

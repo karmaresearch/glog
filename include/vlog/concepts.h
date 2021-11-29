@@ -519,6 +519,7 @@ class Program {
 
         Dictionary dictPredicates;
         std::unordered_map<PredId_t, uint8_t> cardPredicates;
+        std::unordered_map<PredId_t, uint8_t> typePredicates;
 
         void rewriteRule(std::vector<Literal> &heads,
                 std::vector<Literal> &body);
@@ -557,7 +558,8 @@ class Program {
         VLIBEXP std::string readFromString(std::string rules, bool rewriteMultihead = false);
 
         // Adds predicate if it doesn't exist yet
-        PredId_t getPredicateID(const std::string &p, const uint8_t card);
+        PredId_t getPredicateID(const std::string &p, const uint8_t card,
+                const uint8_t type = IDB);
 
         VLIBEXP std::string getPredicateName(const PredId_t id) const;
 

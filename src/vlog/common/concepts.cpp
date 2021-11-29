@@ -1459,8 +1459,13 @@ Literal Program::parseLiteral(std::string l, Dictionary &dictVariables) {
     if (predicate.find("mgc_") == 0) {
         type += 2;
     }
+    if (!typePredicates.count(predid)) {
+        typePredicates.insert(std::make_pair(predid, type));
+    } else {
+        assert(type == typePredicates[predid]);
+    }
     Predicate pred(predid, Predicate::calculateAdornment(t1), type, (uint8_t) t.size());
-    LOG(DEBUGL) << "Predicate : " << predicate << ", type = " << ((pred.getType() == EDB) ? "EDB" : "IDB");
+    LOG(DEBUGL) << "Predicate : " << predicate << ", type = " << ((pred.getType() == EDB) ? "EDB" : "IDB") << " is magic? " << pred.isMagic();
     if (pred.getType() == EDB) {
         int sz = kb->getPredArity(predid);
         if (sz == 0) {
@@ -1476,12 +1481,14 @@ Literal Program::parseLiteral(std::string l, Dictionary &dictVariables) {
     return literal;
 }
 
-PredId_t Program::getPredicateID(const std::string & p, const uint8_t card) {
+PredId_t Program::getPredicateID(const std::string & p, const uint8_t card,
+        const uint8_t type) {
     PredId_t predid = (PredId_t) dictPredicates.getOrAdd(p);
     //add the cardinality associated to this predicate
     if (cardPredicates.find(predid) == cardPredicates.end()) {
         //add it
         cardPredicates.insert(std::make_pair(predid, card));
+        typePredicates.insert(std::make_pair(predid, type));
     } else {
         assert(cardPredicates.find(predid)->second == card);
     }
@@ -1723,7 +1730,10 @@ Predicate Program::getPredicate(const PredId_t id) const {
     }
     if (cardPredicates.find(id) != cardPredicates.end()) {
         uint8_t card = cardPredicates.find(id)->second;
-        return Predicate(id, 0, IDB, card);
+        uint8_t type = typePredicates.find(id)->second;
+        return Predicate(id, 0, type, card);
+    } else {
+        throw 10; //should never happen
     }
     return Predicate(id, 0, IDB, 0);
 }
