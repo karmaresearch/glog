@@ -425,6 +425,8 @@ class EDBLayer {
 
         VLIBEXP uint64_t getNTerms() const;
 
+        VLIBEXP uint64_t getNPredicates() const;
+
         bool expensiveEDBPredicate(PredId_t id) {
             if (dbPredicates.count(id)) {
                 return dbPredicates.find(id)->second.manager->expensiveLayer();

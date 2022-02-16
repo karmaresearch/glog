@@ -336,6 +336,7 @@ bool initParams(int argc, const char** argv, ProgramArgs &vm) {
     query_options.add<int>("","port", 8080, "Port to use for the web interface. Default is 8080",false);
 #endif
 
+    query_options.add<int>("","maxstep", -1, "Set the maximum step for the chase.", false);
     query_options.add<bool>("","no-filtering", true, "Disable filter optimization.",false);
     query_options.add<bool>("","no-intersect", false, "Disable intersection optimization.",false);
     query_options.add<string>("","graphfile", "", "Path to store the rule dependency graph",false);
@@ -591,6 +592,13 @@ void launchProbTGChase(int argc,
 #endif
 
     LOG(INFOL) << "Starting probabilistic TG chase";
+
+    size_t startStep = 0;
+    size_t maxStep = ~0ul;
+    if (vm["maxstep"].as<int>() != -1)
+        maxStep = vm["maxstep"].as<int>();
+    sn->prepareRun(startStep, maxStep);
+
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     sn->run();
     std::chrono::duration<double> secMat = std::chrono::system_clock::now() - start;

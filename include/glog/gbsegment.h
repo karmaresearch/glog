@@ -458,5 +458,4 @@ class TGSegmentImpl : public TGSegment {
 
 #include <glog/gbsegment_binary.h>
 
-
 #endif

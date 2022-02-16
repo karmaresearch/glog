@@ -197,12 +197,15 @@ void GBQuerier::exportEDBNode(JSON &out, Literal &l, size_t factId)
             }
             auto fl = Literal(l.getPredicate(), tuple);
             auto sfl = fl.toprettystring(&p, &this->l);
+            auto predName = p.getPredicateName(predId);
             out.put("rule", "none");
             out.put("ruleIdx", "none");
             out.put("fact", sfl);
             out.put("nodeId", "none");
             out.put("step", "none");
             out.put("factId", factId);
+            out.put("predicateId", predId);
+            out.put("predicateName", predName);
             out.put("tupleIds", getTupleIDs(fl));
             break;
         }
@@ -385,6 +388,8 @@ void GBQuerier::exportNode(JSON &out,
     out.put("step", step);
     out.put("nodeId", nodeId);
     out.put("factId", factId);
+    out.put("predicateId", nodePred);
+    out.put("predicateName", p.getPredicateName(nodePred));
 
     //Construct the fact
     auto f = getFact(nodePred, data, factId);

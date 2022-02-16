@@ -1483,6 +1483,10 @@ uint64_t EDBLayer::getNTerms() const {
     return size;
 }
 
+uint64_t EDBLayer::getNPredicates() const {
+    return dbPredicates.size();
+}
+
 Predicate EDBLayer::getDBPredicate(int idPredicate) const {
     if (!dbPredicates.count(idPredicate)) {
         throw 10; //cannot happen
