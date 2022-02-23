@@ -27,7 +27,7 @@ JSON GBQuerier::getDerivationTree(
 std::vector<Term_t> GBQuerier::getLeavesInDerivationTree(
         size_t nodeId,
         size_t factId,
-        std::vector<Literal> &out)
+        std::vector<std::vector<Literal>> &out)
 {
     auto nodePred = g.getNodePredicate(nodeId);
     auto data = g.getNodeData(nodeId);
@@ -35,7 +35,7 @@ std::vector<Term_t> GBQuerier::getLeavesInDerivationTree(
     size_t step = g.getNodeStep(nodeId);
     auto &incomingEdges = g.getNodeIncomingEdges(nodeId);
     getLeaves(nodeId, factId, nodePred, data, ruleIdx, step, incomingEdges, out);
-    return data->getRow(factId);
+    return data->getRow(factId, false);
 }
 
 void GBQuerier::getMappings(const Literal &l,
@@ -105,48 +105,58 @@ void GBQuerier::getLeaves(
         size_t ruleIdx,
         size_t step,
         const std::vector<size_t> &incomingEdges,
-        std::vector<Literal> &out)
+        std::vector<std::vector<Literal>> &out)
 {
     if (ruleIdx != ~0ul) {
         auto ie = incomingEdges;
-        auto row = data->getRow(factId);
-        size_t begin = data->getNColumns() + 1; //Skip the node
-        size_t end = data->getNColumns() + data->getNOffsetColumns();
-        size_t j = 0;
-        auto bodyLiterals = p.getRule(ruleIdx).getBody();
+        auto nProofs = data->getNProofsAtRow(factId);
+        auto row = data->getRow(factId, false);
+        //size_t begin = data->getNColumns() + 1; //Skip the node
+        //size_t end = data->getNColumns() + data->getNOffsetColumns();
+        auto nOffsetColumns = data->getNOffsetColumns();
+        for (size_t proofId = 0; proofId < nProofs; ++proofId)
+        {
+            if (proofId > 0) {
+                assert(out.size() > 0);
+                std::vector<Literal> lastProof(out.back());
+                out.push_back(lastProof);
+            }
+            size_t j = 0;
+            auto bodyLiterals = p.getRule(ruleIdx).getBody();
 
-        std::vector<std::pair<Term_t, Term_t>> mappings;
-        getMappings(p.getRule(ruleIdx).getHeads()[0], row, mappings);
+            std::vector<std::pair<Term_t, Term_t>> mappings;
+            getMappings(p.getRule(ruleIdx).getHeads()[0], row, mappings);
 
-        for(size_t i = begin; i < end; ++i) {
-            auto bodyLiteral = bodyLiterals[i - begin];
-            auto offset = row[i];
-            if (bodyLiteral.isNegated()) {
-                //There is no provenance of such atoms
-                if (j < ie.size() && ie[j] == ~0ul) {
+            for(size_t i = 0; i < nOffsetColumns; ++i) {
+                auto bodyLiteral = bodyLiterals[i];
+                auto offset = data->getOffsetAtRow(factId, proofId, i);
+                if (bodyLiteral.isNegated()) {
+                    //There is no provenance of such atoms
+                    if (j < ie.size() && ie[j] == ~0ul) {
+                        j++;
+                    }
+                } else if (bodyLiteral.getPredicate().isMagic()) {
                     j++;
-                }
-            } else if (bodyLiteral.getPredicate().isMagic()) {
-                j++;
-            } else if (bodyLiteral.getPredicate().getType() == EDB) {
-                bool isFullyGrounded = true;
-                auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
-                if (isFullyGrounded)
-                {
-                    out.push_back(groundedAtom);
+                } else if (bodyLiteral.getPredicate().getType() == EDB) {
+                    bool isFullyGrounded = true;
+                    auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
+                    if (isFullyGrounded)
+                    {
+                        out.back().push_back(groundedAtom);
+                    } else {
+                        exportEDBNode(bodyLiteral, offset, out.back());
+                    }
+                    if (j < ie.size() && ie[j] == ~0ul) {
+                        j++;
+                    }
                 } else {
-                    exportEDBNode(bodyLiteral, offset, out);
-                }
-                if (j < ie.size() && ie[j] == ~0ul) {
+                    auto nodeId = ie[j];
+                    assert(nodeId != ~0ul);
+                    std::vector<Term_t> row =
+                        getLeavesInDerivationTree(nodeId, offset, out);
+                    getMappings(bodyLiteral, row, mappings);
                     j++;
                 }
-            } else {
-                auto nodeId = ie[j];
-                assert(nodeId != ~0ul);
-                std::vector<Term_t> row =
-                    getLeavesInDerivationTree(nodeId, offset, out);
-                getMappings(bodyLiteral, row, mappings);
-                j++;
             }
         }
     } else {
@@ -161,7 +171,7 @@ Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
     auto pred = p.getPredicate(predId);
     auto card = pred.getCardinality();
     assert(data->getNColumns() == card);
-    auto row = data->getRow(factId);
+    auto row = data->getRow(factId, false);
     VTuple t(card);
     for(size_t i = 0; i < card; ++i) {
         t.set(VTerm(0, row[i]), i);
@@ -282,7 +292,7 @@ void __convertStringTupleIDsIntoNumbers(
     }
 }
 
-bool GBQuerier::checkSoundnessDerivationTree(JSON &root)
+bool GBQuerier::checkSoundnessDerivationTree(JSON &root, size_t threshold)
 {
     bool response = true;
     //Check soundness node
@@ -325,34 +335,43 @@ bool GBQuerier::checkSoundnessDerivationTree(JSON &root)
     if (root.containsChild("parents")) {
         auto bodyAtoms = rule.getBody();
         auto parents = root.getChild("parents");
-        auto ps = parents.getListChildren();
-        for (size_t i = 0; i < ps.size(); ++i) {
-            auto p = ps[i];
-            auto bodyAtom = bodyAtoms[i];
-            if (!bodyAtom.isNegated()) {
-                sTupleIDs = p.get("tupleIds");
-                tupleIDs.clear();
-                __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
-                assert(tupleIDs.size() == bodyAtom.getTupleSize());
-                for(size_t i = 0; i < tupleIDs.size(); ++i) {
-                    auto t = bodyAtom.getTermAtPos(i);
-                    if (t.isVariable()) {
-                        auto varId = t.getId();
-                        if (mappingVars2Consts.count(varId)) {
-                            if (tupleIDs[i] != mappingVars2Consts[varId]) {
-                                throw 10;
+        auto parentsProofs = parents.getListChildren();
+        for(size_t j = 0; j < parentsProofs.size(); ++j)
+        {
+            if (j > threshold) {
+                break;
+            }
+
+            std::map<size_t, Term_t> mp(mappingVars2Consts);
+            auto ps = parentsProofs[j].getListChildren();
+            for (size_t i = 0; i < ps.size(); ++i) {
+                auto p = ps[i];
+                auto bodyAtom = bodyAtoms[i];
+                if (!bodyAtom.isNegated()) {
+                    sTupleIDs = p.get("tupleIds");
+                    tupleIDs.clear();
+                    __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+                    assert(tupleIDs.size() == bodyAtom.getTupleSize());
+                    for(size_t i = 0; i < tupleIDs.size(); ++i) {
+                        auto t = bodyAtom.getTermAtPos(i);
+                        if (t.isVariable()) {
+                            auto varId = t.getId();
+                            if (mp.count(varId)) {
+                                if (tupleIDs[i] != mp[varId]) {
+                                    throw 10;
+                                }
+                            } else {
+                                mp.insert(std::make_pair(varId, tupleIDs[i]));
                             }
                         } else {
-                            mappingVars2Consts.insert(std::make_pair(varId, tupleIDs[i]));
-                        }
-                    } else {
-                        if (tupleIDs[i] != t.getValue()) {
-                            throw 10;
+                            if (tupleIDs[i] != t.getValue()) {
+                                throw 10;
+                            }
                         }
                     }
                 }
+                response = response & checkSoundnessDerivationTree(p);
             }
-            response = response & checkSoundnessDerivationTree(p);
         }
     } else {
         //Parents should be there, otherwise how did the rule fire?
@@ -397,66 +416,71 @@ void GBQuerier::exportNode(JSON &out,
     out.put("tupleIds", getTupleIDs(f));
 
     //Add the parents
-    JSON parents;
+    JSON par;
     if (ruleIdx != ~0ul) {
         auto ie = incomingEdges;
-        auto row = data->getRow(factId);
-        size_t begin = data->getNColumns() + 1; //Skip the node
-        size_t end = data->getNColumns() + data->getNOffsetColumns();
-        size_t j = 0;
+        auto nproofs = data->getNProofsAtRow(factId);
+        assert(nproofs >= 1);
+        auto nOffsets = data->getNOffsetColumns() - 1;
         auto bodyLiterals = p.getRule(ruleIdx).getBody();
-        std::map<Var_t, Term_t> mappings;
-        for(size_t i = begin; i < end; ++i) {
-            JSON parentNode;
-            auto bodyLiteral = bodyLiterals[i - begin];
-            auto offset = row[i];
-            bool skipAtom = false;
-            if (bodyLiteral.isNegated()) {
-                skipAtom = true;
-                parentNode.put("negated_atom", "true");
-                parentNode.put("ruleIdx", "none");
-                parentNode.put("nodeId", "none");
-            } else if (bodyLiteral.getPredicate().getType() == EDB) {
-                if (!l.isQueryAllowed(bodyLiteral)) {
-                    //Copy all the existing variables into the literal
-                    auto tuple = bodyLiteral.getTuple();
-                    for(size_t j = 0; j < tuple.getSize(); ++j) {
-                        auto t = tuple.get(j);
-                        if (t.isVariable() && mappings.count(t.getId())) {
-                            tuple.set(VTerm(0, mappings[t.getId()]), j);
+
+        for (size_t proofId = 0; proofId < nproofs; ++proofId)
+        {
+            JSON parents;
+            size_t j = 0;
+            std::map<Var_t, Term_t> mappings;
+            for(size_t i = 0; i < nOffsets; ++i) {
+                JSON parentNode;
+                auto bodyLiteral = bodyLiterals[i];
+                auto offset = data->getOffsetAtRow(factId, proofId, i);
+                bool skipAtom = false;
+                if (bodyLiteral.isNegated()) {
+                    skipAtom = true;
+                    parentNode.put("negated_atom", "true");
+                    parentNode.put("ruleIdx", "none");
+                    parentNode.put("nodeId", "none");
+                } else if (bodyLiteral.getPredicate().getType() == EDB) {
+                    if (!l.isQueryAllowed(bodyLiteral)) {
+                        //Copy all the existing variables into the literal
+                        auto tuple = bodyLiteral.getTuple();
+                        for(size_t j = 0; j < tuple.getSize(); ++j) {
+                            auto t = tuple.get(j);
+                            if (t.isVariable() && mappings.count(t.getId())) {
+                                tuple.set(VTerm(0, mappings[t.getId()]), j);
+                            }
                         }
+                        Literal newLit = Literal(bodyLiteral.getPredicate(), tuple);
+                        exportEDBNode(parentNode, newLit, offset);
+                    } else {
+                        exportEDBNode(parentNode, bodyLiteral, offset);
                     }
-                    Literal newLit = Literal(bodyLiteral.getPredicate(), tuple);
-                    exportEDBNode(parentNode, newLit, offset);
+                    if (j < ie.size() && ie[j] == ~0ul) {
+                        j++;
+                    }
                 } else {
-                    exportEDBNode(parentNode, bodyLiteral, offset);
-                }
-                if (j < ie.size() && ie[j] == ~0ul) {
+                    auto nodeId = ie[j];
+                    exportNode(parentNode, nodeId, offset);
                     j++;
                 }
-            } else {
-                auto nodeId = ie[j];
-                exportNode(parentNode, nodeId, offset);
-                j++;
-            }
 
-            //Code to copy the current mappings from variables to ground terms
-            if (!skipAtom) {
-                auto sTupleIDs = parentNode.get("tupleIds");
-                std::vector<Term_t> tupleIDs;
-                __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
-                for(size_t i = 0; i < bodyLiteral.getTupleSize(); ++i) {
-                    auto t = bodyLiteral.getTermAtPos(i);
-                    if (t.isVariable()) {
-                        mappings[t.getId()] = tupleIDs[i];
+                //Code to copy the current mappings from variables to ground terms
+                if (!skipAtom) {
+                    auto sTupleIDs = parentNode.get("tupleIds");
+                    std::vector<Term_t> tupleIDs;
+                    __convertStringTupleIDsIntoNumbers(sTupleIDs, tupleIDs);
+                    for(size_t i = 0; i < bodyLiteral.getTupleSize(); ++i) {
+                        auto t = bodyLiteral.getTermAtPos(i);
+                        if (t.isVariable()) {
+                            mappings[t.getId()] = tupleIDs[i];
+                        }
                     }
                 }
+                parents.push_back(parentNode);
             }
-
-            parents.push_back(parentNode);
+            par.push_back(parents);
         }
     }
-    out.add_child("parents", parents);
+    out.add_child("parents", par);
 }
 
 std::vector<std::string> GBQuerier::getListPredicates() const {

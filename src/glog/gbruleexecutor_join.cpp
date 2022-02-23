@@ -293,8 +293,9 @@ void GBRuleExecutor::mergejoin(
                     currentrow[copyVarPosLeft.size() + idx] = itrRight->get(rightPos);
                 }
                 for(int idx = 0; idx < extraRight; ++idx) {
+                    assert(itrRight->getNProofs() == 1);
                     currentrow[copyVarPosLeft.size() + copyVarPosRight.size()
-                        + extraLeft + idx] = itrRight->getProvenanceOffset(idx);
+                        + extraLeft + idx] = itrRight->getProvenanceOffset(0, idx);
                 }
                 itrLeft->reset();
                 size_t c = 0;
@@ -305,8 +306,9 @@ void GBRuleExecutor::mergejoin(
                         currentrow[idx] = el;
                     }
                     for(int idx = 0; idx < extraLeft; ++idx) {
+                        assert(itrLeft->getNProofs() == 1);
                         currentrow[copyVarPosLeft.size() + copyVarPosRight.size() + idx] =
-                            itrLeft->getProvenanceOffset(idx);
+                            itrLeft->getProvenanceOffset(0, idx);
                     }
                     if (shouldTrackProvenance()) {
                         currentrow[sizeRow] = itrLeft->getNodeId();
@@ -456,8 +458,9 @@ void GBRuleExecutor::leftjoin(
                     currentRow[idx] = el;
                 }
                 for(int idx = 0; idx < extraLeft; ++idx) {
+                    assert(itrLeft->getNProofs() == 1);
                     currentRow[copyVarPosLeft.size() + idx] =
-                        itrLeft->getProvenanceOffset(idx);
+                        itrLeft->getProvenanceOffset(0, idx);
                 }
                 if (shouldTrackProvenance()) {
                     currentRow[sizeRow] = itrLeft->getNodeId();
@@ -485,8 +488,9 @@ void GBRuleExecutor::leftjoin(
             currentRow[idx] = el;
         }
         for(int idx = 0; idx < extraLeft; ++idx) {
+            assert(itrLeft->getNProofs() == 1);
             currentRow[copyVarPosLeft.size() + idx] =
-                itrLeft->getProvenanceOffset(idx);
+                itrLeft->getProvenanceOffset(0, idx);
         }
         if (shouldTrackProvenance()) {
             currentRow[sizeRow] = itrLeft->getNodeId();
@@ -584,6 +588,7 @@ void GBRuleExecutor::nestedloopjoin(
                 itrRight->next();
                 size_t i = 0;
                 itrLeft->reset();
+                assert(itrLeft->getNProofs() == 1);
                 while (i < countLeft) {
                     //Materialize the join
                     for(int idx = 0; idx < copyVarPosLeft.size(); ++idx) {
@@ -593,7 +598,7 @@ void GBRuleExecutor::nestedloopjoin(
                     }
                     for(int idx = 0; idx < extraLeft; ++idx) {
                         currentrow[copyVarPosLeft.size() + copyVarPosRight.size() + idx] =
-                            itrLeft->getProvenanceOffset(idx);
+                            itrLeft->getProvenanceOffset(0, idx);
                     }
                     for(int idx = 0; idx < copyVarPosRight.size(); ++idx) {
                         auto rightPos = copyVarPosRight[idx];
@@ -601,8 +606,9 @@ void GBRuleExecutor::nestedloopjoin(
                         currentrow[copyVarPosLeft.size() + idx] = value;
                     }
                     for(int idx = 0; idx < extraRight; ++idx) {
+                        assert(itrRight->getNProofs() == 1);
                         currentrow[copyVarPosLeft.size() + copyVarPosRight.size()
-                            + extraLeft + idx] = itrRight->getProvenanceOffset(idx);
+                            + extraLeft + idx] = itrRight->getProvenanceOffset(0, idx);
                     }
                     if (shouldTrackProvenance()) {
                         currentrow[sizeRow] = itrLeft->getNodeId();

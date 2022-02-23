@@ -1,4 +1,5 @@
 #include <glog/gbsegmentinserter.h>
+#include <glog/gbsegmentcomprprov.h>
 #include <glog/gbsegment.h>
 
 std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
@@ -25,6 +26,47 @@ std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
         //singleton
         return std::unique_ptr<GBSegmentInserter>(
                 new GBSegmentInserterNAry(card, card - nodeColumns, delDupl));
+    }
+}
+
+std::shared_ptr<const TGSegment> GBSegmentInserter::compressProvNode(
+        size_t nodeId, std::shared_ptr<const TGSegment> data)
+{
+    bool shouldCompress = false;
+
+    if (data->getNRows() > 1 &&
+            (data->getNColumns() == 1 || data->getNColumns() == 2))
+    {
+        auto itr = data->iterator();
+        Term_t v1, v2;
+        v1 = v2 = ~0ul;
+        shouldCompress = true;
+        while (itr->hasNext())
+        {
+            itr->next();
+            if (v1 == ~0ul)
+            {
+                v1 = itr->get(0);
+                v2 = itr->get(1);
+            } else {
+                if (itr->get(0) != v1 || itr->get(1) != v2)
+                {
+                    shouldCompress = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (shouldCompress)
+    {
+        LOG(DEBUGL) << "Compressing the data with " << data->getNRows() << " ...";
+        auto compressedData = std::shared_ptr<const TGSegment>(
+                new TGSegmentProvCompr(data->getProvenanceType(), nodeId, data));
+        return compressedData;
+    } else
+    {
+        return data;
     }
 }
 

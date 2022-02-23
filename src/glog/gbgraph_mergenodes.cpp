@@ -393,6 +393,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
             size_t idxRow = 0;
             while (itr->hasNext()) {
                 itr->next();
+                if (itr->getNProofs() == 1)
+                    throw 10; //Otherwise, it should be expanded
                 bool ok = true;
                 for(size_t j = 0; j < filterConstants.size(); ++j) {
                     if (filterConstants[j] != ~0ul) {
@@ -416,7 +418,7 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_general(
                                 //Copy the remaining offsets
                                 for(size_t j = 1; j < maxOffset; ++j) {
                                     tuples[copyVarPos.size() + j].push_back(
-                                            itr->getProvenanceOffset(j-1));
+                                            itr->getProvenanceOffset(0, j-1));
                                 }
                             }
                         }

@@ -472,6 +472,7 @@ void GBGraph::addNodeProv(PredId_t predid,
     auto itr = data->iterator();
     assert(itr->hasNext());
     itr->next();
+    assert(itr->getNProofs() == 1);
     auto values = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
     std::unique_ptr<Term_t[]> valuesOff;
     if (noffcols > 0)
@@ -481,10 +482,11 @@ void GBGraph::addNodeProv(PredId_t predid,
         values[i] = itr->get(i);
     }
     for(size_t i = 0; i < noffcols; ++i) {
-        valuesOff[i] = itr->getProvenanceOffset(i);
+        valuesOff[i] = itr->getProvenanceOffset(0, i);
     }
     while (itr->hasNext()) {
         itr->next();
+        assert(itr->getNProofs() == 1);
         bool equal = true;
         for(int i = 0; i < ncols; ++i) {
             if (itr->get(i) > values[i]) {
@@ -503,7 +505,7 @@ void GBGraph::addNodeProv(PredId_t predid,
                 //The offset should be different
                 equal = noffcols > 0;
                 for(size_t i = 0; i < noffcols; ++i) {
-                    if (itr->getProvenanceOffset(i) != valuesOff[i]) {
+                    if (itr->getProvenanceOffset(0, i) != valuesOff[i]) {
                         equal = false;
                         break;
                     }
@@ -518,7 +520,7 @@ void GBGraph::addNodeProv(PredId_t predid,
             values[i] = itr->get(i);
         }
         for(size_t i = 0; i < noffcols; ++i) {
-            valuesOff[i] = itr->getProvenanceOffset(i);
+            valuesOff[i] = itr->getProvenanceOffset(0, i);
         }
     }
 #endif
@@ -546,7 +548,8 @@ void GBGraph::addNodeProv(PredId_t predid,
                     auto itr = data->iterator();
                     while (itr->hasNext()) {
                         itr->next();
-                        auto off = itr->getProvenanceOffset(idxIncomingEdge);
+                        assert(itr->getNProofs() == 1);
+                        auto off = itr->getProvenanceOffset(0, idxIncomingEdge);
                         assert(off < card);
                     }
                     idxIncomingEdge += 1;
@@ -565,6 +568,8 @@ void GBGraph::addNodeProv(PredId_t predid,
 #endif
 
     auto nodeId = getNNodes();
+    data = GBSegmentInserter::compressProvNode(nodeId, data);
+
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
     outputNode.predid = predid;
@@ -627,7 +632,7 @@ void GBGraph::addNodeProv(PredId_t predid,
             if (i == 100)
                 break;
             auto derTree = q.getDerivationTree(nodeId, i);
-            if (!q.checkSoundnessDerivationTree(derTree)) {
+            if (!q.checkSoundnessDerivationTree(derTree, 100)) {
                 throw 10;
             }
             auto sFact = derTree.get("fact");

@@ -178,16 +178,20 @@ class TGSegment {
             return 0;
         }
 
+        virtual  size_t getNProofsAtRow(size_t rowIdx) const {
+            return 1;
+        }
+
         virtual bool isNodeConstant() const {
             return true;
         }
 
-        virtual std::vector<Term_t> getRow(size_t rowIdx) const {
+        virtual std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             throw 10;
         }
 
         virtual Term_t getOffsetAtRow(size_t rowIdx,
-                size_t offsetColumnIdx) const {
+                size_t proofNr, size_t offsetColumnIdx) const {
             throw 10;
         }
 

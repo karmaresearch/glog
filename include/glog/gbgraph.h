@@ -19,6 +19,23 @@ class GBGraph {
         } ProvenanceType;
 
     private:
+
+        struct GBGraph_PathDerivationTree {
+            size_t offset, nodeId;
+            bool tocheck;
+
+            GBGraph_PathDerivationTree() {
+                tocheck = false;
+            }
+
+            static bool pathSorter(
+                    const std::vector<GBGraph_PathDerivationTree> &a,
+                    const std::vector<GBGraph_PathDerivationTree> &b);
+
+            static void removePrefixes(std::vector<std::vector<
+                    GBGraph_PathDerivationTree>> &paths);
+        };
+
         struct GBGraph_Node {
             private:
                 std::shared_ptr<const TGSegment> data;
@@ -321,8 +338,8 @@ class GBGraph {
         void retainFromDerivationTree_getNodes(size_t nodeId,
                 size_t offsetNodeId,
                 PredId_t predId,
-                std::vector<std::pair<size_t,size_t>> currentPath,
-                std::vector<std::vector<std::pair<size_t,size_t>>> &out);
+                std::vector<GBGraph_PathDerivationTree> currentPath,
+                std::vector<std::vector<GBGraph_PathDerivationTree>> &out);
 
     public:
         GBGraph(ProvenanceType provenanceType,

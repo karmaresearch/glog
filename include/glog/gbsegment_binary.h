@@ -415,16 +415,21 @@ class BinaryWithConstNodeOffFullProvTGSegment : public BinaryTGSegmentImpl<
             }
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx).first);
             out.push_back(tuples->at(rowIdx).second);
-            out.push_back(nodeId);
-            out.push_back(rowIdx);
+            if (addProv)
+            {
+                out.push_back(nodeId);
+                out.push_back(rowIdx);
+            }
             return out;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr,
+                size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return rowIdx;
         }
@@ -619,19 +624,19 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
         }
 
         /*std::shared_ptr<TGSegment> slice(size_t nodeId,
-                const size_t start, const size_t end) const {
-            std::vector<BinWithOff,> out(end - start);
-            size_t m = 0;
-            for(size_t j = start; j < end; ++j) {
-                out[m] = tuples->at(j);
-                m++;
-            }
-            return std::shared_ptr<TGSegment>(
-                    new BinaryWithConstNodeFullProvTGSegment(out,
-                        nodeId,
-                        f_isSorted,
-                        sortedField));
-        }*/
+          const size_t start, const size_t end) const {
+          std::vector<BinWithOff,> out(end - start);
+          size_t m = 0;
+          for(size_t j = start; j < end; ++j) {
+          out[m] = tuples->at(j);
+          m++;
+          }
+          return std::shared_ptr<TGSegment>(
+          new BinaryWithConstNodeFullProvTGSegment(out,
+          nodeId,
+          f_isSorted,
+          sortedField));
+          }*/
 
         std::shared_ptr<const TGSegment> sortByProv() const {
             auto t = std::vector<BinWithOff>(
@@ -648,16 +653,21 @@ class BinaryWithConstNodeFullProvTGSegment : public BinaryTGSegmentImpl<
                         false, 0));
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx).first);
             out.push_back(tuples->at(rowIdx).second);
-            out.push_back(nodeId);
-            out.push_back(tuples->at(rowIdx).off);
+            if (addProv)
+            {
+                out.push_back(nodeId);
+                out.push_back(tuples->at(rowIdx).off);
+            }
             return out;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr,
+                size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return tuples->at(rowIdx).off;
         }
@@ -809,16 +819,21 @@ class BinaryWithFullProvTGSegment : public BinaryTGSegmentImpl<
                         SEG_FULLPROV>::getNodeId(), false, 0));
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx).first);
             out.push_back(tuples->at(rowIdx).second);
-            out.push_back(tuples->at(rowIdx).node);
-            out.push_back(tuples->at(rowIdx).prov);
+            if (addProv)
+            {
+                out.push_back(tuples->at(rowIdx).node);
+                out.push_back(tuples->at(rowIdx).prov);
+            }
             return out;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr,
+                size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return tuples->at(rowIdx).prov;
         }

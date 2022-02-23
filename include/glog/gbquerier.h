@@ -38,7 +38,7 @@ class GBQuerier {
                 size_t ruleIdx,
                 size_t step,
                 const std::vector<size_t> &incomingEdges,
-                std::vector<Literal> &out);
+                std::vector<std::vector<Literal>> &out);
 
         void exportEDBNode(JSON &out, Literal &l, size_t factId);
 
@@ -69,7 +69,7 @@ class GBQuerier {
         std::vector<Term_t> getLeavesInDerivationTree(
                 size_t nodeId,
                 size_t factId,
-                std::vector<Literal> &out);
+                std::vector<std::vector<Literal>> &out);
 
         std::vector<std::string> getListPredicates() const;
 
@@ -84,7 +84,7 @@ class GBQuerier {
         std::pair<std::vector<std::pair<size_t, size_t>>, std::vector<Term_t>>
             getAllFactsPredicate(std::string predName) const;
 
-        bool checkSoundnessDerivationTree(JSON &root);
+        bool checkSoundnessDerivationTree(JSON &root, size_t threshold = ~0ul);
 
 };
 

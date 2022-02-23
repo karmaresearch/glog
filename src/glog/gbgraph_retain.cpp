@@ -4,20 +4,24 @@
 void GBGraph::retainFromDerivationTree_getNodes(size_t nodeId,
         size_t offsetNodeId,
         PredId_t predId,
-        std::vector<std::pair<size_t,size_t>> currentPath,
-        std::vector<std::vector<std::pair<size_t,size_t>>> &out) {
+        std::vector<GBGraph_PathDerivationTree> currentPath,
+        std::vector<std::vector<GBGraph_PathDerivationTree>> &out) {
     assert(nodeId < getNNodes());
     auto r = getNodeRuleIdx(nodeId);
     if (r == ~0ul) {
         //Node is a node that has been manually added
         return;
     }
+    GBGraph_PathDerivationTree t;
+    t.offset = offsetNodeId;
+    t.nodeId = nodeId;
+    currentPath.push_back(t);
     Rule &rule = allRules[r];
     auto &heads = rule.getHeads();
     assert(heads.size() == 1);
     auto id = heads[0].getPredicate().getId();
-    currentPath.push_back(std::make_pair(nodeId,offsetNodeId));
     if (id == predId) {
+        currentPath.back().tocheck = true;
         out.push_back(currentPath);
     }
     auto &inc = getNodeIncomingEdges(nodeId);
@@ -26,6 +30,46 @@ void GBGraph::retainFromDerivationTree_getNodes(size_t nodeId,
         if (pNodeId != ~0ul) {
             retainFromDerivationTree_getNodes(pNodeId, i, predId, currentPath,
                     out);
+        }
+    }
+}
+
+bool GBGraph::GBGraph_PathDerivationTree::pathSorter(
+        const std::vector<GBGraph_PathDerivationTree> &a,
+        const std::vector<GBGraph_PathDerivationTree> &b) {
+    for(size_t i = 0; i < a.size() && i < b.size(); ++i)
+    {
+        if (a[i].nodeId != b[i].nodeId) {
+            return a[i].nodeId > b[i].nodeId;
+        } else {
+            if (a[i].offset != b[i].offset) {
+                return a[i].offset > b[i].offset;
+            }
+        }
+    }
+    return a.size() > b.size();
+}
+
+void GBGraph::GBGraph_PathDerivationTree::removePrefixes(
+        std::vector<std::vector<GBGraph_PathDerivationTree>> &paths)
+{
+    std::sort(paths.begin(), paths.end(), pathSorter);
+    for(int64_t j = paths.size() - 1; j >= 1; j--) {
+        auto &cp = paths[j];
+        auto &pp = paths[j-1];
+        bool isPrefix = true;
+        for(size_t m = 0; m < cp.size(); ++m) {
+            if (m >= pp.size()) {
+                isPrefix = false;
+                break;
+            }
+            if (cp[m].nodeId != pp[m].nodeId || cp[m].offset != pp[m].offset) {
+                isPrefix = false;
+                break;
+            }
+        }
+        if (isPrefix && pp.size() > cp.size()) {
+            paths.erase(paths.begin() + j);
         }
     }
 }
@@ -44,84 +88,112 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
         throw 10;
     }
 
-    size_t offsetColumn = 0;
-    std::vector<size_t> duplicateRowIdxs;
+    std::vector<std::vector<GBGraph_PathDerivationTree>> nodesToCheckAgainst;
     for(size_t i = 0; i < derivationNodes.size(); ++i) {
         size_t node = derivationNodes[i];
         if (node == ~0ul) {
-            offsetColumn++;
             continue;
+        } else {
+            //Search for nodes with predid=p
+            retainFromDerivationTree_getNodes(node, i, p,
+                    std::vector<GBGraph_PathDerivationTree>(),
+                    nodesToCheckAgainst);
         }
-        //Search for nodes with predid=p
-        std::vector<std::vector<std::pair<size_t,size_t>>> nodesToCheckAgainst;
-        retainFromDerivationTree_getNodes(node, i, p,
-                std::vector<std::pair<size_t, size_t>>(), nodesToCheckAgainst);
-        if (nodesToCheckAgainst.empty()) {
-            offsetColumn++;
-            continue;
-        }
+    }
 
-        //Fill the offsetMap
-        std::vector<std::pair<size_t, size_t>> offsetMap;
+    //Sort the nodes and retain only the longest paths
+    GBGraph_PathDerivationTree::removePrefixes(nodesToCheckAgainst);
+
+    std::vector<bool> toBeDeleted(newtuples->getNRows());
+
+    for(auto &pathNodeToCheckAgainst : nodesToCheckAgainst) {
+        auto offsetColumn = pathNodeToCheckAgainst.front().offset;
+
+        //Create offsetMap
+        std::vector<
+            std::tuple<size_t, size_t,std::vector<size_t>::iterator>> pathOffsetMap;
+        std::vector<size_t> rowStats(newtuples->getNRows());
         size_t idx = 0;
         auto itr = newtuples->iterator();
         while (itr->hasNext()) {
             itr->next();
-            offsetMap.push_back(std::make_pair(
-                        idx, itr->getProvenanceOffset(offsetColumn)));
+            if (!toBeDeleted[idx]) {
+                rowStats[idx] = itr->getNProofs();
+                pathOffsetMap.push_back(std::make_tuple(
+                            idx, itr->getProvenanceOffset(0, offsetColumn),
+                            rowStats.begin() + idx));
+                for(size_t j = 1; j < itr->getNProofs(); ++j) {
+                    pathOffsetMap.push_back(std::make_tuple(
+                                idx, itr->getProvenanceOffset(j, offsetColumn),
+                                rowStats.begin() + idx));
+                }
+            }
             idx++;
         }
-        for(auto &pathNodeToCheckAgainst : nodesToCheckAgainst) {
-            auto pathOffsetMap = offsetMap;
-            for(size_t j = 0; j < pathNodeToCheckAgainst.size(); ++j) {
-                auto n = pathNodeToCheckAgainst[j].first;
-                if (j == pathNodeToCheckAgainst.size() - 1) {
-                    auto newItr = newtuples->iterator();
-                    auto existData = getNodeData(n);
-                    size_t card = existData->getNColumns();
-                    size_t idx = 0;
-                    while (newItr->hasNext()) {
-                        newItr->next();
-                        bool equal = true;
-                        auto r = pathOffsetMap [idx].second;
-                        for(size_t z = 0; z < card; ++z) {
-                            if (existData->getValueAtRow(r, z) !=
-                                    newItr->get(z)) {
-                                equal = false;
-                                break;
-                            }
+        if (pathOffsetMap.empty()) {
+            break;
+        }
+
+        for(size_t j = 0; j < pathNodeToCheckAgainst.size(); ++j) {
+            auto n = pathNodeToCheckAgainst[j].nodeId;
+            if (pathNodeToCheckAgainst[j].tocheck) {
+                auto existData = getNodeData(n);
+                size_t card = existData->getNColumns();
+                for(int64_t m = pathOffsetMap.size() - 1; m >= 0; m--)
+                {
+                    const auto &p = pathOffsetMap[m];
+                    auto r = std::get<1>(p);
+                    bool equal = true;
+                    for(size_t z = 0; z < card; ++z) {
+                        if (existData->getValueAtRow(r, z) !=
+                                newtuples->getValueAtRow(std::get<0>(p), z)) {
+                            equal = false;
+                            break;
                         }
-                        if (equal) {
-                            duplicateRowIdxs.push_back(idx);
-                        }
-                        idx++;
                     }
-                } else {
-                    //Take the offset specified in the next node
-                    size_t off = pathNodeToCheckAgainst[j+1].second;
-                    auto d = getNodeData(n);
-                    for(size_t m = 0; m < pathOffsetMap.size(); ++m) {
-                        auto oldOff = pathOffsetMap[m].second;
-                        auto value = d->getOffsetAtRow(oldOff, off);
-                        pathOffsetMap[m].second = value;
+                    if (equal) {
+                        auto &counter = std::get<2>(p);
+                        assert((*counter) > 0);
+                        (*counter)--;
+                        if (*counter == 0) {
+                            toBeDeleted[std::get<0>(p)] = true;
+                        }
+                        pathOffsetMap.erase(pathOffsetMap.begin() + m);
+                    }
+                }
+            } else {
+                //Take the offset specified in the next node
+                size_t off = pathNodeToCheckAgainst[j+1].offset;
+                auto d = getNodeData(n);
+                for(int64_t m = pathOffsetMap.size() - 1; m >= 0; m--) {
+                    auto oldOff = std::get<1>(pathOffsetMap[m]);
+                    auto value = d->getOffsetAtRow(oldOff, 0, off);
+                    std::get<1>(pathOffsetMap[m]) = value;
+                    for (size_t j = 1; j < d->getNProofsAtRow(oldOff); ++j) {
+                        std::get<2>(pathOffsetMap[m])++;
+                        value = d->getOffsetAtRow(oldOff, j, off);
+                        pathOffsetMap.push_back(
+                                std::make_tuple(std::get<0>(pathOffsetMap[m]),
+                                    value,
+                                    std::get<2>(pathOffsetMap[m])));
                     }
                 }
             }
         }
-        offsetColumn++;
     }
 
+    std::vector<size_t> newRowIdxs;
+    for(size_t j = 0; j < toBeDeleted.size(); ++j)
+        if (!toBeDeleted[j])
+            newRowIdxs.push_back(j);
     std::shared_ptr<const TGSegment> out;
-    if (duplicateRowIdxs.empty()) {
+    if (newRowIdxs.size() == newtuples->getNRows()) {
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
         auto dur = end - start;
         durationRetain += dur;
         out = newtuples;
     } else {
-        std::sort(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
-        auto newend = std::unique(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
-        duplicateRowIdxs.erase(newend, duplicateRowIdxs.end());
-        const uint8_t ncols = newtuples->getNColumns();
+        /*const uint8_t ncols = newtuples->getNColumns();
         const size_t extracols = newtuples->getNOffsetColumns();
         auto inserter = GBSegmentInserter::getInserter(ncols + extracols,
                 extracols, false);
@@ -141,15 +213,16 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                 }
                 row[ncols] = itr->getNodeId();
                 for(size_t i = 1; i < extracols; ++i) {
-                    row[ncols + i] = itr->getProvenanceOffset(i-1);
+                    row[ncols + i] = itr->getProvenanceOffset(0, i-1);
                 }
 
                 //add the row
                 inserter->add(row);
             }
             rowIdx++;
-        }
-        if (inserter->getNRows() == 0) {
+        }*/
+
+        if (newRowIdxs.empty()) {
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             auto dur = end - start;
             durationRetain += dur;
@@ -158,8 +231,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             auto dur = end - start;
             durationRetain += dur;
-            out = inserter->getSegment(newtuples->getNodeId(), true, 0,
-                    getSegProvenanceType(), extracols);
+            out = newtuples->shuffle(newRowIdxs);
         }
     }
     return out;
@@ -360,6 +432,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         assert(node.data->getNodeId() < 0xFFFFFFFFFFl || node.data->getNodeId() == ~0ul);
         while (itr->hasNext()) {
             itr->next();
+            assert(itr->getNProofs() == 1);
             for(int i = 0; i < n_columns; ++i) {
                 row[i] = itr->get(i);
             }
@@ -370,7 +443,7 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
                     row[n_columns] = counter + itr->getNodeId();
                 }
                 for(int i = 1; i < max_offset_node; ++i) {
-                    row[n_columns + i] = itr->getProvenanceOffset(i-1);
+                    row[n_columns + i] = itr->getProvenanceOffset(0, i-1);
                 }
             } else {
                 row[n_columns] = counter;
@@ -380,7 +453,8 @@ void GBGraph::retainAndAddFromTmpNodes(PredId_t predId) {
         counter += (size_t)1 << 40;
     }
 
-    auto seg = inserter->getSegment(~0ul, false, 0, getSegProvenanceType(true), n_offsetcolumns);
+    auto seg = inserter->getSegment(~0ul, false, 0,
+            getSegProvenanceType(true), n_offsetcolumns);
     auto sortedSeg = seg->sort();
     auto uniqueSeg = sortedSeg->unique();
     auto retainedSeg = retain(predId, uniqueSeg);
@@ -443,6 +517,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
     bool constantNode = true;
     while (itr->hasNext()) {
         itr->next();
+        assert(itr->getNProofs() == 1);
         for(int i = 0; i < n_columns; ++i) {
             row[i] = itr->get(i);
         }
@@ -452,7 +527,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainAndAddFromTmpNodes_rewriteNode(
                 nodeId = ~0ul;
             row[n_columns] = nodeId;
             for(int i = 1; i < n_offsetcolumns; ++i) {
-                row[n_columns + i] = itr->getProvenanceOffset(i - 1);
+                row[n_columns + i] = itr->getProvenanceOffset(0, i - 1);
             }
             if (firstRow) {
                 currentNode = nodeId;
@@ -738,8 +813,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 if (extracols > 0) {
                     row[ncols] = rightItr->getNodeId();
                     assert(row[ncols] != ~0ul);
+                    assert(rightItr->getNProofs() == 1);
                     for(size_t i = 1; i < extracols; ++i) {
-                        row[ncols + i] = rightItr->getProvenanceOffset(i-1);
+                        row[ncols + i] = rightItr->getProvenanceOffset(0, i-1);
                     }
                 }
                 inserter->add(row);
@@ -768,8 +844,9 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                         if (extracols > 0) {
                             row[ncols] = itrTmp->getNodeId();
                             assert(row[ncols] != ~0ul);
+                            assert(itrTmp->getNProofs() == 1);
                             for(size_t i = 1; i < extracols; ++i) {
-                                row[ncols + i] = itrTmp->getProvenanceOffset(i-1);
+                                row[ncols + i] = itrTmp->getProvenanceOffset(0, i-1);
                             }
                         }
                         inserter->add(row);
@@ -787,9 +864,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 row[i] = rightItr->get(i);
             }
             if (extracols > 0) {
+                assert(rightItr->getNProofs() == 1);
                 row[ncols] = rightItr->getNodeId();
                 for(size_t i = 1; i < extracols; ++i) {
-                    row[ncols + i] = rightItr->getProvenanceOffset(i-1);
+                    row[ncols + i] = rightItr->getProvenanceOffset(0, i-1);
                 }
             }
             inserter->add(row);
@@ -800,9 +878,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                 row[i] = rightItr->get(i);
             }
             if (extracols > 0) {
+                assert(rightItr->getNProofs() == 1);
                 row[ncols] = rightItr->getNodeId();
                 for(size_t i = 1; i < extracols; ++i) {
-                    row[ncols + i] = rightItr->getProvenanceOffset(i-1);
+                    row[ncols + i] = rightItr->getProvenanceOffset(0, i-1);
                 }
             }
             inserter->add(row);
@@ -829,9 +908,10 @@ std::shared_ptr<const TGSegment> GBGraph::retainVsNodeFast_generic(
                             row[i] = itrTmp->get(i);
                         }
                         if (extracols > 0) {
+                            assert(itrTmp->getNProofs() == 1);
                             row[ncols] = itrTmp->getNodeId();
                             for(size_t i = 1; i < extracols; ++i) {
-                                row[ncols + i] = itrTmp->getProvenanceOffset(i-1);
+                                row[ncols + i] = itrTmp->getProvenanceOffset(0, i-1);
                             }
                         }
                         inserter->add(row);

@@ -13,16 +13,25 @@ std::unique_ptr<TGSegmentItr> TGSegmentLegacy::iterator(
             new TGSegmentLegacyItr(columns, provenanceType, nprovcolumns));
 }
 
-std::vector<Term_t> TGSegmentLegacy::getRow(size_t rowIdx) const {
+std::vector<Term_t> TGSegmentLegacy::getRow(size_t rowIdx, bool addProv) const {
     std::vector<Term_t> out;
-    for(auto c : columns) {
-        out.push_back(c->getValue(rowIdx));
+    if (addProv)
+    {
+        for(auto c : columns) {
+            out.push_back(c->getValue(rowIdx));
+        }
+    } else
+    {
+        for(size_t i = 0; i < columns.size() - nprovcolumns; ++i)
+            out.push_back(columns[i]->getValue(rowIdx));
     }
     return out;
 }
 
 Term_t TGSegmentLegacy::getOffsetAtRow(size_t rowIdx,
+        size_t proofNr,
         size_t offsetColumnIdx) const {
+    assert(proofNr == 0);
     assert(rowIdx < getNRows());
     assert(offsetColumnIdx < nprovcolumns - 1);
     auto c = columns[columns.size() - nprovcolumns + 1 + offsetColumnIdx];

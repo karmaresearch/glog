@@ -25,10 +25,10 @@ struct BinWithProv {
 
 struct BinWithOff {
     size_t first, second, off;
-    
+
     BinWithOff() : first(0), second(0), off(0) {
     }
-    
+
     BinWithOff(size_t first, size_t second) : first(first), second(second) {
     }
 
@@ -82,7 +82,7 @@ class TGSegmentItr {
 
         virtual size_t getNodeId() const = 0;
 
-        virtual size_t getProvenanceOffset(int pos) const = 0;
+        virtual size_t getProvenanceOffset(size_t proofNr, int pos) const = 0;
 
         //virtual size_t getOffset() const = 0;
 
@@ -121,7 +121,73 @@ class TGSegmentItr {
             return 0;
         }
 
+        virtual size_t getNProofs() const
+        {
+            return 1;
+        }
+
         virtual ~TGSegmentItr() {}
+};
+
+class TGSegmentCompProvItr : public TGSegmentItr {
+    private:
+        const SegProvenanceType provenanceType;
+        const size_t nodeId;
+        const size_t arity;
+        const std::vector<Term_t> &data;
+
+        int64_t m_currentIdx;
+        int64_t currentIdx;
+
+        bool shouldTrackProvenance() const {
+            return provenanceType != SEG_NOPROV;
+        }
+
+    public:
+        TGSegmentCompProvItr(const SegProvenanceType provenanceType,
+                size_t nodeId, size_t arity,
+                const std::vector<Term_t> &data) :
+            provenanceType(provenanceType), nodeId(nodeId),
+            arity(arity), data(data)
+    {
+        currentIdx = -1;
+    }
+
+        bool hasNext() {
+            return currentIdx < data.size() - 1;
+        }
+
+        void next() {
+            currentIdx += arity;
+        }
+
+        void mark() {
+            m_currentIdx = currentIdx;
+        }
+
+        void reset() {
+            currentIdx = m_currentIdx;
+        }
+
+        Term_t get(const int colIdx) {
+            return data[currentIdx + colIdx];
+        }
+
+        size_t getNodeId() const {
+            return nodeId;
+        }
+
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            throw 10;
+        }
+
+        int getNFields() const {
+            return arity;
+        }
+
+        size_t getNProofs() const {
+            throw 10; //to implement
+        }
 };
 
 class TGSegmentLegacyItr : public TGSegmentItr {
@@ -195,10 +261,11 @@ class TGSegmentLegacyItr : public TGSegmentItr {
         }
 
         /*size_t getOffset() const {
-            return counter;
-        }*/
+          return counter;
+          }*/
 
-        size_t getProvenanceOffset(int pos) const {
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            assert(proofNr == 0);
             return values[columns.size() - nprovcolumns + pos + 1];
         }
 
@@ -252,7 +319,7 @@ class TGSegmentImplItr : public TGSegmentItr {
         //    return currentIdx;
         //}
 
-        virtual size_t getProvenanceOffset(int pos) const {
+        virtual size_t getProvenanceOffset(size_t proofNr, int pos) const {
             throw 10;
         }
 
@@ -304,7 +371,8 @@ class UnaryWithConstNodeFullProvTGSegmentItr : public TGSegmentImplItr<std::pair
 
         int getNFields() const { return 1; }
 
-        size_t getProvenanceOffset(int pos) const {
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            assert(proofNr == 0);
             if (pos == 0)
                 return tuples[currentIdx].second;
             else
@@ -329,7 +397,8 @@ class UnaryWithFullProvTGSegmentItr : public TGSegmentImplItr<UnWithFullProv> {
             return tuples[currentIdx].node;
         }
 
-        size_t getProvenanceOffset(int pos) const {
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            assert(proofNr == 0);
             if (pos == 0)
                 return tuples[currentIdx].prov;
             else
@@ -394,7 +463,8 @@ class BinaryWithOffTGSegmentItr : public TGSegmentImplItr<BinWithOff> {
 
         int getNFields() const { return 2; }
 
-        size_t getProvenanceOffset(int pos) const {
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            assert(proofNr == 0);
             if (pos == 0)
                 return tuples[currentIdx].off;
             else
@@ -424,7 +494,8 @@ class BinaryWithFullProvTGSegmentItr : public TGSegmentImplItr<BinWithFullProv> 
             return tuples[currentIdx].node;
         }
 
-        size_t getProvenanceOffset(int pos) const {
+        size_t getProvenanceOffset(size_t proofNr, int pos) const {
+            assert(proofNr == 0);
             if (pos == 0)
                 return tuples[currentIdx].prov;
             else

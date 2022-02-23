@@ -259,11 +259,14 @@ class UnaryWithConstNodeOffFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWi
             return 2;
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx));
-            out.push_back(nodeId);
-            out.push_back(rowIdx);
+            if (addProv)
+            {
+                out.push_back(nodeId);
+                out.push_back(rowIdx);
+            }
             return out;
         }
 
@@ -272,7 +275,8 @@ class UnaryWithConstNodeOffFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWi
             throw 10;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr, size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return rowIdx;
         }
@@ -327,7 +331,8 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             return 2;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr, size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return tuples->at(rowIdx).second;
         }
@@ -351,11 +356,14 @@ class UnaryWithConstNodeFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithC
             }
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx).first);
-            out.push_back(nodeId);
-            out.push_back(tuples->at(rowIdx).second);
+            if (addProv)
+            {
+                out.push_back(nodeId);
+                out.push_back(tuples->at(rowIdx).second);
+            }
             return out;
         }
 
@@ -507,15 +515,19 @@ class UnaryWithFullProvTGSegment : public UnaryTGSegmentImpl<UnaryWithFullProvTG
                         sortedField));
         }
 
-        std::vector<Term_t> getRow(size_t rowIdx) const {
+        std::vector<Term_t> getRow(size_t rowIdx, bool addProv) const {
             std::vector<Term_t> out;
             out.push_back(tuples->at(rowIdx).first);
-            out.push_back(tuples->at(rowIdx).node);
-            out.push_back(tuples->at(rowIdx).prov);
+            if (addProv)
+            {
+                out.push_back(tuples->at(rowIdx).node);
+                out.push_back(tuples->at(rowIdx).prov);
+            }
             return out;
         }
 
-        Term_t getOffsetAtRow(size_t rowIdx, size_t offsetColumnIdx) const {
+        Term_t getOffsetAtRow(size_t rowIdx, size_t proofNr, size_t offsetColumnIdx) const {
+            assert(proofNr == 0);
             assert(offsetColumnIdx == 0 && rowIdx < tuples->size());
             return tuples->at(rowIdx).prov;
         }

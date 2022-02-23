@@ -229,9 +229,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addConstants(
             row[p.second] = itr->get(p.first);
         }
         if (tg->getNOffsetColumns() > 0) {
+    assert(itr->getNProofs() == 1);
             row[nTerms] = itr->getNodeId();
             for(size_t i = 1; i < tg->getNOffsetColumns(); ++i) {
-                row[nTerms + i] = itr->getProvenanceOffset(i-1);
+                row[nTerms + i] = itr->getProvenanceOffset(0, i-1);
             }
         }
         ins->add(row.get());
@@ -523,9 +524,10 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
             for(size_t i = 0; i < output->getNColumns(); ++i) {
                 row[i] = itr->get(i);
             }
+    assert(itr->getNProofs() == 1);
             row[output->getNColumns()] = itr->getNodeId();
             for(size_t i = 1; i < output->getNOffsetColumns(); ++i) {
-                row[output->getNColumns() + i] = itr->getProvenanceOffset(i-1);
+                row[output->getNColumns() + i] = itr->getProvenanceOffset(0, i-1);
             }
             inserter->add(row.get());
         }

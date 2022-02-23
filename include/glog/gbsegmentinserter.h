@@ -44,6 +44,9 @@ class GBSegmentInserter {
                 size_t nodeColumns, //n. columns which contain nodes
                 bool delDupl);
 
+        static std::shared_ptr<const TGSegment> compressProvNode(
+                size_t nodeId, std::shared_ptr<const TGSegment> data);
+
         void addBuiltinFunctions(std::vector<BuiltinFunction> &fns) {
             this->fns = fns;
         }
