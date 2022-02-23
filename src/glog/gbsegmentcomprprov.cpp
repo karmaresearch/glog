@@ -204,3 +204,19 @@ void TGSegmentProvCompr::appendTo(uint8_t colPos1, uint8_t colPos2,
         out.push_back(v);
     }
 }
+
+void TGSegmentProvCompr::appendTo(uint8_t colPos,
+        std::vector<UnWithFullProv> &out) const
+{
+    auto itr = iterator();
+    size_t counter = 0;
+    while (itr->hasNext())
+    {
+        itr->next();
+        UnWithFullProv v;
+        v.first = itr->get(colPos);
+        v.node = nodeId;
+        v.prov= counter++;
+        out.push_back(v);
+    }
+}
