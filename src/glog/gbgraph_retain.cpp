@@ -161,7 +161,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                         pathOffsetMap.erase(pathOffsetMap.begin() + m);
                     }
                 }
-            } else {
+            }
+            if (j < pathNodeToCheckAgainst.size() - 1) {
                 //Take the offset specified in the next node
                 size_t off = pathNodeToCheckAgainst[j+1].offset;
                 auto d = getNodeData(n);
