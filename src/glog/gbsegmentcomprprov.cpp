@@ -74,9 +74,9 @@ bool TGSegmentProvCompr::isEmpty() const
 std::vector<Term_t> TGSegmentProvCompr::getRow(size_t rowIdx, bool addProv) const
 {
     assert(addProv == false);
-    assert(data.size() == arity); //Otherwise, must implement linear search
     std::vector<Term_t> out;
-    for(int i = 0; i < arity; ++i)
+    size_t startIdx = rowIdx * arity;
+    for(int i = startIdx; i < startIdx + arity; ++i)
     {
         out.push_back(data[i]);
     }

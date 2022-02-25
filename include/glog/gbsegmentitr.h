@@ -154,7 +154,7 @@ class TGSegmentCompProvItr : public TGSegmentItr {
     }
 
         bool hasNext() {
-            return currentIdx < data.size() - 1;
+            return currentIdx < (int64_t)(data.size() - 1);
         }
 
         void next() {
