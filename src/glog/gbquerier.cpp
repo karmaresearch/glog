@@ -77,14 +77,14 @@ void DuplicateChecker::pushFact(const PredId_t &p,
     idxLastElement++;
 }
 
-void DuplicateChecker::mark()
+size_t DuplicateChecker::getMark()
 {
-    idxMark = idxLastElement;
+    return idxLastElement;
 }
 
-void DuplicateChecker::reset()
+void DuplicateChecker::setMark(size_t mark)
 {
-    idxLastElement = idxMark;
+    idxLastElement = mark;
 }
 
 JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId)
@@ -253,11 +253,11 @@ bool GBQuerier::getLeaves(
         auto nOffsetColumns = data->getNOffsetColumns();
         size_t branching = 0;
         branching = out.back().size();
-        checker->mark();
+        size_t mark = checker->getMark();
         for (size_t proofId = 0; proofId < nProofs; ++proofId)
         {
             if (proofId > 0) {
-                checker->reset();
+                checker->setMark(mark);
                 checker->setEnabled();
                 assert(out.size() > 0);
                 std::vector<Literal> lastProof(out.back().begin(),
@@ -594,11 +594,16 @@ bool GBQuerier::exportNode(JSON &out,
         auto nOffsets = data->getNOffsetColumns() - 1;
         auto bodyLiterals = p.getRule(ruleIdx).getBody();
 
+#ifdef COMPRPROOFS
+        size_t mark = checker->getMark();
+#endif
+
         for (size_t proofId = 0; proofId < nproofs; ++proofId)
         {
             JSON parents;
 
 #ifdef COMPRPROOFS
+            checker->setMark(mark);
             if (checker && proofId > 0) {
                 checker->setEnabled();
             }

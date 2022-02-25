@@ -9,7 +9,7 @@
 
 #include <string>
 
-#define MAX_LENGTH 20
+#define MAX_LENGTH 100
 #define MAX_TUPLE_ARITY 3
         class DuplicateChecker
         {
@@ -18,7 +18,6 @@
                 std::vector<std::pair<PredId_t, int>> predicates;
                 std::vector<Term_t> tuples;
                 size_t idxLastElement;
-                size_t idxMark;
 
             public:
                 DuplicateChecker() :
@@ -33,8 +32,8 @@
                 void pushFact(const Literal &l);
                 void pushFact(const PredId_t &p, int arity,
                         const std::vector<Term_t> &row);
-                void mark();
-                void reset();
+                size_t getMark();
+                void setMark(size_t mark);
         };
 
 
