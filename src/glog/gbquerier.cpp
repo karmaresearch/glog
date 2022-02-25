@@ -1,12 +1,111 @@
 #include <glog/gbquerier.h>
 
-JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId) {
+bool DuplicateChecker::isRedundant(const Literal &l) const
+{
+    for(size_t i = 0; i < idxLastElement; ++i)
+    {
+        if (l.getPredicate().getId() == predicates[i].first)
+        {
+            bool redundant = true;
+            size_t startIdx = i * MAX_TUPLE_ARITY;
+            for(size_t j = 0; j < predicates[i].second; ++j)
+            {
+                if (tuples[startIdx + j] != l.getTermAtPos(j).getValue()) {
+                    redundant = false;
+                    break;
+                }
+            }
+            if (redundant)
+                return true;
+        }
+    }
+    return false;
+}
+
+bool DuplicateChecker::isRedundant(const PredId_t &p,
+        const std::vector<Term_t> &row) const
+{
+    for(size_t i = 0; i < idxLastElement; ++i)
+    {
+        if (p == predicates[i].first)
+        {
+            bool redundant = true;
+            size_t startIdx = i * MAX_TUPLE_ARITY;
+            for(size_t j = 0; j < predicates[i].second; ++j)
+            {
+                if (tuples[startIdx + j] != row[j]) {
+                    redundant = false;
+                    break;
+                }
+            }
+            if (redundant)
+                return true;
+        }
+    }
+    return false;
+
+}
+
+void DuplicateChecker::pushFact(const Literal &l)
+{
+    if (idxLastElement >= MAX_LENGTH)
+    {
+        LOG(ERRORL) << "Max length has been reached";
+        throw 10;
+    }
+    predicates[idxLastElement] = std::make_pair(l.getPredicate().getId(),
+            l.getTupleSize());
+    size_t startIdx = idxLastElement * MAX_TUPLE_ARITY;
+    for(size_t i = 0; i < l.getTupleSize(); ++i)
+        tuples[startIdx + i] = l.getTermAtPos(i).getValue();
+    idxLastElement++;
+}
+
+void DuplicateChecker::pushFact(const PredId_t &p,
+        const int arity,
+        const std::vector<Term_t> &row)
+{
+    if (idxLastElement >= MAX_LENGTH)
+    {
+        LOG(ERRORL) << "Max length has been reached";
+        throw 10;
+    }
+    predicates[idxLastElement] = std::make_pair(p, arity);
+    size_t startIdx = idxLastElement * MAX_TUPLE_ARITY;
+    for(size_t i = 0; i < arity; ++i)
+        tuples[startIdx + i] = row[i];
+    idxLastElement++;
+}
+
+void DuplicateChecker::mark()
+{
+    idxMark = idxLastElement;
+}
+
+void DuplicateChecker::reset()
+{
+    idxLastElement = idxMark;
+}
+
+JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId)
+{
+#ifdef COMPRPROOFS
+    DuplicateChecker checker;
+    return getDerivationTree(nodeId, factId, &checker);
+#else
+    return getDerivationTree(nodeId, factId, NULL);
+#endif
+}
+
+JSON GBQuerier::getDerivationTree(size_t nodeId, size_t factId,
+        DuplicateChecker *checker) {
     JSON out;
     if (nodeId >= g.getNNodes() ||
             factId >= g.getNodeSize(nodeId)) {
         return out;
     }
-    exportNode(out, nodeId, factId);
+    bool ok = exportNode(out, nodeId, factId, checker);
+    assert(ok);
     return out;
 }
 
@@ -17,24 +116,49 @@ JSON GBQuerier::getDerivationTree(
         PredId_t predId,
         size_t ruleIdx,
         size_t step,
-        const std::vector<size_t> &incomingEdges)
+        const std::vector<size_t> &incomingEdges,
+        DuplicateChecker *checker)
 {
     JSON out;
-    exportNode(out, nodeId, factId, predId, data, ruleIdx, step, incomingEdges);
+    exportNode(out, nodeId, factId, predId, data, ruleIdx, step, incomingEdges,
+            checker);
     return out;
+}
+
+void GBQuerier::getLeavesInDerivationTree(
+        size_t nodeId,
+        size_t factId,
+        std::vector<std::vector<Literal>> &out)
+{
+    bool valid = true;
+#ifdef COMPRPROOFS
+    DuplicateChecker checker;
+    assert(out.size() == 1);
+    const auto &leaves = getLeavesInDerivationTree(nodeId, factId, out, valid,
+            &checker);
+    if (!valid) {
+        out.erase(out.begin(), out.begin() + 1);
+        assert(!out.empty());
+    }
+#else
+    getLeavesInDerivationTree(nodeId, factId, out, valid, NULL);
+#endif
 }
 
 std::vector<Term_t> GBQuerier::getLeavesInDerivationTree(
         size_t nodeId,
         size_t factId,
-        std::vector<std::vector<Literal>> &out)
+        std::vector<std::vector<Literal>> &out,
+        bool &validProof,
+        DuplicateChecker *checker)
 {
     auto nodePred = g.getNodePredicate(nodeId);
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
     size_t step = g.getNodeStep(nodeId);
     auto &incomingEdges = g.getNodeIncomingEdges(nodeId);
-    getLeaves(nodeId, factId, nodePred, data, ruleIdx, step, incomingEdges, out);
+    validProof = getLeaves(nodeId, factId, nodePred, data, ruleIdx, step,
+            incomingEdges, out, checker);
     return data->getRow(factId, false);
 }
 
@@ -98,35 +222,53 @@ Literal GBQuerier::ground(const Literal &l, const std::vector<
     return Literal(l.getPredicate(), tuple);
 }
 
-void GBQuerier::getLeaves(
+bool GBQuerier::getLeaves(
         size_t nodeId, size_t factId,
         PredId_t nodePred,
         std::shared_ptr<const TGSegment> data,
         size_t ruleIdx,
         size_t step,
         const std::vector<size_t> &incomingEdges,
-        std::vector<std::vector<Literal>> &out)
+        std::vector<std::vector<Literal>> &out,
+        DuplicateChecker *checker)
 {
+    bool returnValue = true;
+
     if (ruleIdx != ~0ul) {
         auto ie = incomingEdges;
+        const auto &rule = p.getRule(ruleIdx);
         auto nProofs = data->getNProofsAtRow(factId);
         auto row = data->getRow(factId, false);
-        //size_t begin = data->getNColumns() + 1; //Skip the node
-        //size_t end = data->getNColumns() + data->getNOffsetColumns();
+
+#ifdef COMPRPROOFS
+        if (checker != NULL)
+        {
+            if (checker->isEnabled() && checker->isRedundant(nodePred, row)) {
+                return false;
+            }
+            checker->pushFact(nodePred, data->getNColumns(), row);
+        }
+#endif
+
         auto nOffsetColumns = data->getNOffsetColumns();
+        size_t branching = 0;
+        branching = out.back().size();
+        checker->mark();
         for (size_t proofId = 0; proofId < nProofs; ++proofId)
         {
             if (proofId > 0) {
+                checker->reset();
+                checker->setEnabled();
                 assert(out.size() > 0);
-                std::vector<Literal> lastProof(out.back());
+                std::vector<Literal> lastProof(out.back().begin(),
+                        out.back().begin() + branching);
                 out.push_back(lastProof);
             }
             size_t j = 0;
             auto bodyLiterals = p.getRule(ruleIdx).getBody();
-
+            bool validProof = true;
             std::vector<std::pair<Term_t, Term_t>> mappings;
-            getMappings(p.getRule(ruleIdx).getHeads()[0], row, mappings);
-
+            getMappings(rule.getHeads()[0], row, mappings);
             for(size_t i = 0; i < nOffsetColumns; ++i) {
                 auto bodyLiteral = bodyLiterals[i];
                 auto offset = data->getOffsetAtRow(factId, proofId, i);
@@ -139,7 +281,8 @@ void GBQuerier::getLeaves(
                     j++;
                 } else if (bodyLiteral.getPredicate().getType() == EDB) {
                     bool isFullyGrounded = true;
-                    auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
+                    auto groundedAtom = ground(bodyLiteral, mappings,
+                            isFullyGrounded);
                     if (isFullyGrounded)
                     {
                         out.back().push_back(groundedAtom);
@@ -152,10 +295,25 @@ void GBQuerier::getLeaves(
                 } else {
                     auto nodeId = ie[j];
                     assert(nodeId != ~0ul);
+                    bool isValid = true;
                     std::vector<Term_t> row =
-                        getLeavesInDerivationTree(nodeId, offset, out);
+                        getLeavesInDerivationTree(nodeId, offset, out, isValid,
+                                checker);
+                    if (!isValid)
+                    {
+                        validProof = false;
+                        break;
+                    }
                     getMappings(bodyLiteral, row, mappings);
                     j++;
+                }
+            }
+            if (!validProof) {
+                if (proofId > 0) {
+                    //Remove the branch
+                    out.pop_back();
+                } else {
+                    returnValue = false;
                 }
             }
         }
@@ -163,6 +321,7 @@ void GBQuerier::getLeaves(
         //TODO: I'm not sure what to do here, this happens with magic atoms
         throw 10;
     }
+    return returnValue;
 }
 
 Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
@@ -380,7 +539,8 @@ bool GBQuerier::checkSoundnessDerivationTree(JSON &root, size_t threshold)
     return response;
 }
 
-void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId)
+bool GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId,
+        DuplicateChecker *checker)
 {
     auto data = g.getNodeData(nodeId);
     size_t ruleIdx = g.getNodeRuleIdx(nodeId);
@@ -388,16 +548,17 @@ void GBQuerier::exportNode(JSON &out, size_t nodeId, size_t factId)
     auto nodePred = g.getNodePredicate(nodeId);
     auto incomingEdges = g.getNodeIncomingEdges(nodeId);
     return exportNode(out, nodeId, factId, nodePred, data, ruleIdx, step,
-            incomingEdges);
+            incomingEdges, checker);
 }
 
-void GBQuerier::exportNode(JSON &out,
+bool GBQuerier::exportNode(JSON &out,
         size_t nodeId, size_t factId,
         PredId_t nodePred,
         std::shared_ptr<const TGSegment> data,
         size_t ruleIdx,
         size_t step,
-        const std::vector<size_t> &incomingEdges)
+        const std::vector<size_t> &incomingEdges,
+        DuplicateChecker *checker)
 {
     std::string sRule = "";
     if (ruleIdx != ~0ul)
@@ -415,6 +576,15 @@ void GBQuerier::exportNode(JSON &out,
     out.put("fact", f.toprettystring(&p, &l));
     out.put("tupleIds", getTupleIDs(f));
 
+#ifdef COMPRPROOFS
+    assert(checker != NULL);
+    if (checker->isEnabled() && checker->isRedundant(f))
+    {
+        return false;
+    }
+    checker->pushFact(f);
+#endif
+
     //Add the parents
     JSON par;
     if (ruleIdx != ~0ul) {
@@ -427,6 +597,14 @@ void GBQuerier::exportNode(JSON &out,
         for (size_t proofId = 0; proofId < nproofs; ++proofId)
         {
             JSON parents;
+
+#ifdef COMPRPROOFS
+            if (checker && proofId > 0) {
+                checker->setEnabled();
+            }
+            bool isProofOk = true;
+#endif
+
             size_t j = 0;
             std::map<Var_t, Term_t> mappings;
             for(size_t i = 0; i < nOffsets; ++i) {
@@ -459,7 +637,13 @@ void GBQuerier::exportNode(JSON &out,
                     }
                 } else {
                     auto nodeId = ie[j];
-                    exportNode(parentNode, nodeId, offset);
+                    bool ok = exportNode(parentNode, nodeId, offset, checker);
+#ifdef COMPRPROOFS
+                    if (!ok) {
+                        isProofOk = false;
+                        break;
+                    }
+#endif
                     j++;
                 }
 
@@ -477,10 +661,17 @@ void GBQuerier::exportNode(JSON &out,
                 }
                 parents.push_back(parentNode);
             }
+#ifdef COMPRPROOFS
+            if (isProofOk) {
+                par.push_back(parents);
+            }
+#else
             par.push_back(parents);
+#endif
         }
     }
     out.add_child("parents", par);
+    return true;
 }
 
 std::vector<std::string> GBQuerier::getListPredicates() const {

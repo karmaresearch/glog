@@ -9,6 +9,35 @@
 
 #include <string>
 
+#define MAX_LENGTH 20
+#define MAX_TUPLE_ARITY 3
+        class DuplicateChecker
+        {
+            private:
+                bool enabled;
+                std::vector<std::pair<PredId_t, int>> predicates;
+                std::vector<Term_t> tuples;
+                size_t idxLastElement;
+                size_t idxMark;
+
+            public:
+                DuplicateChecker() :
+                    enabled(false), predicates(MAX_LENGTH),
+                    tuples(MAX_TUPLE_ARITY * MAX_LENGTH),
+                    idxLastElement(0) {}
+                bool isEnabled() const { return enabled;}
+                void setEnabled() { enabled = true; }
+                bool isRedundant(const Literal &l) const;
+                bool isRedundant(const PredId_t &p,
+                        const std::vector<Term_t> &row) const;
+                void pushFact(const Literal &l);
+                void pushFact(const PredId_t &p, int arity,
+                        const std::vector<Term_t> &row);
+                void mark();
+                void reset();
+        };
+
+
 class GBQuerier {
     private:
         const GBGraph &g;
@@ -20,25 +49,28 @@ class GBQuerier {
 
         std::string getTupleIDs(Literal &l);
 
-        void exportNode(JSON &out, size_t nodeId, size_t factId);
+        bool exportNode(JSON &out, size_t nodeId, size_t factId,
+                DuplicateChecker *checker);
 
-        void exportNode(
+        bool exportNode(
                 JSON &out,
                 size_t nodeId, size_t factId,
                 PredId_t nodePred,
                 std::shared_ptr<const TGSegment> data,
                 size_t ruleIdx,
                 size_t step,
-                const std::vector<size_t> &incomingEdges);
+                const std::vector<size_t> &incomingEdges,
+                DuplicateChecker *checker);
 
-        void getLeaves(
+        bool getLeaves(
                 size_t nodeId, size_t factId,
                 PredId_t nodePred,
                 std::shared_ptr<const TGSegment> data,
                 size_t ruleIdx,
                 size_t step,
                 const std::vector<size_t> &incomingEdges,
-                std::vector<std::vector<Literal>> &out);
+                std::vector<std::vector<Literal>> &out,
+                DuplicateChecker *checker);
 
         void exportEDBNode(JSON &out, Literal &l, size_t factId);
 
@@ -52,6 +84,16 @@ class GBQuerier {
                 std::pair<Term_t, Term_t>> &mappings,
                 bool &ok);
 
+        JSON getDerivationTree(size_t nodeId, size_t factId,
+                DuplicateChecker *checker);
+
+        std::vector<Term_t> getLeavesInDerivationTree(
+                size_t nodeId,
+                size_t factId,
+                std::vector<std::vector<Literal>> &out,
+                bool &validProof,
+                DuplicateChecker *checker);
+
     public:
         GBQuerier(const GBGraph &g, Program &p, EDBLayer &l) : g(g), p(p), l(l) {}
 
@@ -64,9 +106,10 @@ class GBQuerier {
                 PredId_t predId,
                 size_t ruleIdx,
                 size_t step,
-                const std::vector<size_t> &incomingEdges);
+                const std::vector<size_t> &incomingEdges,
+                DuplicateChecker *checker);
 
-        std::vector<Term_t> getLeavesInDerivationTree(
+        void getLeavesInDerivationTree(
                 size_t nodeId,
                 size_t factId,
                 std::vector<std::vector<Literal>> &out);

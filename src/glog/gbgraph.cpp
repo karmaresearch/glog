@@ -568,7 +568,10 @@ void GBGraph::addNodeProv(PredId_t predid,
 #endif
 
     auto nodeId = getNNodes();
+
+#ifdef COMPRPROOFS
     data = GBSegmentInserter::compressProvNode(nodeId, data);
+#endif
 
     nodes.emplace_back();
     GBGraph_Node &outputNode = nodes.back();
