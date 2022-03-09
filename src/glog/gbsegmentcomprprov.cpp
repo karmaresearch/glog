@@ -36,8 +36,8 @@ TGSegmentProvCompr::TGSegmentProvCompr(
                 data.push_back(itr->get(i));
             }
             provenance_startend.push_back(std::make_pair(
-                        provenance_startend.size(),
-                        provenance_startend.size()));
+                        provenance_offsets.size(),
+                        provenance_offsets.size()));
             for (size_t i = 0; i < this->arity; ++i)
                 vs[i] = itr->get(i);
         }
