@@ -220,3 +220,8 @@ void TGSegmentProvCompr::appendTo(uint8_t colPos,
         out.push_back(v);
     }
 }
+
+Term_t TGSegmentProvCompr::getValueAtRow(size_t rowIdx, size_t colIdx) const
+{
+    return data[rowIdx * arity + colIdx];
+}
