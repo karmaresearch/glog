@@ -150,11 +150,11 @@ class TGSegmentCompProvItr : public TGSegmentItr {
             provenanceType(provenanceType), nodeId(nodeId),
             arity(arity), data(data)
     {
-        currentIdx = -1;
+        currentIdx = -arity;
     }
 
         bool hasNext() {
-            return currentIdx < (int64_t)(data.size() - 1);
+            return currentIdx < (int64_t)(data.size() - arity);
         }
 
         void next() {
