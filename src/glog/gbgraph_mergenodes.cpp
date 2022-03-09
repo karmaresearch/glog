@@ -109,6 +109,8 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
                 throw 10;
             } else if (maxOffset == 2) {
                 std::vector<UnWithFullProv> tuples;
+                bool isSorted = replaceOffsets;
+                Term_t prevElement = 0;
                 for(auto idbBodyAtomIdx : nodeIdxs) {
                     size_t start = tuples.size();
                     getNodeData(idbBodyAtomIdx)->appendTo(
@@ -117,14 +119,26 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
                         if (!isTmpNode(idbBodyAtomIdx)) {
                             for(size_t i = start; i < tuples.size(); ++i) {
                                 tuples[i].prov = i - start;
+                                if (isSorted && tuples[i].first < prevElement) {
+                                    isSorted = false;
+                                } else {
+                                    prevElement = tuples[i].first;
+                                }
                             }
                         }
                     }
                 }
 
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithFullProvTGSegment(tuples, ~0ul,
-                            false, 0));
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithFullProvTGSegment(tuples, ~0ul,
+                                true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithFullProvTGSegment(tuples, ~0ul,
+                                isSorted, 0));
+                }
             } else {
                 throw 10;
             }
