@@ -448,6 +448,10 @@ void GBGraph::addNodeProv(PredId_t predid,
         std::shared_ptr<const TGSegment> data,
         const std::vector<size_t> &incomingEdges) {
 
+    if (!data->isSorted()) {
+        data = data->sort();
+    }
+
 #ifdef DEBUG
     if (provenanceType == ProvenanceType::NOPROV) {
         LOG(ERRORL) << "This method should be called only if type provenance is"
