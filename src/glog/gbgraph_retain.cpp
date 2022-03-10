@@ -111,21 +111,22 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
 
         //Create offsetMap
         std::vector<
-            std::tuple<size_t, size_t,std::vector<size_t>::iterator>> pathOffsetMap;
+            std::tuple<size_t, size_t,size_t*>> pathOffsetMap;
         std::vector<size_t> rowStats(newtuples->getNRows());
         size_t idx = 0;
         auto itr = newtuples->iterator();
         while (itr->hasNext()) {
             itr->next();
+            assert(idx < rowStats.size());
             if (!toBeDeleted[idx]) {
                 rowStats[idx] = itr->getNProofs();
                 pathOffsetMap.push_back(std::make_tuple(
                             idx, itr->getProvenanceOffset(0, offsetColumn),
-                            rowStats.begin() + idx));
+                            rowStats.data() + idx));
                 for(size_t j = 1; j < itr->getNProofs(); ++j) {
                     pathOffsetMap.push_back(std::make_tuple(
                                 idx, itr->getProvenanceOffset(j, offsetColumn),
-                                rowStats.begin() + idx));
+                                rowStats.data() + idx));
                 }
             }
             idx++;
@@ -152,7 +153,7 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                         }
                     }
                     if (equal) {
-                        auto &counter = std::get<2>(p);
+                        auto counter = std::get<2>(p);
                         assert((*counter) > 0);
                         (*counter)--;
                         if (*counter == 0) {
@@ -171,7 +172,8 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                     auto value = d->getOffsetAtRow(oldOff, 0, off);
                     std::get<1>(pathOffsetMap[m]) = value;
                     for (size_t j = 1; j < d->getNProofsAtRow(oldOff); ++j) {
-                        std::get<2>(pathOffsetMap[m])++;
+                        auto counter = std::get<2>(pathOffsetMap[m]);
+                        (*counter)++;
                         value = d->getOffsetAtRow(oldOff, j, off);
                         pathOffsetMap.push_back(
                                 std::make_tuple(std::get<0>(pathOffsetMap[m]),

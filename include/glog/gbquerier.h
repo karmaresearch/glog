@@ -9,7 +9,7 @@
 
 #include <string>
 
-#define MAX_LENGTH 100
+#define MAX_LENGTH 200
 #define MAX_TUPLE_ARITY 3
         class DuplicateChecker
         {
