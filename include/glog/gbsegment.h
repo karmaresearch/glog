@@ -199,6 +199,10 @@ class TGSegment {
             throw 10;
         }
 
+        virtual bool containsMultipleProofs() const {
+            return false;
+        }
+
         virtual ~TGSegment() {}
 };
 

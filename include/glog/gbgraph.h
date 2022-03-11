@@ -329,6 +329,20 @@ class GBGraph {
             return retain(pred, newtuples, derivationNodes);
         }
 
+        std::shared_ptr<const TGSegment> retainFromDerivationTree_fast(
+                PredId_t p,
+                size_t ruleIdx,
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<
+                std::vector<GBGraph_PathDerivationTree>> &nodesToCheckAgainst);
+
+        std::shared_ptr<const TGSegment> retainFromDerivationTree_slow(
+                PredId_t p,
+                size_t ruleIdx,
+                std::shared_ptr<const TGSegment> newtuples,
+                std::vector<
+                std::vector<GBGraph_PathDerivationTree>> &nodesToCheckAgainst);
+
         std::shared_ptr<const TGSegment> retainFromDerivationTree(
                 PredId_t p,
                 size_t ruleIdx,

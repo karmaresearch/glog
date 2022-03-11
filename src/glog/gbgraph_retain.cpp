@@ -100,6 +100,153 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
                     nodesToCheckAgainst);
         }
     }
+    bool noCompression = true;
+    for(auto &pathNodeToCheckAgainst : nodesToCheckAgainst) {
+        for(size_t j = 0; j < pathNodeToCheckAgainst.size(); ++j) {
+            auto n = pathNodeToCheckAgainst[j].nodeId;
+            auto node = getNodeData(n);
+            if (node->containsMultipleProofs())
+            {
+                noCompression = false;
+                break;
+            }
+        }
+        if (!noCompression)
+            break;
+    }
+    if (noCompression)
+    {
+        return retainFromDerivationTree_fast(
+                p, ruleIdx, newtuples, nodesToCheckAgainst);
+    } else {
+        return retainFromDerivationTree_slow(
+                p, ruleIdx, newtuples, nodesToCheckAgainst);
+    }
+}
+
+std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree_fast(
+        PredId_t p,
+        size_t ruleIdx,
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<
+        std::vector<GBGraph_PathDerivationTree>> &nodesToCheckAgainst) {
+
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
+
+    std::vector<size_t> duplicateRowIdxs;
+    for(auto &pathNodeToCheckAgainst : nodesToCheckAgainst) {
+        //Fill the offsetMap
+        std::vector<std::pair<size_t, size_t>> offsetMap;
+        size_t idx = 0;
+        auto itr = newtuples->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            offsetMap.push_back(std::make_pair(
+                        idx, itr->getProvenanceOffset(0,
+                            pathNodeToCheckAgainst.front().offset)));
+            idx++;
+        }
+
+        for(size_t j = 0; j < pathNodeToCheckAgainst.size(); ++j) {
+            auto n = pathNodeToCheckAgainst[j].nodeId;
+            if (j == pathNodeToCheckAgainst.size() - 1) {
+                auto newItr = newtuples->iterator();
+                auto existData = getNodeData(n);
+                size_t card = existData->getNColumns();
+                size_t idx = 0;
+                while (newItr->hasNext()) {
+                    newItr->next();
+                    bool equal = true;
+                    auto r = offsetMap [idx].second;
+                    for(size_t z = 0; z < card; ++z) {
+                        if (existData->getValueAtRow(r, z) !=
+                                newItr->get(z)) {
+                            equal = false;
+                            break;
+                        }
+                    }
+                    if (equal) {
+                        duplicateRowIdxs.push_back(idx);
+                    }
+                    idx++;
+                }
+            } else {
+                //Take the offset specified in the next node
+                size_t off = pathNodeToCheckAgainst[j+1].offset;
+                auto d = getNodeData(n);
+                for(size_t m = 0; m < offsetMap.size(); ++m) {
+                    auto oldOff = offsetMap[m].second;
+                    auto value = d->getOffsetAtRow(oldOff, 0, off);
+                    offsetMap[m].second = value;
+                }
+            }
+        }
+    }
+
+    std::shared_ptr<const TGSegment> out;
+    if (duplicateRowIdxs.empty()) {
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+        auto dur = end - start;
+        durationRetain += dur;
+        out = newtuples;
+    } else {
+        std::sort(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
+        auto newend = std::unique(duplicateRowIdxs.begin(), duplicateRowIdxs.end());
+        duplicateRowIdxs.erase(newend, duplicateRowIdxs.end());
+        const uint8_t ncols = newtuples->getNColumns();
+        const size_t extracols = newtuples->getNOffsetColumns();
+        auto inserter = GBSegmentInserter::getInserter(ncols + extracols,
+                extracols, false);
+        Term_t row[ncols + extracols];
+        size_t rowIdx = 0;
+        size_t curDuplRowIdx = 0;
+        auto itr = newtuples->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            if (curDuplRowIdx < duplicateRowIdxs.size() &&
+                    rowIdx == duplicateRowIdxs[curDuplRowIdx]) {
+                //skip it
+                curDuplRowIdx++;
+            } else {
+                for(size_t i = 0; i < ncols; ++i) {
+                    row[i] = itr->get(i);
+                }
+                row[ncols] = itr->getNodeId();
+                for(size_t i = 1; i < extracols; ++i) {
+                    row[ncols + i] = itr->getProvenanceOffset(0, i-1);
+                }
+
+                //add the row
+                inserter->add(row);
+            }
+            rowIdx++;
+        }
+        if (inserter->getNRows() == 0) {
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            auto dur = end - start;
+            durationRetain += dur;
+            out = std::shared_ptr<const TGSegment>();
+        } else {
+            std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+            auto dur = end - start;
+            durationRetain += dur;
+            out = inserter->getSegment(newtuples->getNodeId(), true, 0,
+                    getSegProvenanceType(), extracols);
+        }
+    }
+    return out;
+}
+
+std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree_slow(
+        PredId_t p,
+        size_t ruleIdx,
+        std::shared_ptr<const TGSegment> newtuples,
+        std::vector<
+        std::vector<GBGraph_PathDerivationTree>> &nodesToCheckAgainst) {
+
+    std::chrono::steady_clock::time_point start =
+        std::chrono::steady_clock::now();
 
     //Sort the nodes and retain only the longest paths
     GBGraph_PathDerivationTree::removePrefixes(nodesToCheckAgainst);
@@ -196,35 +343,6 @@ std::shared_ptr<const TGSegment> GBGraph::retainFromDerivationTree(
         durationRetain += dur;
         out = newtuples;
     } else {
-        /*const uint8_t ncols = newtuples->getNColumns();
-        const size_t extracols = newtuples->getNOffsetColumns();
-        auto inserter = GBSegmentInserter::getInserter(ncols + extracols,
-                extracols, false);
-        Term_t row[ncols + extracols];
-        size_t rowIdx = 0;
-        size_t curDuplRowIdx = 0;
-        auto itr = newtuples->iterator();
-        while (itr->hasNext()) {
-            itr->next();
-            if (curDuplRowIdx < duplicateRowIdxs.size() &&
-                    rowIdx == duplicateRowIdxs[curDuplRowIdx]) {
-                //skip it
-                curDuplRowIdx++;
-            } else {
-                for(size_t i = 0; i < ncols; ++i) {
-                    row[i] = itr->get(i);
-                }
-                row[ncols] = itr->getNodeId();
-                for(size_t i = 1; i < extracols; ++i) {
-                    row[ncols + i] = itr->getProvenanceOffset(0, i-1);
-                }
-
-                //add the row
-                inserter->add(row);
-            }
-            rowIdx++;
-        }*/
-
         if (newRowIdxs.empty()) {
             std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
             auto dur = end - start;

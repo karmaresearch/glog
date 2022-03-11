@@ -78,5 +78,9 @@ class TGSegmentProvCompr : public TGSegment {
         void appendTo(uint8_t colPos, std::vector<UnWithFullProv> &out) const;
 
         Term_t getValueAtRow(size_t rowIdx, size_t colIdx) const;
+
+        bool containsMultipleProofs() const {
+            return true;
+        }
 };
 #endif
