@@ -71,6 +71,16 @@ class GBQuerier {
                 std::vector<std::vector<Literal>> &out,
                 DuplicateChecker *checker);
 
+        //This method is currently not used
+        void getLeaves_fast(
+                size_t nodeId, size_t factId,
+                PredId_t nodePred,
+                std::shared_ptr<const TGSegment> data,
+                size_t ruleIdx,
+                size_t step,
+                const std::vector<size_t> &incomingEdges,
+                std::vector<std::vector<Literal>> &out);
+
         void exportEDBNode(JSON &out, Literal &l, size_t factId);
 
         void exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &out);
