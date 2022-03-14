@@ -11,30 +11,30 @@
 
 #define MAX_LENGTH 200
 #define MAX_TUPLE_ARITY 3
-        class DuplicateChecker
-        {
-            private:
-                bool enabled;
-                std::vector<std::pair<PredId_t, int>> predicates;
-                std::vector<Term_t> tuples;
-                size_t idxLastElement;
+class DuplicateChecker
+{
+    private:
+        bool enabled;
+        std::vector<std::pair<PredId_t, int>> predicates;
+        std::vector<Term_t> tuples;
+        size_t idxLastElement;
 
-            public:
-                DuplicateChecker() :
-                    enabled(false), predicates(MAX_LENGTH),
-                    tuples(MAX_TUPLE_ARITY * MAX_LENGTH),
-                    idxLastElement(0) {}
-                bool isEnabled() const { return enabled;}
-                void setEnabled() { enabled = true; }
-                bool isRedundant(const Literal &l) const;
-                bool isRedundant(const PredId_t &p,
-                        const std::vector<Term_t> &row) const;
-                void pushFact(const Literal &l);
-                void pushFact(const PredId_t &p, int arity,
-                        const std::vector<Term_t> &row);
-                size_t getMark();
-                void setMark(size_t mark);
-        };
+    public:
+        DuplicateChecker() :
+            enabled(false), predicates(MAX_LENGTH),
+            tuples(MAX_TUPLE_ARITY * MAX_LENGTH),
+            idxLastElement(0) {}
+        bool isEnabled() const { return enabled;}
+        void setEnabled() { enabled = true; }
+        bool isRedundant(const Literal &l) const;
+        bool isRedundant(const PredId_t &p,
+                const std::vector<Term_t> &row) const;
+        void pushFact(const Literal &l);
+        void pushFact(const PredId_t &p, int arity,
+                const std::vector<Term_t> &row);
+        size_t getMark();
+        void setMark(size_t mark);
+};
 
 
 class GBQuerier {
