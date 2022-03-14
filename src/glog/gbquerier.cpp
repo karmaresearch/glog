@@ -131,9 +131,13 @@ void GBQuerier::getLeavesInDerivationTree(
         std::vector<std::vector<Literal>> &out)
 {
     bool valid = true;
+    if (out.empty())
+    {
+        LOG(ERRORL) << "out cannot be empty";
+        throw 10;
+    }
 #ifdef COMPRPROOFS
     DuplicateChecker checker;
-    assert(out.size() == 1);
     const auto &leaves = getLeavesInDerivationTree(nodeId, factId, out, valid,
             &checker);
     if (!valid) {
@@ -250,7 +254,7 @@ bool GBQuerier::getLeaves(
         }
 #endif
 
-        auto nOffsetColumns = data->getNOffsetColumns();
+        auto nOffsetColumns = data->getNOffsetColumns() - 1;
         size_t branching = 0;
         branching = out.back().size();
         size_t mark = checker->getMark();
@@ -322,6 +326,69 @@ bool GBQuerier::getLeaves(
         throw 10;
     }
     return returnValue;
+}
+
+void GBQuerier::getLeaves_fast(
+        size_t nodeId, size_t factId,
+        PredId_t nodePred,
+        std::shared_ptr<const TGSegment> data,
+        size_t ruleIdx,
+        size_t step,
+        const std::vector<size_t> &incomingEdges,
+        std::vector<std::vector<Literal>> &out)
+{
+    if (ruleIdx != ~0ul) {
+        auto ie = incomingEdges;
+        auto row = data->getRow(factId, true);
+        size_t begin = data->getNColumns() + 1; //Skip the node
+        size_t end = data->getNColumns() + data->getNOffsetColumns();
+        size_t j = 0;
+        auto bodyLiterals = p.getRule(ruleIdx).getBody();
+
+        std::vector<std::pair<Term_t, Term_t>> mappings;
+        getMappings(p.getRule(ruleIdx).getHeads()[0], row, mappings);
+
+        for(size_t i = begin; i < end; ++i) {
+            auto bodyLiteral = bodyLiterals[i - begin];
+            auto offset = row[i];
+            if (bodyLiteral.isNegated()) {
+                //There is no provenance of such atoms
+                if (j < ie.size() && ie[j] == ~0ul) {
+                    j++;
+                }
+            } else if (bodyLiteral.getPredicate().isMagic()) {
+                j++;
+            } else if (bodyLiteral.getPredicate().getType() == EDB) {
+                bool isFullyGrounded = true;
+                auto groundedAtom = ground(bodyLiteral, mappings, isFullyGrounded);
+                if (isFullyGrounded)
+                {
+                    out.back().push_back(groundedAtom);
+                } else {
+                    exportEDBNode(bodyLiteral, offset, out.back());
+                }
+                if (j < ie.size() && ie[j] == ~0ul) {
+                    j++;
+                }
+            } else {
+                auto nodeId = ie[j];
+                assert(nodeId != ~0ul);
+                bool isValid = true;
+                std::vector<Term_t> row =
+                    getLeavesInDerivationTree(nodeId, offset, out, isValid, NULL);
+                getMappings(bodyLiteral, row, mappings);
+                j++;
+                if (!isValid)
+                {
+                    //not sure what to do here
+                    throw 10;
+                }
+            }
+        }
+    } else {
+        //TODO: I'm not sure what to do here, this happens with magic atoms
+        throw 10;
+    }
 }
 
 Literal GBQuerier::getFact(PredId_t predId, std::shared_ptr<const
