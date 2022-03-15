@@ -32,15 +32,15 @@ std::unique_ptr<GBSegmentInserter> GBSegmentInserter::getInserter(size_t card,
 std::shared_ptr<const TGSegment> GBSegmentInserter::compressProvNode(
         size_t nodeId, std::shared_ptr<const TGSegment> data)
 {
-    bool shouldCompress = false;
 
+    size_t countUnique = 0;
+    size_t countTotal = 0;
     if (data->getNRows() > 1 &&
             (data->getNColumns() == 1 || data->getNColumns() == 2))
     {
         auto itr = data->iterator();
         Term_t v1, v2;
         v1 = v2 = ~0ul;
-        shouldCompress = true;
         while (itr->hasNext())
         {
             itr->next();
@@ -48,17 +48,24 @@ std::shared_ptr<const TGSegment> GBSegmentInserter::compressProvNode(
             {
                 v1 = itr->get(0);
                 v2 = itr->get(1);
+                countUnique++;
             } else {
                 if (itr->get(0) != v1 || itr->get(1) != v2)
                 {
-                    shouldCompress = false;
-                    break;
+                    countUnique++;
+                    v1 = itr->get(0);
+                    v2 = itr->get(1);
                 }
             }
+            countTotal++;
         }
     }
+    double ratio = 1;
+    if (countTotal > 0)
+        ratio = (double)countUnique / countTotal;
+    //LOG(DEBUGL) << "Total=" << countTotal << " unique=" << countUnique << " ratio=" << ratio << " " << data->getNColumns() << " " << data->getNRows();
 
-    if (shouldCompress)
+    if (ratio<0.3)
     {
         LOG(DEBUGL) << "Compressing the data with " << data->getNRows() << " ...";
         auto compressedData = std::shared_ptr<const TGSegment>(
