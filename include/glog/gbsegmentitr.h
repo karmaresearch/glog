@@ -139,6 +139,10 @@ class TGSegmentCompProvItr : public TGSegmentItr {
         int64_t m_currentIdx;
         int64_t currentIdx;
 
+        const uint32_t arity_provenance;
+        const std::vector<std::pair<size_t, size_t>> &provenance_startend;
+        const std::vector<size_t> &provenance_offsets;
+
         bool shouldTrackProvenance() const {
             return provenanceType != SEG_NOPROV;
         }
@@ -146,9 +150,14 @@ class TGSegmentCompProvItr : public TGSegmentItr {
     public:
         TGSegmentCompProvItr(const SegProvenanceType provenanceType,
                 size_t nodeId, size_t arity,
-                const std::vector<Term_t> &data) :
+                const std::vector<Term_t> &data,
+                const uint32_t arity_provenance,
+                const std::vector<std::pair<size_t, size_t>> &provenance_startend,
+                const std::vector<size_t> &provenance_offsets
+                ) :
             provenanceType(provenanceType), nodeId(nodeId),
-            arity(arity), data(data)
+            arity(arity), data(data), arity_provenance(arity_provenance),
+            provenance_startend(provenance_startend), provenance_offsets(provenance_offsets)
     {
         currentIdx = -arity;
     }
@@ -186,7 +195,8 @@ class TGSegmentCompProvItr : public TGSegmentItr {
         }
 
         size_t getNProofs() const {
-            throw 10; //to implement
+            auto out = provenance_startend[currentIdx].second - provenance_startend[currentIdx].first;
+            return out / arity_provenance;
         }
 };
 

@@ -103,7 +103,7 @@ std::unique_ptr<TGSegmentItr> TGSegmentProvCompr::iterator(
 {
     return std::unique_ptr<TGSegmentItr>(
             new TGSegmentCompProvItr(provenanceType, nodeId, arity,
-                data));
+                data, arity_provenance, provenance_startend, provenance_offsets));
 }
 
 bool TGSegmentProvCompr::isSortedBy(std::vector<uint8_t> &fields) const
