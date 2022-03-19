@@ -268,11 +268,101 @@ bool GBQuerier::getLeaves(
                         out.back().begin() + branching);
                 out.push_back(lastProof);
             }
-            size_t j = 0;
             auto bodyLiterals = p.getRule(ruleIdx).getBody();
-            bool validProof = true;
             std::vector<std::pair<Term_t, Term_t>> mappings;
             getMappings(rule.getHeads()[0], row, mappings);
+
+#ifdef COMPRPROOFS
+            std::vector<IncompleteProofInfo> incompleteProofs;
+            size_t start = 0;
+            size_t j = 0;
+            do
+            {
+                bool validProof = true;
+                for(size_t i = start; i < nOffsetColumns; ++i)
+                {
+                    auto bodyLiteral = bodyLiterals[i];
+                    auto offset = data->getOffsetAtRow(factId, proofId, i);
+                    if (bodyLiteral.isNegated()) {
+                        //There is no provenance of such atoms
+                        if (j < ie.size() && ie[j] == ~0ul) {
+                            j++;
+                        }
+                    } else if (bodyLiteral.getPredicate().isMagic()) {
+                        j++;
+                    } else if (bodyLiteral.getPredicate().getType() == EDB) {
+                        bool isFullyGrounded = true;
+                        auto groundedAtom = ground(bodyLiteral, mappings,
+                                isFullyGrounded);
+                        if (isFullyGrounded)
+                        {
+                            out.back().push_back(groundedAtom);
+                        } else {
+                            exportEDBNode(bodyLiteral, offset, out.back());
+                        }
+                        if (j < ie.size() && ie[j] == ~0ul) {
+                            j++;
+                        }
+                    } else {
+                        auto nodeId = ie[j];
+                        assert(nodeId != ~0ul);
+                        bool isValid = true;
+                        size_t outSize = out.size();
+                        size_t checkerMark = checker->getMark();
+                        std::vector<Term_t> row =
+                            getLeavesInDerivationTree(nodeId, offset, out, isValid,
+                                    checker);
+                        if (!isValid)
+                        {
+                            validProof = false;
+                            break;
+                        }
+
+                        if (i < nOffsetColumns - 1)
+                        {
+                            for(int64_t m = out.size() - 1; m >= outSize; m--)
+                            {
+                                //Add all additional proofs > 0 to the stack
+                                IncompleteProofInfo inf;
+                                inf.start = i + 1;
+                                inf.leaves.swap(out[m]);
+                                inf.mappings = mappings;
+                                inf.j = j + 1;
+                                inf.mark = checkerMark;
+                                incompleteProofs.push_back(inf);
+                                out.pop_back();
+                            }
+                        }
+                        getMappings(bodyLiteral, row, mappings);
+                        j++;
+                    }
+                }
+                if (!validProof) {
+                    if (proofId > 0) {
+                        //Remove the branch
+                        out.pop_back();
+                    } else {
+                        returnValue = false;
+                    }
+                }
+                if (!incompleteProofs.empty())
+                {
+                    //Pull next incomplete proof to process
+                    auto &proofInfo = incompleteProofs.back();
+                    mappings = proofInfo.mappings;
+                    out.push_back(proofInfo.leaves);
+                    start = proofInfo.start;
+                    j = proofInfo.j;
+                    checker->setMark(proofInfo.mark);
+                    checker->setEnabled();
+                    incompleteProofs.pop_back();
+                } else {
+                    break;
+                }
+            } while(true);
+#else
+            size_t j = 0;
+            bool validProof = true;
             for(size_t i = 0; i < nOffsetColumns; ++i) {
                 auto bodyLiteral = bodyLiterals[i];
                 auto offset = data->getOffsetAtRow(factId, proofId, i);
@@ -320,6 +410,7 @@ bool GBQuerier::getLeaves(
                     returnValue = false;
                 }
             }
+#endif
         }
     } else {
         //TODO: I'm not sure what to do here, this happens with magic atoms

@@ -36,12 +36,22 @@ class DuplicateChecker
         void setMark(size_t mark);
 };
 
+class IncompleteProofInfo
+{
+    public:
+        size_t start;
+        std::vector<Literal> leaves;
+        std::vector<std::pair<Term_t, Term_t>> mappings;
+        size_t j;
+        size_t mark;
+};
 
 class GBQuerier {
     private:
         const GBGraph &g;
         Program &p;
         EDBLayer &l;
+
 
         Literal getFact(PredId_t predId,
                 std::shared_ptr<const TGSegment> data, size_t factId);
