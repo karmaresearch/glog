@@ -276,6 +276,7 @@ bool GBQuerier::getLeaves(
             std::vector<IncompleteProofInfo> incompleteProofs;
             size_t start = 0;
             size_t j = 0;
+            bool isMainProof = true;
             do
             {
                 bool validProof = true;
@@ -338,7 +339,7 @@ bool GBQuerier::getLeaves(
                     }
                 }
                 if (!validProof) {
-                    if (proofId > 0) {
+                    if (proofId > 0 || !isMainProof) {
                         //Remove the branch
                         out.pop_back();
                     } else {
@@ -359,6 +360,7 @@ bool GBQuerier::getLeaves(
                 } else {
                     break;
                 }
+                isMainProof = false;
             } while(true);
 #else
             size_t j = 0;
