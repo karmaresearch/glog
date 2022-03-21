@@ -735,12 +735,14 @@ bool GBQuerier::exportNode(JSON &out,
     out.put("tupleIds", getTupleIDs(f));
 
 #ifdef COMPRPROOFS
-    assert(checker != NULL);
-    if (checker->isEnabled() && checker->isRedundant(f))
+    if (checker != NULL)
     {
-        return false;
+        if (checker->isEnabled() && checker->isRedundant(f))
+        {
+            return false;
+        }
+        checker->pushFact(f);
     }
-    checker->pushFact(f);
 #endif
 
     //Add the parents
@@ -753,7 +755,9 @@ bool GBQuerier::exportNode(JSON &out,
         auto bodyLiterals = p.getRule(ruleIdx).getBody();
 
 #ifdef COMPRPROOFS
-        size_t mark = checker->getMark();
+        size_t mark = 0;
+        if (checker != NULL)
+            checker->getMark();
 #endif
 
         for (size_t proofId = 0; proofId < nproofs; ++proofId)
@@ -761,9 +765,12 @@ bool GBQuerier::exportNode(JSON &out,
             JSON parents;
 
 #ifdef COMPRPROOFS
-            checker->setMark(mark);
-            if (checker && proofId > 0) {
-                checker->setEnabled();
+            if (checker)
+            {
+                checker->setMark(mark);
+                if (proofId > 0) {
+                    checker->setEnabled();
+                }
             }
             bool isProofOk = true;
 #endif
@@ -800,7 +807,12 @@ bool GBQuerier::exportNode(JSON &out,
                     }
                 } else {
                     auto nodeId = ie[j];
-                    bool ok = exportNode(parentNode, nodeId, offset, checker);
+                    auto c = checker;
+                    if (bodyLiteral.getPredicate().isMagic())
+                    {
+                        c = NULL; //disable the checker if we are exploring magic predicates
+                    }
+                    bool ok = exportNode(parentNode, nodeId, offset, c);
 #ifdef COMPRPROOFS
                     if (!ok) {
                         isProofOk = false;
