@@ -43,7 +43,6 @@ class IncompleteProofInfo
         std::vector<Literal> leaves;
         std::vector<std::pair<Term_t, Term_t>> mappings;
         size_t j;
-        size_t mark;
 };
 
 class GBQuerier {

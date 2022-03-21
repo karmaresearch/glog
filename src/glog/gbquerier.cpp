@@ -282,6 +282,7 @@ bool GBQuerier::getLeaves(
                 bool validProof = true;
                 for(size_t i = start; i < nOffsetColumns; ++i)
                 {
+                    checker->setMark(mark);
                     auto bodyLiteral = bodyLiterals[i];
                     auto offset = data->getOffsetAtRow(factId, proofId, i);
                     if (bodyLiteral.isNegated()) {
@@ -309,7 +310,6 @@ bool GBQuerier::getLeaves(
                         assert(nodeId != ~0ul);
                         bool isValid = true;
                         size_t outSize = out.size();
-                        size_t checkerMark = checker->getMark();
                         std::vector<Term_t> row =
                             getLeavesInDerivationTree(nodeId, offset, out, isValid,
                                     checker);
@@ -329,7 +329,6 @@ bool GBQuerier::getLeaves(
                                 inf.leaves.swap(out[m]);
                                 inf.mappings = mappings;
                                 inf.j = j + 1;
-                                inf.mark = checkerMark;
                                 incompleteProofs.push_back(inf);
                                 out.pop_back();
                             }
@@ -354,8 +353,8 @@ bool GBQuerier::getLeaves(
                     out.push_back(proofInfo.leaves);
                     start = proofInfo.start;
                     j = proofInfo.j;
-                    checker->setMark(proofInfo.mark);
-                    checker->setEnabled();
+                    //checker->setMark(proofInfo.mark);
+                    //checker->setEnabled();
                     incompleteProofs.pop_back();
                 } else {
                     break;
