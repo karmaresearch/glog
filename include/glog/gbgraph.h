@@ -124,6 +124,7 @@ class GBGraph {
         std::chrono::duration<double, std::milli> durationQueryContain1;
         std::chrono::duration<double, std::milli> durationQueryContain2;
         std::chrono::duration<double, std::milli> durationEDBCheck;
+        std::chrono::duration<double, std::milli> durationCompression;
 
         std::shared_ptr<const TGSegment> retainVsNodeFast(
                 std::shared_ptr<const TGSegment> existuples,
@@ -369,7 +370,7 @@ class GBGraph {
             durationQueryContain1(0),
             durationQueryContain2(0),
             durationEDBCheck(0),
-            /*durationDebug(0),*/
+            durationCompression(0),
             allRules(NULL),
             layer(NULL), program(NULL) {
                 counterNullValues = RULE_SHIFT(1);
@@ -557,7 +558,7 @@ class GBGraph {
                 durationQueryContain.count();
             LOG(INFOL) << "Time EDB check (ms): " <<
                 durationEDBCheck.count();
-            //LOG(INFOL) << "(GBGraph) Time debug (ms): " << durationDebug.count();
+            LOG(INFOL) << "Time compressing lineage (ms): " << durationCompression.count();
         }
 
         static std::vector<size_t> postprocessProvenance(

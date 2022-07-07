@@ -574,7 +574,9 @@ void GBGraph::addNodeProv(PredId_t predid,
     auto nodeId = getNNodes();
 
 #ifdef COMPRPROOFS
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     data = GBSegmentInserter::compressProvNode(nodeId, data);
+    durationCompression += std::chrono::system_clock::now() - start;
 #endif
 
     nodes.emplace_back();
