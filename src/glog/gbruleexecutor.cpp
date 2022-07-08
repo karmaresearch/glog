@@ -366,7 +366,7 @@ void GBRuleExecutor::shouldSortAndRetainEDBSegments(
             nconsts++;
         }
     }
-    shouldRetainUnique = copyVarPos.size() < nvars;
+    shouldRetainUnique = copyVarPos.size() < nvars && provenanceType != GBGraph::ProvenanceType::FULLPROV;
 }
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_IDB(

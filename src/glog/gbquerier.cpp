@@ -257,12 +257,17 @@ bool GBQuerier::getLeaves(
         auto nOffsetColumns = data->getNOffsetColumns() - 1;
         size_t branching = 0;
         branching = out.back().size();
-        size_t mark = checker->getMark();
+        size_t mark = 0;
+        if (checker != NULL)
+            mark = checker->getMark();
         for (size_t proofId = 0; proofId < nProofs; ++proofId)
         {
             if (proofId > 0) {
-                checker->setMark(mark);
-                checker->setEnabled();
+                if (checker != NULL)
+                {
+                    checker->setMark(mark);
+                    checker->setEnabled();
+                }
                 assert(out.size() > 0);
                 std::vector<Literal> lastProof(out.back().begin(),
                         out.back().begin() + branching);
