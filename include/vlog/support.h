@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "term.h"
+#include <kognac/logs.h>
 
 struct vlog_eqstr {
     bool operator()(const std::string &v1, const std::string &v2) const {
@@ -81,6 +82,20 @@ class Dictionary {
             } else {
                 id = itr->second;
                 return true;
+            }
+        }
+
+        void add(const std::string &rawValue, Term_t id) {
+            SimpleInverseHashMap::const_iterator itr = inverseMap.find(id);
+            if (itr == inverseMap.end()) {
+                map.insert(std::make_pair(rawValue, id));
+                inverseMap.insert(std::make_pair(id, rawValue));
+                if (id >= counter) {
+                    counter = id + 1;
+                }
+            } else {
+                LOG(ERRORL) << "rawValue = " << rawValue << ", id = " << id << ", in-table = " << itr->second;
+                assert(false);
             }
         }
 

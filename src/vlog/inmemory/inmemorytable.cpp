@@ -95,7 +95,7 @@ InmemoryTable::InmemoryTable(std::string repository, std::string tablename,
     if (repository == "") {
         repository = ".";
     }
-    std::string tablefile = repository + "/" + tablename + ".csv";
+    std::string tablefile = repository + DIR_SEP + tablename + ".csv";
     std::string gz = tablefile + ".gz";
     istream *ifs = NULL;
     if (Utils::exists(gz)) {
@@ -146,7 +146,7 @@ InmemoryTable::InmemoryTable(std::string repository, std::string tablename,
         }
         delete ifs;
     } else {
-        tablefile = repository + "/" + tablename + ".nt";
+        tablefile = repository + DIR_SEP + tablename + ".nt";
         std::string gz = tablefile + ".gz";
         FileInfo f;
         f.start = 0;
@@ -159,7 +159,7 @@ InmemoryTable::InmemoryTable(std::string repository, std::string tablename,
             f.path = tablefile;
             f.splittable = true;
         } else {
-            std::string e = "While importing data for predicate \"" + layer->getPredName(predid) + "\": could not open file " + tablefile + " nor " + (repository + "/" + tablename + ".csv") + " nor gzipped versions";
+            std::string e = "While importing data for predicate \"" + layer->getPredName(predid) + "\": could not open file " + tablefile + " nor " + (repository + DIR_SEP + tablename + ".csv") + " nor gzipped versions";
             LOG(ERRORL) << e;
             segment = NULL;
             throw(e);
@@ -331,6 +331,7 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
             }
             outputTable->addRow(row);
         }
+        delete iter;
     } else {
         EDBIterator *iter = getSortedIterator2(*lit, *posToFilter);
         std::vector<Term_t *> values(valuesToFilter->size() / posToFilter->size());
@@ -372,6 +373,7 @@ void InmemoryTable::query(QSQQuery *query, TupleTable *outputTable,
             }
             outputTable->addRow(row);
         }
+        delete iter;
     }
 }
 

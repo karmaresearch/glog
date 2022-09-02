@@ -167,25 +167,25 @@ class EDBLayer {
                 PredId_t predId = 0,
                 bool usePredId = false);
 
-        void addTopKTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addTopKTable(const EDBConf::Table &tableConf);
 
-        void addEmbTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addEmbTable(const EDBConf::Table &tableConf);
 
         void addElasticTable(const EDBConf::Table &tableConf);
 
         void addStringTable(bool isUnary, const EDBConf::Table &tableConf);
 
 #ifdef MYSQL
-        void addMySQLTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addMySQLTable(const EDBConf::Table &tableConf);
 #endif
 #ifdef ODBC
-        void addODBCTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addODBCTable(const EDBConf::Table &tableConf);
 #endif
 #ifdef MAPI
-        void addMAPITable(const EDBConf::Table &tableConf);
+        VLIBEXP void addMAPITable(const EDBConf::Table &tableConf);
 #endif
 #ifdef MDLITE
-        void addMDLiteTable(const EDBConf::Table &tableConf);
+        VLIBEXP void addMDLiteTable(const EDBConf::Table &tableConf);
 #endif
         VLIBEXP void addInmemoryTable(const EDBConf::Table &tableConf,
                 std::string edbconfpath);
@@ -202,7 +202,7 @@ class EDBLayer {
         NamedSemiNaiver prevSemiNaiver;
 
         // need to import the mapping predid -> Predicate from prevSemiNaiver
-        void handlePrevSemiNaiver();
+        VLIBEXP void handlePrevSemiNaiver();
 
         std::string name;
 

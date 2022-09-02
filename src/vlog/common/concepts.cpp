@@ -173,8 +173,8 @@ std::string Literal::toprettystring(const Program *program, const EDBLayer *db, 
             out += "A" + std::to_string(tuple.get(i).getId());
         } else {
             if (replaceConstants) {
-                out += "*" + std::to_string(tuple.get(i).getValue());
-                //out += "*";
+                // out += "*" + std::to_string(tuple.get(i).getValue());
+                out += "*";
             } else if (db == NULL) {
                 out += std::to_string(tuple.get(i).getValue());
             } else {
@@ -686,12 +686,11 @@ std::vector<Var_t> Rule::getVarsInBody() const {
 std::vector<Var_t> Rule::getExistentialVariables() const{
     std::vector<Var_t> out;
     std::vector<Var_t> bodyVars = getVarsInBody();
-    for(const auto& head : heads) {
-        for(auto var : head.getAllVars()) {
-            //Does var appear in the body?
-            if (std::find(bodyVars.begin(),bodyVars.end(),var) == bodyVars.end()){
-                out.push_back(var);
-            }
+    std::vector<Var_t> headVars = getVarsInHead();
+    for(auto var : headVars) {
+        //Does var appear in the body?
+        if (std::find(bodyVars.begin(),bodyVars.end(),var) == bodyVars.end()){
+            out.push_back(var);
         }
     }
     return out;
@@ -1180,13 +1179,23 @@ Program::Program(EDBLayer *kb) : kb(kb),
     rewriteCounter(0),
     dictPredicates(kb->getPredDictionary()),
     cardPredicates(kb->getPredicateCardUnorderedMap()) {
-    }
+}
 
+// Note: this constructor does not copy the rules! Is that intentional?
 Program::Program(Program *p, EDBLayer *kb) : kb(kb),
     rewriteCounter(0),
     dictPredicates(p->dictPredicates),
     cardPredicates(p->cardPredicates) {
+
+    Dictionary d = kb->getPredDictionary();
+    for (auto item : d.getMap()) {
+        if (dictPredicates.get(item.first) == -1) {
+            dictPredicates.add(item.first, item.second);
+        } else {
+            assert(dictPredicates.get(item.first) == item.second);
+        }
     }
+}
 
 std::string trim(const std::string& str,
         const std::string& whitespace = "\r \t\xc2\xa0") {
