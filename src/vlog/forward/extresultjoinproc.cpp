@@ -260,7 +260,7 @@ void ExistentialRuleProcessor::retainNonExisting(
 
     std::sort(filterRows.begin(), filterRows.end());
     std::vector<uint64_t> newFilterRows; //Remember only the rows where all
-    //atoms were found
+                                         //atoms were found
     uint8_t count = 0;
     uint64_t prevIdx = ~0lu;
     for(uint64_t i = 0; i < filterRows.size(); ++i) {
@@ -433,7 +433,7 @@ void ExistentialRuleProcessor::addColumns(const int blockid,
 
         if (filterRows.size() == sizecolumns * nAtomsToCheck) {
             return; //every substitution already exists in the database. Nothing
-            //new can be derived.
+                    //new can be derived.
         }
 
         //Filter out the potential values for the derivation
@@ -477,9 +477,9 @@ void ExistentialRuleProcessor::addColumns(const int blockid,
             //The column is existential
             if (!found) {
                 if (!extvars.count(t.getId())) { //Must be existential
-                    //The body might contain more variables than what
-                    //is needed to create existential columns
-                    //First I copy the columns from the body of the rule
+                                                 //The body might contain more variables than what
+                                                 //is needed to create existential columns
+                                                 //First I copy the columns from the body of the rule
 
                     auto extcolumn = chaseMgmt->getNewOrExistingIDs(
                             ruleDetails->rule.getId(),
@@ -633,7 +633,7 @@ void ExistentialRuleProcessor::addColumns(const int blockid,
 
         if (filterRows.size() == sizecolumns * nAtomsToCheck) {
             return; //every substitution already exists in the database. Nothing
-            //new can be derived.
+                    //new can be derived.
         }
 
         //Filter out the potential values for the derivation
@@ -678,7 +678,7 @@ void ExistentialRuleProcessor::addColumns(const int blockid,
             headTerms.push_back(literal.getTermAtPos(i).getId());
         }
     }
-    
+
     //Create existential columns store them in a vector with the corresponding
     //var ID
     std::map<Var_t, std::shared_ptr<Column>> extvars;
@@ -690,14 +690,14 @@ void ExistentialRuleProcessor::addColumns(const int blockid,
             if (t.isVariable()) {
                 bool found = false;
                 for(int j = 0; j < nCopyFromSecond; ++j) { //Does it exist
-                    //in the body?
+                                                           //in the body?
                     if (posFromSecond[j].first == count + i) {
                         found = true;
                         break;
                     }
                 }
                 if (!found && !extvars.count(t.getId())) { //Must be existential
-                    
+
                     std::vector<std::shared_ptr<Column>> depc;
                     std::vector<Var_t> varIds;
                     //A column may be used more than once in the head. Filter duplicates out.
@@ -983,7 +983,7 @@ void ExistentialRuleProcessor::enhanceFunctionTerms(
                         if (!mappings.count(varID)) {
                             if (rmfa) {
                                 mappings.insert(
-                                    std::make_pair(varID, startFreshIDs++));
+                                        std::make_pair(varID, startFreshIDs++));
                             } else {
                                 Program *p = sn->get_RMFC_program();
                                 assert(p != NULL);
@@ -1042,7 +1042,7 @@ bool ExistentialRuleProcessor::blocked_check(uint64_t *row,
     uint64_t newrow[256];
     //Get a starting value for the fresh IDs
     EDBLayer &layer = sn->getEDBLayer();
-    
+
     uint64_t freshIDs;
     layer.getOrAddDictNumber("*", 1, freshIDs);
     freshIDs++;
@@ -1097,7 +1097,7 @@ bool ExistentialRuleProcessor::blocked_check(uint64_t *row,
     std::vector<Literal> input; //"input" corresponds to B_\rho,\sigma in the paper
 
     //First I need to add to body atoms
-    
+
     std::vector<uint64_t> toMatch = blocked_check_computeBodyAtoms(input, row, headPredicateToIgnore);
 
     std::unique_ptr<SemiNaiver> saturation;
@@ -1154,11 +1154,11 @@ bool ExistentialRuleProcessor::blocked_check(uint64_t *row,
             found = true;
 #if DEBUG
             {
-            std::string s = chaseMgmt->getString(tbItr->getCurrentValue(0));
-            for (int i = 1; i < toMatch.size() + nExistentials; i++) {
-                s += ", " + chaseMgmt->getString(tbItr->getCurrentValue(i));
-            }
-            LOG(DEBUGL) << "Trying to match: " << s;
+                std::string s = chaseMgmt->getString(tbItr->getCurrentValue(0));
+                for (int i = 1; i < toMatch.size() + nExistentials; i++) {
+                    s += ", " + chaseMgmt->getString(tbItr->getCurrentValue(i));
+                }
+                LOG(DEBUGL) << "Trying to match: " << s;
             }
 #endif
             for (int i = 0; i < toMatch.size(); i++) {
@@ -1298,7 +1298,7 @@ bool ExistentialRuleProcessor::consolidate(const bool isFinished) {
             if (filterRows.size() == nrows * nAtomsToCheck) {
                 tmpRelation = std::unique_ptr<SegmentInserter>();
                 return false; //every substitution already exists in the database.
-                // Nothing new can be derived.
+                              // Nothing new can be derived.
             }
             //Filter out only valid subs
             if (!filterRows.empty()) {
@@ -1328,7 +1328,7 @@ bool ExistentialRuleProcessor::consolidate(const bool isFinished) {
                     knownColumns,
                     nrows);
             for(uint8_t pos : el.second) { //Add the existential columns to the
-                //final list of columns
+                                           //final list of columns
                 allColumns[pos] = extcolumn;
             }
         }
