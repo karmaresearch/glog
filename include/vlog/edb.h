@@ -403,6 +403,8 @@ class EDBLayer {
 
         VLIBEXP bool getDictText(const uint64_t id, char *text) const;
 
+        VLIBEXP bool getDictText(const uint64_t id, std::string &out) const;
+
         VLIBEXP std::string getDictText(const uint64_t id) const;
 
         Predicate getDBPredicate(int idx) const;

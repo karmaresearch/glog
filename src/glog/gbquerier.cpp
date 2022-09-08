@@ -892,7 +892,14 @@ JSON GBQuerier::getNodeFacts(size_t nodeId) const
         JSON row;
         for(size_t i = 0; i < card; ++i) {
             auto t = itr->get(i);
-            auto str = l.getDictText(t);
+            std::string str = "";
+            bool resp = l.getDictText(t, str);
+            if (!resp)
+            {
+                str = "_:" + std::to_string(t >> 40) + "_"
+                    + std::to_string((t >> 32) & 0377) + "_"
+                    + std::to_string(t & 0xffffffff);
+            }
             row.push_back(str);
         }
         out.push_back(row);

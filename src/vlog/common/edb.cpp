@@ -1479,6 +1479,36 @@ std::string EDBLayer::getDictText(const uint64_t id) const {
     return t;
 }
 
+bool EDBLayer::getDictText(const uint64_t id, std::string &out) const
+{
+    if (IS_NUMBER(id)) {
+        if (IS_UINT(id)) {
+            uint64_t value = GET_UINT(id);
+            out = std::to_string(value);
+            return true;
+        } else if (IS_FLOAT32(id)) {
+            float value = GET_FLOAT32(id);
+            out = std::to_string(value);
+            return true;
+        } else {
+            LOG(ERRORL) << "Datatype for " << id << " was not found";
+            return false;
+        }
+    }
+
+    out = "";
+    bool resp = false;
+    for (auto &table : edbTablesWithDict) {
+        resp = table->getDictText(id, out);
+        if (resp)
+            break;
+    }
+    if (!resp && termsDictionary.get()) {
+        resp = termsDictionary->getRawValue(id, out);
+    }
+    return resp;
+}
+
 uint64_t EDBLayer::getNTerms() const {
     uint64_t size = 0;
     for (auto &table : edbTablesWithDict) {

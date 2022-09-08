@@ -115,6 +115,15 @@ class Dictionary {
             return itr->second;
         }
 
+       bool getRawValue(const Term_t id, std::string &out) const {
+            SimpleInverseHashMap::const_iterator itr = inverseMap.find(id);
+            if (itr == inverseMap.end()) {
+                return false;
+            }
+            out = itr->second;
+            return true;
+        }
+
         std::string tostring() const {
             std::string output = "";
             for (SimpleHashmap::const_iterator itr = map.begin(); itr != map.end(); ++itr) {
