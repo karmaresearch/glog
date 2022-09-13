@@ -24,9 +24,9 @@ void GBRuleExecutor::join(
         for(int i = 0; i < ncols; ++i)
             projectedPos.push_back(i);
         if (provenanceType == GBGraph::ProvenanceType::FULLPROV) {
-            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, true);
+            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, true, NULL);
         } else {
-            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, false);
+            inputRight = processAtom_IDB(literalRight, nodesRight, projectedPos, false, false, NULL);
         }
     } else {
         //It must be an EDB literal because only these do not have nodes
@@ -39,7 +39,7 @@ void GBRuleExecutor::join(
             std::vector<int> allVars;
             for(int i = 0; i < literalRight.getTupleSize(); ++i)
                 allVars.push_back(i);
-            inputRight = processAtom_EDB(literalRight, allVars);
+            inputRight = processAtom_EDB(literalRight, allVars, NULL);
         }
     }
     if (mergeJoinPossible && (!literalRight.isNegated()
@@ -564,7 +564,7 @@ void GBRuleExecutor::nestedloopjoin(
             t.set(VTerm(0,currentKey[i]),fields2[i]);
         }
         Literal l(literalRight.getPredicate(), t);
-        auto segRight = processAtom_EDB(l, positions);
+        auto segRight = processAtom_EDB(l, positions, NULL);
         auto itrRight = segRight->iterator();
         if (itrRight->hasNext()) {
             countLeft = 1; //First determine how many rows in the left side

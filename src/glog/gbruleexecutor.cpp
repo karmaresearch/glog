@@ -229,7 +229,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::addConstants(
             row[p.second] = itr->get(p.first);
         }
         if (tg->getNOffsetColumns() > 0) {
-    assert(itr->getNProofs() == 1);
+            assert(itr->getNProofs() == 1);
             row[nTerms] = itr->getNodeId();
             for(size_t i = 1; i < tg->getNOffsetColumns(); ++i) {
                 row[nTerms + i] = itr->getProvenanceOffset(0, i-1);
@@ -373,7 +373,9 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_IDB(
         const Literal &atom, std::vector<size_t> &nodeIdxs,
         std::vector<int> &copyVarPos,
         bool lazyMode,
-        bool replaceOffsets) {
+        bool replaceOffsets,
+        std::vector<BuiltinFunction> *builtinFunctions) {
+    std::shared_ptr<const TGSegment> output;
     if (atom.getNConstants() > 0) {
         std::vector<Term_t> filterConstants;
         for(size_t i = 0; i < atom.getTupleSize(); ++i) {
@@ -385,17 +387,47 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_IDB(
         }
         auto intermediateResults = g.mergeNodes(nodeIdxs, filterConstants,
                 copyVarPos, lazyMode, replaceOffsets);
-        return intermediateResults;
+        output = intermediateResults;
     } else {
         auto intermediateResults = g.mergeNodes(
                 nodeIdxs, copyVarPos, lazyMode, replaceOffsets);
-        return intermediateResults;
+        output = intermediateResults;
     }
+
+    if (builtinFunctions != NULL && !builtinFunctions->empty())
+    {
+        size_t ncols = output->getNColumns() + output->getNOffsetColumns();
+        auto inserter = GBSegmentInserter::getInserter(ncols,
+                output->getNOffsetColumns(), false);
+        inserter->addBuiltinFunctions(*builtinFunctions);
+        std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
+        auto itr = output->iterator();
+        while (itr->hasNext()) {
+            itr->next();
+            for(size_t i = 0; i < output->getNColumns(); ++i) {
+                row[i] = itr->get(i);
+            }
+            assert(itr->getNProofs() == 1);
+            row[output->getNColumns()] = itr->getNodeId();
+            for(size_t i = 1; i < output->getNOffsetColumns(); ++i) {
+                row[output->getNColumns() + i] = itr->getProvenanceOffset(0, i-1);
+            }
+            inserter->add(row.get());
+        }
+        if (!inserter->isEmpty())
+            output = inserter->getSegment(output->getNodeId(),
+                    output->isSorted(), 0,
+                    output->getProvenanceType(), output->getNOffsetColumns());
+        else
+            output = NULL;
+    }
+    return output;
 }
 
 std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
         const Literal &atom,
-        std::vector<int> &copyVarPos) {
+        std::vector<int> &copyVarPos,
+        std::vector<BuiltinFunction> *builtinFunctions) {
     PredId_t p = atom.getPredicate().getId();
     if (!edbTables.count(p)) {
         auto edbTable = layer.getEDBTable(p);
@@ -415,8 +447,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
     auto &table = edbTables[p];
 
     //I can apply structure sharing safetly
-    bool shouldSort = true;
-    bool shouldRetainUnique = true;
     std::vector<std::shared_ptr<Column>> columns;
     size_t nrows = ~0ul;
     if (table->useSegments()) {
@@ -469,6 +499,8 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
         }
     }
 
+    bool shouldSort = true;
+    bool shouldRetainUnique = true;
     shouldSortAndRetainEDBSegments(
             shouldSort,
             shouldRetainUnique,
@@ -513,10 +545,12 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
         output = seg;
     }
 
-    if (loadAllEDB) {
+    if (loadAllEDB || builtinFunctions != NULL) {
         size_t ncols = output->getNColumns() + output->getNOffsetColumns();
         auto inserter = GBSegmentInserter::getInserter(ncols,
                 output->getNOffsetColumns(), false);
+        if (builtinFunctions != NULL)
+            inserter->addBuiltinFunctions(*builtinFunctions);
         std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(new Term_t[ncols]);
         auto itr = output->iterator();
         while (itr->hasNext()) {
@@ -524,17 +558,20 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::processAtom_EDB(
             for(size_t i = 0; i < output->getNColumns(); ++i) {
                 row[i] = itr->get(i);
             }
-    assert(itr->getNProofs() == 1);
+            assert(itr->getNProofs() == 1);
             row[output->getNColumns()] = itr->getNodeId();
             for(size_t i = 1; i < output->getNOffsetColumns(); ++i) {
                 row[output->getNColumns() + i] = itr->getProvenanceOffset(0, i-1);
             }
             inserter->add(row.get());
         }
-        output = inserter->getSegment(output->getNodeId(), output->isSorted(), 0,
-                output->getProvenanceType(), output->getNOffsetColumns());
+        if (!inserter->isEmpty()) {
+            output = inserter->getSegment(output->getNodeId(), output->isSorted(), 0,
+                    output->getProvenanceType(), output->getNOffsetColumns());
+        } else{
+            output = NULL;
+        }
     }
-
     return output;
 }
 
@@ -860,7 +897,7 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
             break;
 
         std::vector<size_t> nodes; //Not needed (no caching)
-        //Find join variables
+                                   //Find join variables
         std::vector<std::pair<int, int>> joinVarPos;
         std::vector<int> varsToCopyRight;
         std::vector<Term_t> filterConstants;
@@ -1087,22 +1124,17 @@ std::vector<GBRuleOutput> GBRuleExecutor::executeRule(Rule &rule,
                 std::chrono::steady_clock::now();
             if (isCurrentBodyAtomEDB) {
                 intermediateResults = processAtom_EDB(currentBodyAtom,
-                        copyVarPosRight);
+                        copyVarPosRight, &builtinFunctions);
             } else {
                 intermediateResults = processAtom_IDB(currentBodyAtom,
                         bodyNodes[currentBodyNode], copyVarPosRight,
-                        true, true);
+                        true, true, &builtinFunctions);
             }
 
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
             lastDurationFirst += end - start;
             durationFirst += lastDurationFirst;
-            if (!builtinFunctions.empty()) {
-                LOG(ERRORL) << "Builtin functions are not supported if they"
-                    " use variables in one body atom";
-                throw 10;
-            }
             //If empty then stop
             if (intermediateResults == NULL || intermediateResults->isEmpty()) {
                 intermediateResults = std::shared_ptr<const TGSegment>();

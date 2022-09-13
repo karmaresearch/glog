@@ -175,6 +175,8 @@ class EDBLayer {
 
         void addStringTable(bool isUnary, const EDBConf::Table &tableConf);
 
+        void addBuiltinTable(const EDBConf::Table &tableConf);
+
 #ifdef MYSQL
         VLIBEXP void addMySQLTable(const EDBConf::Table &tableConf);
 #endif

@@ -22,6 +22,7 @@
 #include <vlog/inmemory/inmemorytable.h>
 #include <vlog/embeddings/embtable.h>
 #include <vlog/embeddings/topktable.h>
+#include <vlog/builtintable/builtintable.h>
 #include <vlog/text/elastictable.h>
 #include <vlog/text/stringtable.h>
 #include <vlog/text/stringtable_binary.h>
@@ -261,6 +262,8 @@ void EDBLayer::addTable(const EDBConf::Table &table, bool multithreaded,
         addStringTable(false, table);
     } else if (table.type == "StringUnary") {
         addStringTable(true, table);
+    } else if (table.type == "BuiltinFunctions") {
+        addBuiltinTable(table);
     } else {
         LOG(ERRORL) << "Type of table is not supported";
         throw 10;
@@ -366,6 +369,26 @@ void EDBLayer::addStringTable(bool isUnary, const EDBConf::Table &tableConf) {
         table = new StringTableBinary(infot.id, this,
                 tableConf.params[0], param1);
     }
+    infot.arity = table->getArity();
+    infot.manager = std::shared_ptr<EDBTable>(table);
+    dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
+}
+
+void EDBLayer::addBuiltinTable(const EDBConf::Table &tableConf)
+{
+    EDBInfoTable infot;
+    const std::string predicate = tableConf.predname;
+    infot.id = (PredId_t) predDictionary->getOrAdd(predicate);
+    if (doesPredExists(infot.id)) {
+        LOG(WARNL) << "Rewriting table for predicate " << predicate;
+        dbPredicates.erase(infot.id);
+    }
+    BuiltinTable *table;
+    infot.type = "Builtin";
+    table = new BuiltinTable(infot.id, this, tableConf.params[0]);
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));
@@ -1606,7 +1629,6 @@ BuiltinFunction EDBLayer::getBuiltinFunction(const Literal &query) {
     }
     return BuiltinFunction();
 }
-
 
 void EDBMemIterator::init1(PredId_t id, std::vector<Term_t>* v, const bool c1, const Term_t vc1) {
     predid = id;
