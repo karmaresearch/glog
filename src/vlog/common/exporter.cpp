@@ -371,16 +371,40 @@ void Exporter::storeOnFiles(std::string path, const bool decompress,
     }
 }
 
-void Exporter::storeOnFile(std::string path, const PredId_t pred, const bool decompress, const int minLevel, const bool csv) {
-    FCTable *table = sn->getTable(pred);
-    char buffer[MAX_TERM_SIZE];
+void Exporter::printOnScreen(const bool decompress)
+{
+    Program *program = sn->getProgram();
+    size_t npredicates = program->getNPredicates();
+    for (PredId_t predid : program->getAllPredicateIDs()) {
+        FCTable *table = sn->getTable(predid);
+        if (table != NULL && !table->isEmpty()) {
+            std::cout << "Relation " <<
+                generateFileName(program->getPredicateName(predid)) << std::endl;
+            printOnStream(std::cout, predid, decompress, 0, false);
+        }
+    }
+}
 
-    EDBLayer &layer = sn->getEDBLayer();
-
+void Exporter::storeOnFile(std::string path,
+        const PredId_t pred,
+        const bool decompress, const int minLevel, const bool csv)
+{
     std::ofstream streamout(path);
     if (streamout.fail()) {
         throw("Could not open " + path + " for writing");
     }
+    printOnStream(streamout, pred, decompress, minLevel, csv);
+    streamout.close();
+}
+
+void Exporter::printOnStream(std::ostream &streamout,
+        const PredId_t pred,
+        const bool decompress, const int minLevel, const bool csv) {
+
+    FCTable *table = sn->getTable(pred);
+    char buffer[MAX_TERM_SIZE];
+
+    EDBLayer &layer = sn->getEDBLayer();
 
     if (table != NULL && !table->isEmpty()) {
         FCIterator itr = table->read(0);
@@ -438,5 +462,4 @@ void Exporter::storeOnFile(std::string path, const PredId_t pred, const bool dec
             }
         }
     }
-    streamout.close();
 }

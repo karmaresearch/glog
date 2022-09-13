@@ -28,6 +28,7 @@
 #include <vlog/text/stringtable_binary.h>
 #include <vlog/text/stringtable_unary.h>
 #include <vlog/clique/cliquetable.h>
+#include <vlog/timestamp/timestamptable.h>
 #include <vlog/incremental/edb-table-from-idb.h>
 #include <vlog/incremental/edb-table-importer.h>
 
@@ -264,6 +265,8 @@ void EDBLayer::addTable(const EDBConf::Table &table, bool multithreaded,
         addStringTable(true, table);
     } else if (table.type == "BuiltinFunctions") {
         addBuiltinTable(table);
+    } else if (table.type == "Timestamp") {
+        addTimestampTable(table);
     } else {
         LOG(ERRORL) << "Type of table is not supported";
         throw 10;
@@ -389,6 +392,26 @@ void EDBLayer::addBuiltinTable(const EDBConf::Table &tableConf)
     BuiltinTable *table;
     infot.type = "Builtin";
     table = new BuiltinTable(infot.id, this, tableConf.params[0]);
+    infot.arity = table->getArity();
+    infot.manager = std::shared_ptr<EDBTable>(table);
+    dbPredicates.insert(make_pair(infot.id, infot));
+    if (infot.manager->areTermsEncoded()) {
+        edbTablesWithDict.push_back(infot.manager);
+    }
+}
+
+void EDBLayer::addTimestampTable(const EDBConf::Table &tableConf)
+{
+    EDBInfoTable infot;
+    const std::string predicate = tableConf.predname;
+    infot.id = (PredId_t) predDictionary->getOrAdd(predicate);
+    if (doesPredExists(infot.id)) {
+        LOG(WARNL) << "Rewriting table for predicate " << predicate;
+        dbPredicates.erase(infot.id);
+    }
+    TimestampTable *table;
+    infot.type = "Timestamp";
+    table = new TimestampTable(infot.id, this);
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));

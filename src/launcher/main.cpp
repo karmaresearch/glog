@@ -520,6 +520,9 @@ static void store_mat(const std::string &path, ProgramArgs &vm,
         exp.generateTridentDiffIndex(path);
     } else if (storemat_format == "nt") {
         exp.generateNTTriples(path, vm["decompressmat"].as<bool>());
+    } else if (storemat_format == "screen") {
+        exp.printOnScreen(vm["decompressmat"].as<bool>());
+
     } else {
         LOG(ERRORL) << "Option 'storemat_format' not recognized";
         throw 10;
@@ -750,7 +753,8 @@ void launchGBChase(
     }
 #endif
 
-    if (!vm["storemat_path"].as<string>().empty()) {
+    if (vm["storemat_format"].as<string>() == "screen" ||
+                    !vm["storemat_path"].as<string>().empty()) {
         std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
         Exporter exp(sn);
         std::string storemat_format = vm["storemat_format"].as<string>();
@@ -763,6 +767,8 @@ void launchGBChase(
         } else if (storemat_format == "nt") {
             exp.generateNTTriples(vm["storemat_path"].as<string>(),
                     vm["decompressmat"].as<bool>());
+        } else if (storemat_format == "screen") {
+            exp.printOnScreen(vm["decompressmat"].as<bool>());
         } else {
             LOG(ERRORL) << "Option 'storemat_format' not recognized";
             throw 10;

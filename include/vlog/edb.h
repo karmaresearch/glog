@@ -177,6 +177,8 @@ class EDBLayer {
 
         void addBuiltinTable(const EDBConf::Table &tableConf);
 
+        void addTimestampTable(const EDBConf::Table &tableConf);
+
 #ifdef MYSQL
         VLIBEXP void addMySQLTable(const EDBConf::Table &tableConf);
 #endif

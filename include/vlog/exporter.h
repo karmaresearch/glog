@@ -31,6 +31,10 @@ class Exporter {
                 const int64_t nrows,
                 int64_t triple[3]);
 
+        void printOnStream(std::ostream &streamout,
+                const PredId_t pred,
+                const bool decompress, const int minLevel, const bool csv);
+
     public:
         Exporter(std::shared_ptr<Chase> sn) : sn(sn) {}
 
@@ -38,8 +42,12 @@ class Exporter {
 
         VLIBEXP void generateNTTriples(std::string outputdir, bool decompress);
 
-        VLIBEXP void storeOnFile(std::string path, const PredId_t pred, const bool decompress,
+        VLIBEXP void storeOnFile(std::string path,
+                const PredId_t pred,
+                const bool decompress,
                 const int minLevel, const bool csv);
+
+        VLIBEXP void printOnScreen(const bool decompress);
 
         VLIBEXP void storeOnFiles(std::string path, const bool decompress,
                 const int minLevel, const bool csv);
