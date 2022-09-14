@@ -34,6 +34,9 @@
 
 #include <climits>
 #include <inttypes.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <cstdlib>
 
 EDBLayer::EDBLayer(EDBLayer &db, bool copyTables) :
     conf(db.conf),
@@ -1445,7 +1448,26 @@ bool EDBLayer::getDictNumber(const char *text, const size_t sizeText, uint64_t &
 }
 
 bool EDBLayer::getOrAddDictNumber(const char *text, const size_t sizeText,
-        uint64_t &id) {
+        uint64_t &id, bool detectDatatype) {
+    if (detectDatatype)
+    {
+        //Is unsigned integer?
+        char* p;
+        id = strtoul(text, &p, 0);
+        if (p == (text + sizeText) && id >= 0)
+        {
+            //Mask the number
+            id = UINT_MASK(id); 
+            return true;
+        }
+        //Is float?
+        float d = strtof(text, &p);
+        if (p == (text + sizeText))
+        {
+            id = FLOAT32_MASK(d);
+            return true;
+        }
+    }
     bool resp = false;
     resp = getDictNumber(text, sizeText, id);
     if (!resp) {

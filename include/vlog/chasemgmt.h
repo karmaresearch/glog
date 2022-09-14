@@ -19,7 +19,7 @@
 #define GET_VAR(v) (((v) & VAR_MASK) >> 32)
 #define RULEVARMASK (RULE_MASK|VAR_MASK)
 #define COUNTER(v) (v & 0xFFFFFFFF)
-#define IS_NULLVALUE(x) ((x & RULE_MASK)!=0)
+#define IS_NULLVALUE(x) (!IS_NUMBER(x) && ((x & RULE_MASK) != 0))
 
 typedef enum TypeChase {RESTRICTED_CHASE, SKOLEM_CHASE, SUM_CHASE, SUM_RESTRICTED_CHASE } TypeChase;
 

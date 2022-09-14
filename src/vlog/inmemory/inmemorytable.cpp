@@ -74,14 +74,7 @@ std::string convertString(const char *s, int len) {
     if (s == NULL || len == 0) {
         return "";
     }
-
     std::string ss = std::string(s, s+len);
-
-    /*
-    if (len > 1 && s[0] == '"' && s[len-1] == '"') {
-        return (ss + "^^<http://www.w3.org/2001/XMLSchema#string>").c_str();
-    }
-    */
     return ss;
 }
 
@@ -136,7 +129,7 @@ InmemoryTable::InmemoryTable(std::string repository, std::string tablename,
                 std::string tval = row[i];
                 if (tval == "")
                     tval = "<EMPTY>";
-                layer->getOrAddDictNumber(tval.c_str(), tval.size(), val);
+                layer->getOrAddDictNumber(tval.c_str(), tval.size(), val, true);
                 rowc[i] = val;
             }
             if (loadData)

@@ -22,9 +22,10 @@
 #define IS_NUMBER(x) ((x) >> 61)
 #define IS_UINT(x) ((x >> 61) == 1)
 #define IS_FLOAT32(x) ((x >> 61) == 2)
-#define GET_UINT(x) (x & 0x2000000000000000ul)
+#define GET_UINT(x) (x & 0x1FFFFFFFFFFFFFFFul)
 #define GET_FLOAT32(x) (*(float*)&x)
 #define FLOAT32_MASK(x) ( *((uint32_t*)&x) | 0x4000000000000000ul)
+#define UINT_MASK(x) ( *((uint32_t*)&x) | 0x2000000000000000ul)
 
 class Column;
 class SemiNaiver;       // Why cannot I break the software hierarchy? RFHH
@@ -403,7 +404,8 @@ class EDBLayer {
                 const size_t sizeText, uint64_t &id) const;
 
         VLIBEXP bool getOrAddDictNumber(const char *text,
-                const size_t sizeText, uint64_t &id);
+                const size_t sizeText, uint64_t &id,
+                bool detectDatatype = false);
 
         VLIBEXP bool getDictText(const uint64_t id, char *text) const;
 
