@@ -1191,6 +1191,14 @@ std::shared_ptr<GBChase> Reasoner::getGBChase(
         bool edbCheck,
         bool rewriteCliques,
         std::string param1) {
+
+    if ((edbCheck || queryCont) && p->areExistentialRules())
+    {
+        LOG(WARNL) << "edbCheck and queryCont (query containment) are disabled"
+            " because they don't work with existential rules";
+        edbCheck = queryCont = false;
+    }
+
     if (typeChase == GBChaseAlgorithm::GBCHASE) {
         std::shared_ptr<GBChase> sn(new GBChase(layer, p, true,
                     GBGraph::ProvenanceType::NOPROV, false));

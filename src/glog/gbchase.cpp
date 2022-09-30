@@ -574,13 +574,8 @@ void GBChase::run() {
     executor->printStats();
     LOG(INFOL) << "(GBChase) Time stratum preparation (ms): " << durationPreparation.count();
     LOG(INFOL) << "(GBChase) Time rule exec (ms): " << durationRuleExec.count();
-    //LOG(INFOL) << "(GBChase) Time debug (ms): " << durationDebug.count();
     g.printStats();
     stopRun();
-
-    /*std::cout << "Testing derivation trees..." << std::endl;
-      GBQuerier q = GBQuerier(g, *program, layer);
-      auto out = q.getDerivationTree(0, 0);*/
 }
 
 size_t GBChase::getNDerivedFacts() {

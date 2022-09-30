@@ -64,6 +64,7 @@ file(GLOB vlog_SRC
     "src/vlog/trident/*.cpp"
     "src/vlog/cycles/*.cpp"
     "src/vlog/timestamp/*.cpp"
+    "src/vlog/infround/*.cpp"
     "src/vlog/ml/*.cpp"
     "src/vlog/trigger/*.cpp"
     "src/launcher/vloglayer.cpp"

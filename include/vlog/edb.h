@@ -180,6 +180,8 @@ class EDBLayer {
 
         void addTimestampTable(const EDBConf::Table &tableConf);
 
+        void addInfRoundTable(const EDBConf::Table &tableConf);
+
 #ifdef MYSQL
         VLIBEXP void addMySQLTable(const EDBConf::Table &tableConf);
 #endif
