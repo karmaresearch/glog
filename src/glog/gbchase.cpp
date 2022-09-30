@@ -603,7 +603,8 @@ bool GBChase::shouldRetainAtEnd(PredId_t pred) {
     return outcome;
 }
 
-bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates) {
+bool GBChase::executeRule(GBRuleInput &node, bool cleanDuplicates)
+{
     auto &bodyNodes = node.incomingEdges;
     Rule &rule = rules[node.ruleIdx];
 #ifdef WEBINTERFACE

@@ -735,6 +735,12 @@ void launchGBChase(
     }
 #endif
 
+    size_t startStep = 0;
+    size_t maxStep = ~0ul;
+    if (vm["maxstep"].as<int>() != -1)
+        maxStep = vm["maxstep"].as<int>();
+    sn->prepareRun(startStep, maxStep);
+
     LOG(INFOL) << "Starting graph-based chase (" << cmd << ")";
     std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
     sn->run();
