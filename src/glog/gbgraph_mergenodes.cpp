@@ -144,21 +144,44 @@ std::shared_ptr<const TGSegment> GBGraph::mergeNodes_special_unary2(
             }
         } else {
             assert(provenanceType != FULLPROV);
-            std::vector<std::pair<Term_t,Term_t>> tuples;
-            for(auto idbBodyAtomIdx : nodeIdxs) {
-                getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
-            }
-            if (shouldSortAndUnique) {
-                std::sort(tuples.begin(), tuples.end());
-                if (removeDuplicates) {
-                    auto itr = std::unique(tuples.begin(), tuples.end());
-                    tuples.erase(itr, tuples.end());
+            assert(copyVarPos.size() == 1);
+            if (nodeIdxs.size() == 1)
+            {
+                std::vector<Term_t> tuples;
+                auto nodeId = getNodeData(nodeIdxs[0])->getNodeId();
+                assert(nodeId != ~0ul);
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
                 }
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    if (removeDuplicates) {
+                        auto itr = std::unique(tuples.begin(), tuples.end());
+                        tuples.erase(itr, tuples.end());
+                    }
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithConstProvTGSegment(tuples, nodeId, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithConstProvTGSegment(tuples, nodeId, false, 0));
+                }
             } else {
-                return std::shared_ptr<const TGSegment>(
-                        new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                std::vector<std::pair<Term_t,Term_t>> tuples;
+                for(auto idbBodyAtomIdx : nodeIdxs) {
+                    getNodeData(idbBodyAtomIdx)->appendTo(copyVarPos[0], tuples);
+                }
+                if (shouldSortAndUnique) {
+                    std::sort(tuples.begin(), tuples.end());
+                    if (removeDuplicates) {
+                        auto itr = std::unique(tuples.begin(), tuples.end());
+                        tuples.erase(itr, tuples.end());
+                    }
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithProvTGSegment(tuples, ~0ul, true, 0));
+                } else {
+                    return std::shared_ptr<const TGSegment>(
+                            new UnaryWithProvTGSegment(tuples, ~0ul, false, 0));
+                }
             }
         }
     } else {

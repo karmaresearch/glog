@@ -956,8 +956,6 @@ std::shared_ptr<const TGSegment> GBRuleExecutor::performRestrictedCheck(
             }
 
             //Create a TGSegment from SegmentInserter
-            //std::shared_ptr<const Segment> seg = outputJoin->getSegment();
-            //tuples = fromSeg2TGSeg(seg , ~0ul, false, 0, trackProvenance);
             const auto nodeId = (!shouldTrackProvenance() ||
                     tuples->getProvenanceType() == SEG_DIFFNODES) ? ~0ul :
                 tuples->getNodeId();

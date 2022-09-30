@@ -251,9 +251,10 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                         }
                         return std::shared_ptr<const TGSegment>(
                                 new UnaryWithConstProvTGSegment(
-                                    t, tuples.back().second, isSorted,
+                                    t, nodeId, isSorted,
                                     sortedField));
                     } else {
+                        assert(nodeId == ~0ul);
                         return std::shared_ptr<const TGSegment>(
                                 new UnaryWithProvTGSegment(tuples, ~0ul,
                                     isSorted,
@@ -266,16 +267,6 @@ class GBSegmentInserterBinary : public GBSegmentInserterImpl<
                                 sortedField));
                 }
             } else if (provenanceType == SegProvenanceType::SEG_FULLPROV) {
-                /*if (nProvenanceColumns == 2) {
-                  throw 10;
-                  } else if (nProvenanceColumns == 1) {
-                //The second column is the offset
-                return std::shared_ptr<const TGSegment>(
-                new UnaryWithConstNodeFullProvTGSegment(
-                tuples, nodeId, isSorted, sortedField));
-                } else {
-                throw 10;
-                }*/
                 throw 10;
             } else {
                 return std::shared_ptr<const TGSegment>(
