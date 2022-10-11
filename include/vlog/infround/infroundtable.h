@@ -24,6 +24,10 @@ class InfRoundTable: public EDBTable {
             return false;
         }
 
+        bool canChange() {
+            return true;
+        }
+
         void query(QSQQuery *query, TupleTable *outputTable,
                 std::vector<uint8_t> *posToFilter,
                 std::vector<Term_t> *valuesToFilter) {
