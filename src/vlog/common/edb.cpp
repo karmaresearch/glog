@@ -182,6 +182,7 @@ void EDBLayer::addInmemoryTable(const EDBConf::Table &tableConf,
         LOG(DEBUGL) << "Imported InmemoryTable " << pn << " id " << infot.id << " size " << table->getSize();
         // table->dump(std::cerr);
     }
+}
 
     void EDBLayer::addInmemoryTable(std::string predicate,
             std::vector<std::vector<std::string>> &rows) {
