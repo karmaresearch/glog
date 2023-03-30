@@ -1,4 +1,5 @@
 #include <vlog/timestamp/timestampiterator.h>
+#include <cstring>
 
 TimestampIterator::TimestampIterator(PredId_t predid, EDBLayer *layer) :
     predid(predid), first(true), layer(layer)
