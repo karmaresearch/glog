@@ -400,6 +400,7 @@ void EDBLayer::addBuiltinTable(const EDBConf::Table &tableConf)
     table = new BuiltinTable(infot.id, this, tableConf.params[0]);
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
+    LOG(DEBUGL) << "Add BuiltInPredicate " << predicate << " type " << tableConf.params[0];
     dbPredicates.insert(make_pair(infot.id, infot));
     if (infot.manager->areTermsEncoded()) {
         edbTablesWithDict.push_back(infot.manager);

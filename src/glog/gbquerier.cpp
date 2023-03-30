@@ -566,7 +566,7 @@ void GBQuerier::exportEDBNode(Literal &l, size_t factId, std::vector<Literal> &o
         }
     }
     //Fallback to the slow method
-    LOG(ERRORL) << "Slow method, must be fixed!";
+    //LOG(ERRORL) << "Slow method, must be fixed!";
     auto itr = this->l.getIterator(l);
     size_t i = 0;
     bool found = false;

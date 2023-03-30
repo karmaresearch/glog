@@ -1222,7 +1222,7 @@ std::string Program::readFromFile(std::string pathFile, bool rewriteMultihead) {
         std::string line;
         while (std::getline(file, line)) {
             line = trim(line);
-            if (!line.empty() && line.substr(0, 2) != "//") {
+            if (!line.empty() && line.substr(0, 2) != "//" && line.substr(0, 1) != "#" && line.substr(0,1) != "%") {
                 LOG(DEBUGL) << "Parsing rule \"" << line << "\"";
                 std::string s = parseRule(line, rewriteMultihead);
                 if (!s.empty()) {
