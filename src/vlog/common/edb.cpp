@@ -402,6 +402,24 @@ void EDBLayer::addBuiltinTable(const EDBConf::Table &tableConf)
     infot.manager = std::shared_ptr<EDBTable>(table);
     LOG(DEBUGL) << "Add BuiltInPredicate " << predicate << " type " << tableConf.params[0];
     dbPredicates.insert(make_pair(infot.id, infot));
+}
+
+void EDBLayer::addInmemoryTable(std::string predicate,
+        PredId_t id, std::vector<std::vector<std::string>> &rows) {
+    EDBInfoTable infot;
+    infot.id = id;
+    if (doesPredExists(infot.id)) {
+        LOG(TRACEL) << "Rewriting table for predicate " << predicate;
+        dbPredicates.erase(infot.id);
+    }
+    infot.type = "INMEMORY";
+    InmemoryTable *table = new InmemoryTable(infot.id, rows, this);
+    infot.arity = table->getArity();
+    infot.manager = std::shared_ptr<EDBTable>(table);
+    dbPredicates.insert(make_pair(infot.id, infot));
+    LOG(TRACEL) << "Added table for " << predicate << ":" << infot.id << ", arity = " << (int) table->getArity() << ", size = " << table->getSize();
+    //LOG(INFOL) << "Imported InmemoryTable id " << infot.id << " predicate " << predicate;
+    // table->dump(std::cerr);
     if (infot.manager->areTermsEncoded()) {
         edbTablesWithDict.push_back(infot.manager);
     }
@@ -442,27 +460,6 @@ void EDBLayer::addTimestampTable(const EDBConf::Table &tableConf)
     infot.arity = table->getArity();
     infot.manager = std::shared_ptr<EDBTable>(table);
     dbPredicates.insert(make_pair(infot.id, infot));
-    if (infot.manager->areTermsEncoded()) {
-        edbTablesWithDict.push_back(infot.manager);
-    }
-}
-
-void EDBLayer::addInmemoryTable(std::string predicate,
-        PredId_t id, std::vector<std::vector<std::string>> &rows) {
-    EDBInfoTable infot;
-    infot.id = id;
-    if (doesPredExists(infot.id)) {
-        LOG(TRACEL) << "Rewriting table for predicate " << predicate;
-        dbPredicates.erase(infot.id);
-    }
-    infot.type = "INMEMORY";
-    InmemoryTable *table = new InmemoryTable(infot.id, rows, this);
-    infot.arity = table->getArity();
-    infot.manager = std::shared_ptr<EDBTable>(table);
-    dbPredicates.insert(make_pair(infot.id, infot));
-    LOG(TRACEL) << "Added table for " << predicate << ":" << infot.id << ", arity = " << (int) table->getArity() << ", size = " << table->getSize();
-    //LOG(INFOL) << "Imported InmemoryTable id " << infot.id << " predicate " << predicate;
-    // table->dump(std::cerr);
     if (infot.manager->areTermsEncoded()) {
         edbTablesWithDict.push_back(infot.manager);
     }
@@ -1698,6 +1695,7 @@ BuiltinFunction EDBLayer::getBuiltinFunction(const Literal &query) {
     }
     return BuiltinFunction();
 }
+
 
 void EDBMemIterator::init1(PredId_t id, std::vector<Term_t>* v, const bool c1, const Term_t vc1) {
     predid = id;
